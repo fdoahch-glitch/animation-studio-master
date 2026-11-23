@@ -18,7 +18,11 @@ func _run_tests() -> void:
 		return
 
 	var animator = PROCEDURAL_ANIMATOR.new()
-	var library: Dictionary = animator.generate_pose_library()
+	var library: Dictionary = animator.generate_pose_library(1.25)
+	if not is_equal_approx(float(library.get("intensity", 0.0)), 1.25):
+		push_error("No se aplicó el control de intensidad procedural.")
+		quit(1)
+		return
 	var poses: Array = library.get("poses", [])
 	var clips: Array = library.get("animations", [])
 	if poses.size() < 20 or clips.size() < 20:
