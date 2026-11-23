@@ -174,8 +174,33 @@ var generated_character: Dictionary = {}
 var environment_director
 var dialogue_studio
 var active_environment: Dictionary = {}
+var environment_preview_canvas
+var environment_hour_slider: HSlider
+var environment_sun_energy_slider: HSlider
+var environment_ambient_energy_slider: HSlider
+var environment_sky_picker: ColorPickerButton
+var environment_sun_picker: ColorPickerButton
+var environment_weather_picker: OptionButton
+var environment_weather_intensity_slider: HSlider
+var environment_wind_strength_slider: HSlider
+var environment_fog_density_slider: HSlider
+var environment_particles_toggle: CheckBox
+var environment_layer_list: ItemList
+var environment_layer_depth: SpinBox
+var environment_layer_parallax: HSlider
+var environment_layer_opacity: HSlider
+var environment_layer_visible: CheckBox
+var environment_keyframe_list: ItemList
+var environment_keyframe_time: SpinBox
+var environment_selected_layer_id := ""
 var active_script: Dictionary = {}
 var dialogue_line_list: ItemList
+var dialogue_take_list: ItemList
+var dialogue_gain_slider: HSlider
+var dialogue_offset_input: SpinBox
+var dialogue_mute_toggle: CheckBox
+var dialogue_audio_player: AudioStreamPlayer
+var selected_dialogue_take_id := ""
 var microphone_player: AudioStreamPlayer
 var microphone_record_effect: AudioEffectRecord
 var microphone_bus_name := "MicRecord"
@@ -3903,41 +3928,268 @@ func _ensure_environment() -> void:
 func _show_environment_studio() -> void:
 	_ensure_environment()
 	_clear_content()
-	var page=VBoxContainer.new()
-	page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	page.add_theme_constant_override("separation",8)
-	content.add_child(page)
-	_add_heading(page,"Escenarios · iluminación, tiempo y clima","Configura la atmósfera y capas de fondo del proyecto.")
-	var presets=HBoxContainer.new()
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	content.add_child(scroll)
+	var page := VBoxContainer.new()
+	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	page.add_theme_constant_override("separation", 8)
+	scroll.add_child(page)
+	_add_heading(page, "Escenarios · iluminación, tiempo y clima", "Ajusta la atmósfera y comprueba el resultado en la previsualización.")
+	environment_preview_canvas = SCENE_CANVAS.new()
+	environment_preview_canvas.custom_minimum_size = Vector2(680, 300)
+	environment_preview_canvas.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	page.add_child(environment_preview_canvas)
+	environment_preview_canvas.set_scene_data({"id":"environment_preview","objects":[]}, float(project_data.get("width",1920)), float(project_data.get("height",1080)))
+	environment_preview_canvas.set_resource_catalog(project_data.get("resources", []))
+	environment_preview_canvas.set_environment_data(active_environment)
+
+	var presets := HBoxContainer.new()
 	page.add_child(presets)
 	for preset in ["dawn","morning","noon","afternoon","sunset","night"]:
-		_add_button(presets,{"dawn":"Amanecer","morning":"Mañana","noon":"Mediodía","afternoon":"Tarde","sunset":"Atardecer","night":"Noche"}[preset],_apply_environment_preset.bind(preset))
-	var hour=HSlider.new()
-	hour.min_value=0
-	hour.max_value=23.99
-	hour.step=0.25
-	hour.value=float(active_environment.get("hour",12.0))
-	_labeled_control(page,"Hora del día",hour)
-	hour.value_changed.connect(func(v): active_environment["hour"]=v; active_environment["sun_energy"]=clampf(1.0-absf(v-12.0)/15.0,0.12,1.15); _save_environment())
-	var weather=OptionButton.new()
-	var weather_names=["clear","rain","snow","wind","fog","dust"]
-	for w in weather_names: weather.add_item({"clear":"Despejado","rain":"Lluvia","snow":"Nieve","wind":"Viento","fog":"Niebla","dust":"Polvo"}[w])
-	weather.select(maxi(0,weather_names.find(str(active_environment.get("weather","clear")))))
-	_labeled_control(page,"Clima",weather)
-	var intensity=HSlider.new()
-	intensity.min_value=0
-	intensity.max_value=1
-	intensity.step=0.01
-	intensity.value=float(active_environment.get("weather_intensity",0.0))
-	_labeled_control(page,"Intensidad",intensity)
-	_add_button(page,"Aplicar clima",func(): environment_director.set_weather(active_environment,weather_names[weather.selected],intensity.value); _save_environment(); _set_status("Perfil de clima aplicado: "+weather_names[weather.selected]))
-	_add_button(page,"Añadir keyframe ambiental",func(): var result=environment_director.add_keyframe(active_environment,float(active_environment.hour)*60.0,{"sun_energy":float(active_environment.get("sun_energy",1.0)),"weather_intensity":float(active_environment.get("weather_intensity",0.0))}); _save_environment(); _set_status("Keyframe guardado." if result.ok else str(result.error)))
-	_add_button(page,"Añadir capa parallax del fondo seleccionado",func(): var result=environment_director.add_background_layer(active_environment,selected_resource_id,float(active_environment.background_layers.size()),0.35); _save_environment(); _set_status("Capa añadida." if result.ok else str(result.error)))
-	_add_button(page,"Guardar ambiente",_save_environment)
-	var summary=Label.new()
-	summary.text="Capas: %d · Luz solar: %.2f · Ambiente: %.2f" % [active_environment.background_layers.size(),float(active_environment.get("sun_energy",1.0)),float(active_environment.get("ambient_energy",1.0))]
-	page.add_child(summary)
-	_add_button(page,"Volver",_show_workspace)
+		_add_button(presets, {"dawn":"Amanecer","morning":"Mañana","noon":"Mediodía","afternoon":"Tarde","sunset":"Atardecer","night":"Noche"}[preset], _apply_environment_preset.bind(preset))
+
+	environment_hour_slider = HSlider.new()
+	environment_hour_slider.min_value = 0.0
+	environment_hour_slider.max_value = 23.99
+	environment_hour_slider.step = 0.25
+	environment_hour_slider.value = float(active_environment.get("hour", 12.0))
+	_labeled_control(page, "Hora del día", environment_hour_slider)
+	environment_hour_slider.value_changed.connect(func(value: float):
+		environment_director.set_hour(active_environment, value)
+		if is_instance_valid(environment_sun_energy_slider): environment_sun_energy_slider.value = float(active_environment.sun_energy)
+		if is_instance_valid(environment_ambient_energy_slider): environment_ambient_energy_slider.value = float(active_environment.ambient_energy)
+		if is_instance_valid(environment_sky_picker): environment_sky_picker.color = _environment_color_from_value(active_environment.sky_color, Color("#9bc7df"))
+		if is_instance_valid(environment_sun_picker): environment_sun_picker.color = _environment_color_from_value(active_environment.sun_color, Color("#fff4dc"))
+		_save_environment()
+	)
+
+	environment_sun_energy_slider = HSlider.new()
+	environment_sun_energy_slider.min_value = 0.0
+	environment_sun_energy_slider.max_value = 1.5
+	environment_sun_energy_slider.step = 0.01
+	environment_sun_energy_slider.value = float(active_environment.get("sun_energy", 1.0))
+	_labeled_control(page, "Luz solar", environment_sun_energy_slider)
+	environment_sun_energy_slider.value_changed.connect(func(value: float): active_environment["sun_energy"] = value; _save_environment())
+
+	environment_ambient_energy_slider = HSlider.new()
+	environment_ambient_energy_slider.min_value = 0.0
+	environment_ambient_energy_slider.max_value = 1.5
+	environment_ambient_energy_slider.step = 0.01
+	environment_ambient_energy_slider.value = float(active_environment.get("ambient_energy", 1.0))
+	_labeled_control(page, "Luz ambiental", environment_ambient_energy_slider)
+	environment_ambient_energy_slider.value_changed.connect(func(value: float): active_environment["ambient_energy"] = value; _save_environment())
+
+	environment_sky_picker = ColorPickerButton.new()
+	environment_sky_picker.color = _environment_color_from_value(active_environment.get("sky_color", [0.35,0.62,0.9]), Color("#9bc7df"))
+	_labeled_control(page, "Color del cielo", environment_sky_picker)
+	environment_sky_picker.color_changed.connect(func(color: Color): active_environment["sky_color"] = [color.r,color.g,color.b]; _save_environment())
+
+	environment_sun_picker = ColorPickerButton.new()
+	environment_sun_picker.color = _environment_color_from_value(active_environment.get("sun_color", [1.0,0.96,0.86]), Color("#fff4dc"))
+	_labeled_control(page, "Color de la luz", environment_sun_picker)
+	environment_sun_picker.color_changed.connect(func(color: Color): active_environment["sun_color"] = [color.r,color.g,color.b]; _save_environment())
+
+	var weather_row := HBoxContainer.new()
+	page.add_child(weather_row)
+	var weather_label := Label.new()
+	weather_label.text = "Clima"
+	weather_label.custom_minimum_size.x = 150
+	weather_row.add_child(weather_label)
+	environment_weather_picker = OptionButton.new()
+	var weather_names := ["clear","rain","snow","wind","fog","dust"]
+	for weather_name in weather_names:
+		environment_weather_picker.add_item({"clear":"Despejado","rain":"Lluvia","snow":"Nieve","wind":"Viento","fog":"Niebla","dust":"Polvo"}[weather_name])
+	environment_weather_picker.select(maxi(0, weather_names.find(str(active_environment.get("weather","clear")))))
+	environment_weather_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	weather_row.add_child(environment_weather_picker)
+	environment_weather_picker.item_selected.connect(func(index: int):
+		environment_director.set_weather(active_environment, weather_names[index], float(active_environment.get("weather_intensity",0.0)))
+		if is_instance_valid(environment_wind_strength_slider): environment_wind_strength_slider.value = float(active_environment.get("wind_strength",0.0))
+		if is_instance_valid(environment_fog_density_slider): environment_fog_density_slider.value = float(active_environment.get("fog_density",0.0))
+		_save_environment()
+	)
+
+	environment_weather_intensity_slider = HSlider.new()
+	environment_weather_intensity_slider.min_value = 0.0
+	environment_weather_intensity_slider.max_value = 1.0
+	environment_weather_intensity_slider.step = 0.01
+	environment_weather_intensity_slider.value = float(active_environment.get("weather_intensity",0.0))
+	_labeled_control(page, "Intensidad del clima", environment_weather_intensity_slider)
+	environment_weather_intensity_slider.value_changed.connect(func(value: float):
+		environment_director.set_weather(active_environment, weather_names[environment_weather_picker.selected], value)
+		_save_environment()
+	)
+
+	environment_wind_strength_slider = HSlider.new()
+	environment_wind_strength_slider.min_value = 0.0
+	environment_wind_strength_slider.max_value = 1.0
+	environment_wind_strength_slider.step = 0.01
+	environment_wind_strength_slider.value = float(active_environment.get("wind_strength",0.0))
+	_labeled_control(page, "Fuerza del viento", environment_wind_strength_slider)
+	environment_wind_strength_slider.value_changed.connect(func(value: float): active_environment["wind_strength"] = value; _save_environment())
+
+	environment_fog_density_slider = HSlider.new()
+	environment_fog_density_slider.min_value = 0.0
+	environment_fog_density_slider.max_value = 1.0
+	environment_fog_density_slider.step = 0.01
+	environment_fog_density_slider.value = float(active_environment.get("fog_density",0.0))
+	_labeled_control(page, "Densidad de niebla", environment_fog_density_slider)
+	environment_fog_density_slider.value_changed.connect(func(value: float): active_environment["fog_density"] = value; _save_environment())
+
+	environment_particles_toggle = CheckBox.new()
+	environment_particles_toggle.text = "Mostrar partículas ambientales"
+	environment_particles_toggle.button_pressed = bool(active_environment.get("particles_enabled", true))
+	page.add_child(environment_particles_toggle)
+	environment_particles_toggle.toggled.connect(func(enabled: bool): active_environment["particles_enabled"] = enabled; _save_environment())
+
+	_add_heading(page, "Capas de fondo · profundidad y parallax", "Añade recursos de imagen y ajusta su movimiento, opacidad y visibilidad.")
+	environment_layer_list = ItemList.new()
+	environment_layer_list.custom_minimum_size.y = 100
+	environment_layer_list.item_selected.connect(_on_environment_layer_selected)
+	page.add_child(environment_layer_list)
+	environment_layer_depth = SpinBox.new()
+	environment_layer_depth.min_value = -10000
+	environment_layer_depth.max_value = 10000
+	environment_layer_depth.step = 0.1
+	_labeled_control(page, "Profundidad", environment_layer_depth)
+	environment_layer_parallax = HSlider.new()
+	environment_layer_parallax.min_value = 0.0
+	environment_layer_parallax.max_value = 2.0
+	environment_layer_parallax.step = 0.01
+	_labeled_control(page, "Parallax", environment_layer_parallax)
+	environment_layer_opacity = HSlider.new()
+	environment_layer_opacity.min_value = 0.0
+	environment_layer_opacity.max_value = 1.0
+	environment_layer_opacity.step = 0.01
+	_labeled_control(page, "Opacidad", environment_layer_opacity)
+	environment_layer_visible = CheckBox.new()
+	environment_layer_visible.text = "Capa visible"
+	environment_layer_visible.button_pressed = true
+	page.add_child(environment_layer_visible)
+	_refresh_environment_layers()
+	_add_button(page, "Aplicar propiedades a la capa", _apply_environment_layer_settings)
+	_add_button(page, "Añadir fondo seleccionado como capa", func():
+		var result = environment_director.add_background_layer(active_environment, selected_resource_id, float(active_environment.background_layers.size()), 0.35)
+		if result.ok:
+			_refresh_environment_layers()
+			_save_environment()
+		else:
+			_set_status(str(result.error))
+	)
+	_add_button(page, "Eliminar capa seleccionada", _remove_selected_environment_layer)
+
+	_add_heading(page, "Keyframes ambientales", "Guarda cambios de iluminación y clima a lo largo de la escena.")
+	environment_keyframe_time = SpinBox.new()
+	environment_keyframe_time.min_value = 0.0
+	environment_keyframe_time.max_value = 86400.0
+	environment_keyframe_time.step = 0.1
+	environment_keyframe_time.value = float(active_environment.get("hour",12.0)) * 3600.0
+	_labeled_control(page, "Tiempo (segundos)", environment_keyframe_time)
+	environment_keyframe_list = ItemList.new()
+	environment_keyframe_list.custom_minimum_size.y = 100
+	page.add_child(environment_keyframe_list)
+	_refresh_environment_keyframes()
+	_add_button(page, "Añadir / reemplazar keyframe ambiental", func():
+		var values := {
+			"hour": float(active_environment.get("hour",12.0)),
+			"sun_energy": float(active_environment.get("sun_energy",1.0)),
+			"ambient_energy": float(active_environment.get("ambient_energy",1.0)),
+			"weather_intensity": float(active_environment.get("weather_intensity",0.0)),
+			"wind_strength": float(active_environment.get("wind_strength",0.0)),
+			"fog_density": float(active_environment.get("fog_density",0.0)),
+			"sun_color": active_environment.get("sun_color",[1.0,0.96,0.86]),
+			"sky_color": active_environment.get("sky_color",[0.35,0.62,0.9])
+		}
+		var result = environment_director.add_keyframe(active_environment, environment_keyframe_time.value, values)
+		if result.ok:
+			_refresh_environment_keyframes()
+			_save_environment()
+			_set_status("Keyframe ambiental guardado.")
+		else:
+			_set_status(str(result.error))
+	)
+	_add_button(page, "Eliminar keyframe seleccionado", _remove_selected_environment_keyframe)
+	_add_button(page, "Guardar ambiente", _save_environment)
+	_add_button(page, "Volver", _show_workspace)
+
+func _environment_color_from_value(value: Variant, fallback: Color) -> Color:
+	if value is Array and value.size() >= 3:
+		return Color(float(value[0]), float(value[1]), float(value[2]), 1.0)
+	return fallback
+
+func _refresh_environment_layers() -> void:
+	if not is_instance_valid(environment_layer_list):
+		return
+	environment_layer_list.clear()
+	var layers: Array = active_environment.get("background_layers", [])
+	for layer in layers:
+		environment_layer_list.add_item("%s · z %.1f · parallax %.2f" % [str(layer.get("resource_id","Fondo")),float(layer.get("depth",0.0)),float(layer.get("parallax",1.0))])
+		environment_layer_list.set_item_metadata(environment_layer_list.item_count - 1, str(layer.get("id","")))
+	if not layers.is_empty():
+		environment_layer_list.select(0)
+		_on_environment_layer_selected(0)
+
+func _on_environment_layer_selected(index: int) -> void:
+	if not is_instance_valid(environment_layer_list) or index < 0 or index >= environment_layer_list.item_count:
+		return
+	environment_selected_layer_id = str(environment_layer_list.get_item_metadata(index))
+	for layer in active_environment.get("background_layers", []):
+		if str(layer.get("id","")) == environment_selected_layer_id:
+			environment_layer_depth.value = float(layer.get("depth",0.0))
+			environment_layer_parallax.value = float(layer.get("parallax",1.0))
+			environment_layer_opacity.value = float(layer.get("opacity",1.0))
+			environment_layer_visible.button_pressed = bool(layer.get("visible",true))
+			return
+
+func _apply_environment_layer_settings() -> void:
+	if environment_selected_layer_id.is_empty():
+		_set_status("Selecciona una capa de fondo.")
+		return
+	var result = environment_director.update_background_layer(active_environment, environment_selected_layer_id, {
+		"depth": environment_layer_depth.value,
+		"parallax": environment_layer_parallax.value,
+		"opacity": environment_layer_opacity.value,
+		"visible": environment_layer_visible.button_pressed
+	})
+	if result.ok:
+		_refresh_environment_layers()
+		_save_environment()
+		_set_status("Propiedades de capa guardadas.")
+
+func _remove_selected_environment_layer() -> void:
+	if environment_selected_layer_id.is_empty():
+		_set_status("Selecciona una capa de fondo.")
+		return
+	var result = environment_director.remove_background_layer(active_environment, environment_selected_layer_id)
+	if result.ok:
+		environment_selected_layer_id = ""
+		_refresh_environment_layers()
+		_save_environment()
+		_set_status("Capa eliminada.")
+
+func _refresh_environment_keyframes() -> void:
+	if not is_instance_valid(environment_keyframe_list):
+		return
+	environment_keyframe_list.clear()
+	for frame in active_environment.get("keyframes", []):
+		environment_keyframe_list.add_item("%.2f s · luz %.2f · clima %.2f" % [float(frame.get("time",0.0)),float(frame.get("values",{}).get("sun_energy",0.0)),float(frame.get("values",{}).get("weather_intensity",0.0))])
+		environment_keyframe_list.set_item_metadata(environment_keyframe_list.item_count - 1, float(frame.get("time",0.0)))
+
+func _remove_selected_environment_keyframe() -> void:
+	if not is_instance_valid(environment_keyframe_list) or environment_keyframe_list.is_anything_selected() == false:
+		_set_status("Selecciona un keyframe ambiental.")
+		return
+	var selected := environment_keyframe_list.get_selected_items()
+	if selected.is_empty():
+		return
+	var time_seconds := float(environment_keyframe_list.get_item_metadata(selected[0]))
+	var result = environment_director.remove_keyframe(active_environment, time_seconds)
+	if result.ok:
+		_refresh_environment_keyframes()
+		_save_environment()
+		_set_status("Keyframe eliminado.")
+
 
 func _labeled_control(parent: Node, label_text: String, control: Control) -> HBoxContainer:
 	var row=HBoxContainer.new()
@@ -3953,6 +4205,11 @@ func _labeled_control(parent: Node, label_text: String, control: Control) -> HBo
 func _apply_environment_preset(preset: String) -> void:
 	var result=environment_director.set_time_preset(active_environment,preset)
 	if result.ok:
+		if is_instance_valid(environment_hour_slider): environment_hour_slider.value = float(active_environment.hour)
+		if is_instance_valid(environment_sun_energy_slider): environment_sun_energy_slider.value = float(active_environment.sun_energy)
+		if is_instance_valid(environment_ambient_energy_slider): environment_ambient_energy_slider.value = float(active_environment.ambient_energy)
+		if is_instance_valid(environment_sky_picker): environment_sky_picker.color = _environment_color_from_value(active_environment.sky_color, Color("#9bc7df"))
+		if is_instance_valid(environment_sun_picker): environment_sun_picker.color = _environment_color_from_value(active_environment.sun_color, Color("#fff4dc"))
 		_save_environment()
 		_set_status("Preset horario aplicado: " + preset)
 
@@ -3964,6 +4221,9 @@ func _save_environment() -> void:
 	project_data["environments"]=[active_environment.duplicate(true)]
 	if is_instance_valid(scene_canvas):
 		scene_canvas.set_environment_data(active_environment)
+	if is_instance_valid(environment_preview_canvas):
+		environment_preview_canvas.set_resource_catalog(project_data.get("resources", []))
+		environment_preview_canvas.set_environment_data(active_environment)
 	_save_project()
 
 func _ensure_dialogue_script() -> void:
@@ -3975,36 +4235,36 @@ func _ensure_dialogue_script() -> void:
 func _show_dialogue_studio() -> void:
 	_ensure_dialogue_script()
 	_clear_content()
-	var scroll=ScrollContainer.new()
+	var scroll := ScrollContainer.new()
 	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	content.add_child(scroll)
-	var page=VBoxContainer.new()
-	page.custom_minimum_size.x=620
-	page.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-	page.add_theme_constant_override("separation",8)
+	var page := VBoxContainer.new()
+	page.custom_minimum_size.x = 620
+	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	page.add_theme_constant_override("separation", 8)
 	scroll.add_child(page)
-	_add_heading(page,"Guion, diálogos y doblaje","Crea líneas de diálogo y subtítulos sincronizados; registra tomas de voz importadas.")
-	var speaker=LineEdit.new()
-	speaker.placeholder_text="Personaje / locutor"
+	_add_heading(page, "Guion, diálogos y doblaje", "Crea subtítulos, graba tomas, ajusta mezcla y genera una pista de sincronización labial.")
+	var speaker := LineEdit.new()
+	speaker.placeholder_text = "Personaje / locutor"
 	page.add_child(speaker)
-	var line_text=TextEdit.new()
-	line_text.placeholder_text="Texto del diálogo"
-	line_text.custom_minimum_size.y=90
+	var line_text := TextEdit.new()
+	line_text.placeholder_text = "Texto del diálogo"
+	line_text.custom_minimum_size.y = 90
 	page.add_child(line_text)
-	var times=HBoxContainer.new()
+	var times := HBoxContainer.new()
 	page.add_child(times)
-	var start=SpinBox.new()
-	start.min_value=0
-	start.max_value=36000
-	start.step=0.1
-	start.prefix="Inicio "
+	var start := SpinBox.new()
+	start.min_value = 0
+	start.max_value = 36000
+	start.step = 0.1
+	start.prefix = "Inicio "
 	times.add_child(start)
-	var finish=SpinBox.new()
-	finish.min_value=0.1
-	finish.max_value=36000
-	finish.step=0.1
-	finish.value=2.5
-	finish.prefix="Fin "
+	var finish := SpinBox.new()
+	finish.min_value = 0.1
+	finish.max_value = 36000
+	finish.step = 0.1
+	finish.value = 2.5
+	finish.prefix = "Fin "
 	times.add_child(finish)
 	_add_button(page, "Añadir diálogo / subtítulo", func():
 		var result: Dictionary = dialogue_studio.add_line(active_script, speaker.text, line_text.text, start.value, finish.value)
@@ -4012,15 +4272,42 @@ func _show_dialogue_studio() -> void:
 			line_text.clear()
 			selected_dialogue_line_id = str(result.line.get("id", ""))
 			_refresh_dialogue_lines()
+			_refresh_dialogue_takes()
 			_save_dialogue_script()
 		else:
 			_set_status(str(result.error))
 	)
-	dialogue_line_list=ItemList.new()
-	dialogue_line_list.custom_minimum_size.y=180
+	dialogue_line_list = ItemList.new()
+	dialogue_line_list.custom_minimum_size.y = 160
 	dialogue_line_list.item_selected.connect(_on_dialogue_line_selected)
 	page.add_child(dialogue_line_list)
 	_refresh_dialogue_lines()
+
+	_add_heading(page, "Tomas de voz y mezcla", "Selecciona una línea y gestiona sus tomas, volumen, silencio y desplazamiento.")
+	dialogue_take_list = ItemList.new()
+	dialogue_take_list.custom_minimum_size.y = 130
+	dialogue_take_list.item_selected.connect(_on_dialogue_take_selected)
+	page.add_child(dialogue_take_list)
+	_refresh_dialogue_takes()
+	dialogue_gain_slider = HSlider.new()
+	dialogue_gain_slider.min_value = -60.0
+	dialogue_gain_slider.max_value = 12.0
+	dialogue_gain_slider.step = 0.5
+	dialogue_gain_slider.value = 0.0
+	_labeled_control(page, "Ganancia (dB)", dialogue_gain_slider)
+	dialogue_offset_input = SpinBox.new()
+	dialogue_offset_input.min_value = 0.0
+	dialogue_offset_input.max_value = 36000.0
+	dialogue_offset_input.step = 0.01
+	dialogue_offset_input.prefix = "Offset (s) "
+	_labeled_control(page, "Inicio de toma", dialogue_offset_input)
+	dialogue_mute_toggle = CheckBox.new()
+	dialogue_mute_toggle.text = "Silenciar toma"
+	page.add_child(dialogue_mute_toggle)
+	_add_button(page, "Guardar mezcla de la toma", _save_dialogue_take_mix)
+	_add_button(page, "Reproducir toma seleccionada", _play_dialogue_take)
+	_add_button(page, "Detener reproducción", _stop_dialogue_take_playback)
+
 	microphone_countdown_label = Label.new()
 	microphone_countdown_label.text = "Micrófono listo · cuenta regresiva de 3 segundos"
 	page.add_child(microphone_countdown_label)
@@ -4030,15 +4317,24 @@ func _show_dialogue_studio() -> void:
 		microphone_countdown_timer.wait_time = 1.0
 		microphone_countdown_timer.timeout.connect(_on_microphone_countdown_tick)
 		add_child(microphone_countdown_timer)
-	_add_button(page,"Iniciar grabación · 3 s",_begin_microphone_recording_countdown)
-	_add_button(page,"Detener y registrar toma WAV",_stop_or_cancel_microphone_recording)
-	_add_button(page,"Registrar toma de audio importada",_register_dialogue_take)
-	_add_button(page,"Validar y guardar guion",_save_dialogue_script)
-	var note=Label.new()
-	note.text="Selecciona una línea para asociar la toma de voz. Si no seleccionas ninguna, se usará la última línea. La grabación guarda WAV y requiere permiso del sistema y una entrada de audio habilitada."
-	note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	_add_button(page, "Iniciar grabación · 3 s", _begin_microphone_recording_countdown)
+	_add_button(page, "Detener y registrar toma WAV", _stop_or_cancel_microphone_recording)
+	_add_button(page, "Registrar toma de audio importada", _register_dialogue_take)
+
+	_add_heading(page, "Sincronización labial", "Genera visemas aproximados desde audio PCM WAV y previsualízalos en el rig 3D.")
+	_add_button(page, "Generar visemas desde WAV seleccionado", _generate_visemes_from_selected_take)
+	_add_button(page, "Previsualizar visemas en personaje 3D", _preview_dialogue_visemes)
+	_add_button(page, "Detener sincronización labial", func():
+		if is_instance_valid(runtime_spatial_animator): runtime_spatial_animator.stop_viseme_track()
+		_set_status("Previsualización de visemas detenida.")
+	)
+	_add_button(page, "Validar y guardar guion", _save_dialogue_script)
+	var note := Label.new()
+	note.text = "La estimación de visemas se basa en energía PCM, no en reconocimiento fonético. La captura directa requiere permiso de micrófono y una entrada de audio habilitada."
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	page.add_child(note)
-	_add_button(page,"Volver",_show_workspace)
+	_add_button(page, "Volver", _show_workspace)
+
 
 func _refresh_dialogue_lines() -> void:
 	if not is_instance_valid(dialogue_line_list):
@@ -4058,10 +4354,147 @@ func _refresh_dialogue_lines() -> void:
 	if selected_index >= 0:
 		dialogue_line_list.select(selected_index)
 
+func _refresh_dialogue_takes() -> void:
+	if not is_instance_valid(dialogue_take_list):
+		return
+	dialogue_take_list.clear()
+	var takes: Array = dialogue_studio.get_takes_for_line(active_script, selected_dialogue_line_id)
+	var selected_index := -1
+	for index in range(takes.size()):
+		var take: Dictionary = takes[index]
+		var muted_label := " · silenciada" if bool(take.get("muted", false)) else ""
+		dialogue_take_list.add_item("Toma %d · %.2f s · %.1f dB%s" % [int(take.get("take_number",index+1)),float(take.get("duration",0.0)),float(take.get("gain_db",0.0)),muted_label])
+		dialogue_take_list.set_item_metadata(index, str(take.get("id","")))
+		if str(take.get("id","")) == selected_dialogue_take_id:
+			selected_index = index
+	if selected_index < 0 and not takes.is_empty():
+		selected_index = 0
+		selected_dialogue_take_id = str(takes[0].get("id",""))
+	if selected_index >= 0:
+		dialogue_take_list.select(selected_index)
+		_on_dialogue_take_selected(selected_index)
+
+func _find_dialogue_take(take_id: String = "") -> Dictionary:
+	var wanted := take_id if not take_id.is_empty() else selected_dialogue_take_id
+	for take in active_script.get("audio_tracks", []):
+		if str(take.get("id","")) == wanted:
+			return take
+	return {}
+
+func _on_dialogue_take_selected(index: int) -> void:
+	if not is_instance_valid(dialogue_take_list) or index < 0 or index >= dialogue_take_list.item_count:
+		return
+	selected_dialogue_take_id = str(dialogue_take_list.get_item_metadata(index))
+	var take := _find_dialogue_take()
+	if take.is_empty():
+		return
+	dialogue_studio.select_take(active_script, str(take.get("line_id","")), selected_dialogue_take_id)
+	if is_instance_valid(dialogue_gain_slider): dialogue_gain_slider.value = float(take.get("gain_db",0.0))
+	if is_instance_valid(dialogue_offset_input): dialogue_offset_input.value = float(take.get("offset",0.0))
+	if is_instance_valid(dialogue_mute_toggle): dialogue_mute_toggle.button_pressed = bool(take.get("muted",false))
+	_set_status("Toma seleccionada: %d" % int(take.get("take_number",1)))
+
+func _save_dialogue_take_mix() -> void:
+	var take := _find_dialogue_take()
+	if take.is_empty():
+		_set_status("Selecciona una toma de audio.")
+		return
+	var result := dialogue_studio.update_take_mix(
+		active_script,
+		selected_dialogue_take_id,
+		dialogue_gain_slider.value if is_instance_valid(dialogue_gain_slider) else float(take.get("gain_db",0.0)),
+		dialogue_offset_input.value if is_instance_valid(dialogue_offset_input) else float(take.get("offset",0.0)),
+		dialogue_mute_toggle.button_pressed if is_instance_valid(dialogue_mute_toggle) else bool(take.get("muted",false))
+	)
+	if result.ok:
+		_save_dialogue_script()
+		_refresh_dialogue_takes()
+		_set_status("Mezcla de toma guardada.")
+
+func _load_dialogue_audio_stream(path: String) -> AudioStream:
+	match path.get_extension().to_lower():
+		"wav":
+			return dialogue_studio.load_pcm_wav(path)
+		"ogg":
+			return AudioStreamOggVorbis.load_from_file(path)
+		"mp3":
+			var mp3 := AudioStreamMP3.new()
+			mp3.data = FileAccess.get_file_as_bytes(path)
+			return mp3
+	return null
+
+func _play_dialogue_take() -> void:
+	var take := _find_dialogue_take()
+	if take.is_empty():
+		_set_status("Selecciona una toma de audio.")
+		return
+	var path := str(take.get("audio_path",""))
+	var stream := _load_dialogue_audio_stream(path)
+	if stream == null:
+		_set_status("No se pudo abrir el archivo de audio: " + path)
+		return
+	if not is_instance_valid(dialogue_audio_player):
+		dialogue_audio_player = AudioStreamPlayer.new()
+		add_child(dialogue_audio_player)
+	dialogue_audio_player.stop()
+	dialogue_audio_player.stream = stream
+	dialogue_audio_player.volume_db = -80.0 if bool(take.get("muted",false)) else clampf(float(take.get("gain_db",0.0)),-60.0,12.0)
+	dialogue_audio_player.play(clampf(float(take.get("offset",0.0)),0.0,float(take.get("duration",0.0))))
+	_set_status("Reproduciendo toma %d." % int(take.get("take_number",1)))
+
+func _stop_dialogue_take_playback() -> void:
+	if is_instance_valid(dialogue_audio_player):
+		dialogue_audio_player.stop()
+	_set_status("Reproducción de toma detenida.")
+
+func _generate_visemes_from_selected_take() -> void:
+	var take := _find_dialogue_take()
+	if take.is_empty():
+		_set_status("Selecciona una toma de audio.")
+		return
+	if str(take.get("audio_path","")).get_extension().to_lower() != "wav":
+		_set_status("La generación PCM de visemas requiere una toma WAV.")
+		return
+	var audio: AudioStreamWAV = dialogue_studio.load_pcm_wav(str(take.get("audio_path","")))
+	if audio == null:
+		_set_status("No se pudo leer el WAV seleccionado.")
+		return
+	var visemes: Array = dialogue_studio.build_viseme_track_from_wav(audio, 0.0, 30.0)
+	if visemes.is_empty():
+		_set_status("El WAV no contiene muestras PCM compatibles.")
+		return
+	var result := dialogue_studio.attach_viseme_track(active_script, str(take.get("line_id","")), visemes)
+	if result.ok:
+		_save_dialogue_script()
+		_set_status("Visemas generados: %d cuadros · estimación por energía PCM." % int(result.get("viseme_count",0)))
+	else:
+		_set_status(str(result.error))
+
+func _preview_dialogue_visemes() -> void:
+	if not is_instance_valid(runtime_spatial_animator):
+		_set_status("Importa un personaje 3D con expresiones faciales para previsualizar visemas.")
+		return
+	for line in active_script.get("lines", []):
+		if str(line.get("id","")) != selected_dialogue_line_id:
+			continue
+		var visemes: Array = line.get("visemes", [])
+		if visemes.is_empty():
+			_set_status("Genera primero la pista de visemas para esta línea.")
+			return
+		var duration := maxf(0.05, float(line.get("end",0.0)) - float(line.get("start",0.0)))
+		if runtime_spatial_animator.play_viseme_track(visemes, duration, false):
+			_set_status("Previsualizando sincronización labial estimada.")
+		else:
+			_set_status("El rig actual no admite reproducción de visemas.")
+		return
+	_set_status("Selecciona una línea de diálogo.")
+
+
 func _on_dialogue_line_selected(index: int) -> void:
 	if not is_instance_valid(dialogue_line_list) or index < 0 or index >= dialogue_line_list.item_count:
 		return
 	selected_dialogue_line_id = str(dialogue_line_list.get_item_metadata(index))
+	_refresh_dialogue_takes()
 	_set_status("Línea seleccionada para grabación: " + selected_dialogue_line_id)
 
 func _get_selected_dialogue_line_id() -> String:
@@ -4184,7 +4617,9 @@ func _stop_microphone_recording() -> void:
 	if not bool(result.get("ok", false)):
 		_set_status("WAV guardado, pero no se pudo vincular a la línea: " + str(result.get("error", "")))
 		return
+	selected_dialogue_take_id = str(result.track.get("id",""))
 	_save_dialogue_script()
+	_refresh_dialogue_takes()
 	if is_instance_valid(microphone_countdown_label):
 		microphone_countdown_label.text = "Toma %d guardada · %.2f segundos" % [take_number, duration]
 	_set_status("Toma %d guardada y vinculada · %.2f s · %s" % [take_number, duration, path])
@@ -4198,12 +4633,17 @@ func _register_dialogue_take() -> void:
 	dialog.access=FileDialog.ACCESS_FILESYSTEM
 	dialog.filters=PackedStringArray(["*.wav, *.ogg, *.mp3 ; Audio"])
 	dialog.file_selected.connect(func(path: String):
-		var duration=1.0
-		if path.get_extension().to_lower()=="wav":
+		var duration := 1.0
+		var imported_stream := _load_dialogue_audio_stream(path)
+		if imported_stream != null:
+			duration = maxf(0.1, imported_stream.get_length())
+		elif path.get_extension().to_lower() == "wav":
 			duration = _wav_duration_from_file(path)
 		var line_id=_get_selected_dialogue_line_id()
 		var result=dialogue_studio.add_take(active_script,line_id,path,duration,active_script.audio_tracks.size()+1,"Toma importada")
+		if result.ok: selected_dialogue_take_id = str(result.track.get("id",""))
 		_save_dialogue_script()
+		_refresh_dialogue_takes()
 		_set_status("Toma registrada." if result.ok else str(result.error))
 	)
 	add_child(dialog)
@@ -4260,6 +4700,8 @@ func _save_dialogue_script() -> void:
 		return
 	project_data["dialogue_scripts"]=[active_script.duplicate(true)]
 	_save_project()
+	_refresh_dialogue_lines()
+	_refresh_dialogue_takes()
 	_set_status("Guion guardado · %d líneas · %.2f s." % [result.line_count,result.duration])
 
 func _set_status(message: String) -> void:

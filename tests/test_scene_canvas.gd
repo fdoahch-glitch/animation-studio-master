@@ -96,6 +96,8 @@ func _initialize() -> void:
 	assert(environment_canvas.environment_data.weather == "rain" and environment_canvas.is_processing(), "La vista debe activar la animación de clima")
 	environment_canvas.set_environment_data({"sky_color":[0.2,0.3,0.4],"weather":"clear","weather_intensity":0.0})
 	assert(not environment_canvas.is_processing(), "El clima despejado no debe consumir ciclo de actualización")
+	environment_canvas.set_environment_data({"weather":"rain","weather_intensity":0.5,"particles_enabled":false})
+	assert(not environment_canvas.is_processing(), "Las partículas desactivadas no deben consumir ciclo de actualización")
 	environment_canvas.queue_free()
 	print("SCENE_CANVAS_TESTS_OK")
 	quit(0)
