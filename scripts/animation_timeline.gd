@@ -93,6 +93,8 @@ func apply_tracks_to_scene(scene: Dictionary, tracks: Array, time: float) -> Dic
 	return preview
 
 func sample_track(track: Dictionary, time: float) -> Variant:
+	if not _is_finite_number(time):
+		return null
 	var frames: Array = track.get("keyframes", [])
 	if frames.is_empty():
 		return null
@@ -128,7 +130,7 @@ func validate_track(track: Dictionary) -> Dictionary:
 		if not frame is Dictionary:
 			return {"ok":false,"error":"La pista contiene un fotograma inválido."}
 		var at := float(frame.get("time",-1.0))
-		if not _is_finite_number(at) or at < 0.0 or at < previous or not _is_finite_key_value(frame.get("value")):
+		if not _is_finite_number(at) or at < 0.0 or at <= previous or not _is_finite_key_value(frame.get("value")):
 			return {"ok":false,"error":"Los fotogramas deben tener tiempos ordenados y valores finitos."}
 		if not EASINGS.has(str(frame.get("easing","linear"))):
 			return {"ok":false,"error":"Curva de interpolación no admitida."}
