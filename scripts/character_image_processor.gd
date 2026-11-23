@@ -163,6 +163,19 @@ func save_provider_segments(source_path: String, segments: Array[Dictionary]) ->
 	for segment in segments:
 		var rect: Rect2i = segment.rect
 		var crop := source.get_region(rect)
+		var mask_data := str(segment.get("mask_png_base64", ""))
+		if mask_data != "":
+			var mask := Image.new()
+			var mask_error := mask.load_png_from_buffer(Marshalls.base64_to_raw(mask_data))
+			if mask_error == OK and mask.get_size() == crop.get_size():
+				mask.convert(Image.FORMAT_RGBA8)
+				for py in range(crop.get_height()):
+					for px in range(crop.get_width()):
+						var mask_color := mask.get_pixel(px, py)
+						var mask_alpha := maxf(mask_color.a, maxf(mask_color.r, maxf(mask_color.g, mask_color.b)))
+						var pixel := crop.get_pixel(px, py)
+						pixel.a *= mask_alpha
+						crop.set_pixel(px, py, pixel)
 		var name := str(segment.name).validate_filename()
 		if name == "":
 			name = "part_" + str(saved.size())
