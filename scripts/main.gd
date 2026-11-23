@@ -14,6 +14,7 @@ const SCENE_COMPOSITION_MODEL = preload("res://scripts/scene_composition_model.g
 const SCENE_CANVAS = preload("res://scripts/scene_canvas.gd")
 const SCENE_ASSET_BUTTON = preload("res://scripts/scene_asset_button.gd")
 const RESOURCE_LIBRARY = preload("res://scripts/resource_library.gd")
+const ANIMATION_RETARGETER = preload("res://scripts/animation_retargeter.gd")
 const DEFAULT_PROJECT := {"name":"Mi primera animación","width":1920,"height":1080,"fps":60,"orientation":"Horizontal","visual_mode":"2D","background_mode":"Vacío"}
 
 var project_data: Dictionary = DEFAULT_PROJECT.duplicate(true)
@@ -1155,6 +1156,8 @@ func _show_character_lab() -> void:
 	_add_button(form, "Importar imagen y preparar piezas", _open_character_image_dialog)
 	_add_button(form, "Importar modelo 3D (GLB / glTF)", _open_3d_model_dialog)
 	_add_button(form, "Exportar modelo 3D (GLB)", _open_3d_model_export_dialog)
+	_add_button(form, "Auditar esqueleto 3D actual", _audit_current_spatial_rig)
+	_add_button(form, "Crear perfil de retargeting", _create_retarget_profile)
 	build_segmented_button = _add_button(form, "Construir rig con las piezas recortadas", _build_imported_segment_rig)
 	build_segmented_button.disabled = true
 	_add_button(form, "Generar poses y animaciones procedurales", _generate_procedural_pose_set)
@@ -1568,6 +1571,54 @@ func _export_3d_model_to_path(path: String) -> void:
 func _open_3d_model_dialog() -> void:
 	if is_instance_valid(model_3d_dialog):
 		model_3d_dialog.popup_centered_ratio(0.82)
+
+
+func _audit_current_spatial_rig() -> void:
+	if not is_instance_valid(runtime_spatial_rig):
+		_set_status("Importa o genera un personaje 3D antes de auditar.")
+		return
+	var skeleton := _find_skeleton_in_node(runtime_spatial_rig)
+	if skeleton == null:
+		_set_status("El modelo actual no contiene Skeleton3D.")
+		return
+	var archetype := "quadruped" if spatial_rig_archetype.selected == 1 else "humanoid"
+	var report: Dictionary = spatial_builder.validate_skeleton(skeleton, archetype)
+	var missing: Array = report.get("missing", [])
+	var hierarchy: Array = report.get("hierarchy_errors", [])
+	var summary := "Auditoría %s · %d huesos · cobertura anatómica %.0f%%" % [archetype, int(report.get("bone_count",0)), float(report.get("coverage",0.0))*100.0]
+	if not missing.is_empty():
+		summary += " · faltan: " + ", ".join(PackedStringArray(missing))
+	if not hierarchy.is_empty():
+		summary += " · jerarquía: " + ", ".join(PackedStringArray(hierarchy))
+	if is_instance_valid(skeleton_output):
+		skeleton_output.text = summary
+	_set_status(summary)
+
+func _create_retarget_profile() -> void:
+	if not is_instance_valid(runtime_spatial_rig):
+		_set_status("Importa primero un modelo 3D con Skeleton3D.")
+		return
+	var source := _find_skeleton_in_node(runtime_spatial_rig)
+	if source == null:
+		_set_status("El modelo no contiene un esqueleto de origen.")
+		return
+	var archetype := "quadruped" if spatial_rig_archetype.selected == 1 else "humanoid"
+	var target_root: Node3D = spatial_builder.build_quadruped_3d("RetargetTarget") if archetype == "quadruped" else spatial_builder.build_humanoid_3d("RetargetTarget")
+	var target := target_root.get_node_or_null("Skeleton3D") as Skeleton3D
+	var retargeter = ANIMATION_RETARGETER.new()
+	var profile: Dictionary = retargeter.create_profile(source, target, str(runtime_spatial_rig.name) + " → " + archetype)
+	target_root.free()
+	if not bool(profile.get("ok",false)):
+		_set_status(str(profile.get("error","No se pudo crear el perfil de retargeting.")))
+		return
+	if not project_data.has("retarget_profiles"):
+		project_data["retarget_profiles"] = []
+	project_data["retarget_profiles"].append(profile)
+	_save_project()
+	var summary := "Perfil guardado · %d huesos mapeados · cobertura origen %.0f%% · sin equivalencia: %s" % [int(profile.get("mapped_bone_count",0)),float(profile.get("coverage",0.0))*100.0,", ".join(PackedStringArray(profile.get("unmapped",[])))]
+	if is_instance_valid(skeleton_output):
+		skeleton_output.text = summary
+	_set_status(summary)
 
 func _on_3d_model_selected(path: String) -> void:
 	_load_3d_model_from_path(path, true)
