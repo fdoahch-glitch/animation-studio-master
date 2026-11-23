@@ -626,6 +626,9 @@ func _generate_character() -> void:
 func _build_runtime_character() -> void:
 	if rig_subviewport == null:
 		return
+	if is_instance_valid(ik_drag_overlay):
+		ik_drag_overlay.queue_free()
+		ik_drag_overlay = null
 	if is_instance_valid(runtime_rig):
 		runtime_rig.queue_free()
 	if is_instance_valid(runtime_spatial_rig):
