@@ -191,3 +191,24 @@ Cada recurso tendrá ID estable, tipo, ruta, metadatos y compatibilidad 2D/2.5D/
 - Avisar de funciones que requieren IA externa, modelos adicionales o conexión.
 - Rendimiento configurable para proyectos 1080p/60 FPS y superiores.
 - Evitar prometer que una imagen fija se convierte automáticamente en un personaje 3D riggeado perfecto: el proceso debe ser asistido, editable y dependiente del material de entrada.
+
+
+## Estado de implementación del módulo de personajes (2026-11-23)
+
+| Capacidad | Estado en el repositorio |
+|---|---|
+| Importar PNG/JPG/WebP | Implementado en la interfaz |
+| Eliminar fondo plano conectado al borde | Implementado como herramienta local aproximada |
+| Recortes iniciales de cabeza/torso/pelvis/brazos/piernas | Implementado como regiones proporcionales; requiere revisión |
+| Segmentación semántica IA y máscaras | Cliente HTTP y contrato implementados; requiere endpoint/modelo compatible |
+| Puntos articulares IA | Validación, persistencia y uso como pivotes implementados |
+| Rig 2D por piezas independientes | Implementado; depende de la calidad de recortes/máscaras |
+| Animaciones 2D base y controles articulares | Implementado para rigs procedurales y rigs de sprites |
+| Solver matemático IK de dos huesos | Implementado como función base; falta conectarlo a controles de arrastre en el lienzo |
+| Generación IA de vistas frente/perfil/espalda/tres cuartos | Cliente y contrato implementados; requiere endpoint generativo |
+| Generación IA de poses | Cliente y contrato implementados; requiere endpoint generativo |
+| Esqueleto 3D con piezas de referencia | Implementado como estructura Skeleton3D; no tiene skinning de malla artística |
+| Animación 3D completa, IK 3D y deformación de malla | Pendiente |
+| Rig 2.5D por planos | Utilidad y vista de plano importado implementadas; parallax multicapa/rig 2.5D pendiente |
+
+El proyecto incluye un workflow de GitHub Actions para importar/validar el proyecto con Godot headless. La validación se considera aprobada solo cuando GitHub publique una ejecución exitosa; la existencia del workflow por sí sola no certifica que compile.
