@@ -579,6 +579,7 @@ func _handle_ai_turnaround_result(response: Dictionary) -> void:
 		if first_image.load(str(saved_views[0].path)) == OK:
 			imported_preview.texture = ImageTexture.create_from_image(first_image)
 	imported_character_data["generated_views"] = saved_views
+	project_data["generated_character_views"] = saved_views
 	_save_project()
 	var lines := PackedStringArray(["VISTAS GENERADAS POR IA"])
 	for view_data in saved_views:
@@ -772,8 +773,8 @@ func _request_ai_character() -> void:
 		return
 	var prompt := ai.build_character_prompt(character_name.text, character_description.text, character_style.get_item_text(character_style.selected), character_mode.get_item_text(character_mode.selected))
 	DisplayServer.clipboard_set(prompt)
-	character_output.text = "Prompt de producción copiado. La generación externa aún no está conectada; no se ha creado una imagen."
-	_set_status("Prompt copiado. Configura un proveedor de IA para generar imágenes reales.")
+	character_output.text = "Prompt de producción copiado. Para generar imágenes reales, configura el endpoint IA y utiliza los controles de generación de vistas."
+	_set_status("Prompt copiado. El adaptador IA está disponible al configurar un proveedor compatible.")
 
 func _save_project() -> void:
 	var file := FileAccess.open("user://animation_studio_manager_project.json", FileAccess.WRITE)
