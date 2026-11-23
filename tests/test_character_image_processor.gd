@@ -24,7 +24,7 @@ func _run() -> void:
 		return
 	print("IMAGE_TEST_ADJUSTMENT_OK")
 
-	var result: Dictionary = processor.process_character_image(adjusted_path, 0.16)
+	var result: Dictionary = processor.process_character_image(source_path, 0.16)
 	if not _check(result.get("ok", false), "Falló el procesamiento: " + str(result.get("error", ""))):
 		return
 	print("IMAGE_TEST_PROCESS_OK")
