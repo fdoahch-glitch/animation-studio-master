@@ -52,6 +52,15 @@ func import_file(source_path: String, category: String, display_name := "", tags
 	var copy_error := DirAccess.copy_absolute(ProjectSettings.globalize_path(source_path), ProjectSettings.globalize_path(relative_path))
 	if copy_error != OK:
 		return {"ok": false, "error": "No se pudo copiar el recurso al almacenamiento del proyecto."}
+	var dependency_paths: Array = []
+	var total_bytes := bytes
+	if extension == "gltf":
+		var dependency_result: Dictionary = _copy_gltf_dependencies(source_path, relative_path, folder, id)
+		if not bool(dependency_result.get("ok", false)):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(relative_path))
+			return dependency_result
+		dependency_paths = dependency_result.get("paths", [])
+		total_bytes += int(dependency_result.get("bytes", 0))
 	var thumbnail_path := ""
 	if IMAGE_EXTENSIONS.has(extension):
 		thumbnail_path = folder + "/" + id + ".thumb.png"
@@ -65,7 +74,8 @@ func import_file(source_path: String, category: String, display_name := "", tags
 		"path": relative_path,
 		"extension": extension,
 		"mime_group": "image" if IMAGE_EXTENSIONS.has(extension) else ("model_3d" if MODEL_EXTENSIONS.has(extension) else "unknown"),
-		"bytes": bytes,
+		"bytes": total_bytes,
+		"dependency_paths": dependency_paths,
 		"tags": _clean_tags(tags),
 		"visual_mode": visual_mode,
 		"compatible_modes": _compatible_modes(extension),
@@ -93,6 +103,17 @@ func remove_resource(resource: Dictionary) -> Dictionary:
 		var thumbnail_error := DirAccess.remove_absolute(ProjectSettings.globalize_path(thumbnail_path))
 		if thumbnail_error != OK:
 			return {"ok": false, "error": "Se eliminó el recurso, pero no se pudo limpiar su miniatura."}
+	var dependency_paths: Variant = resource.get("dependency_paths", [])
+	if dependency_paths is Array:
+		for dependency in dependency_paths:
+			var dependency_path := str(dependency)
+			if dependency_path.begins_with(thumbnail_prefix) and not dependency_path.contains("\\") and not dependency_path.trim_prefix(thumbnail_prefix).contains("../") and FileAccess.file_exists(dependency_path):
+				var dependency_error := DirAccess.remove_absolute(ProjectSettings.globalize_path(dependency_path))
+				if dependency_error != OK:
+					return {"ok": false, "error": "No se pudo limpiar una dependencia del modelo GLTF."}
+	var dependency_folder := path.get_base_dir() + "/" + path.get_file().get_basename() + "_deps"
+	if dependency_folder.begins_with(thumbnail_prefix) and DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(dependency_folder)):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(dependency_folder))
 	return {"ok": true}
 
 func search(resources: Array, query: String, category := "") -> Array:
@@ -132,6 +153,14 @@ func validate_resource(resource: Dictionary) -> Dictionary:
 	var modes_value: Variant = resource.get("compatible_modes", _compatible_modes(extension))
 	if not modes_value is Array:
 		return {"ok": false, "error": "Los modos compatibles deben ser una lista."}
+	var dependency_paths: Variant = resource.get("dependency_paths", [])
+	if not dependency_paths is Array:
+		return {"ok": false, "error": "Las dependencias del recurso deben ser una lista."}
+	var dependency_prefix := "user://animation_studio_assets/" + category + "/"
+	for dependency in dependency_paths:
+		var dependency_path := str(dependency)
+		if not dependency_path.begins_with(dependency_prefix) or dependency_path.contains("\\") or dependency_path.contains("../"):
+			return {"ok": false, "error": "Una dependencia apunta fuera de la biblioteca administrada."}
 	var managed_prefix := "user://animation_studio_assets/" + category + "/"
 	if not path.begins_with(managed_prefix) or path.contains("\\"):
 		return {"ok": false, "error": "La ruta no pertenece a la carpeta de su categoría."}
@@ -157,6 +186,67 @@ func is_compatible(resource: Dictionary, visual_mode: String) -> bool:
 	if not modes_value is Array:
 		return visual_mode == "Híbrido"
 	return modes_value.has(visual_mode) or visual_mode == "Híbrido"
+
+func _copy_gltf_dependencies(source_path: String, destination_path: String, folder: String, resource_id: String) -> Dictionary:
+	var source_file := FileAccess.open(source_path, FileAccess.READ)
+	if source_file == null:
+		return {"ok": false, "error": "No se pudo leer el archivo GLTF."}
+	var parsed: Variant = JSON.parse_string(source_file.get_as_text())
+	source_file.close()
+	if not parsed is Dictionary:
+		return {"ok": false, "error": "El archivo GLTF no contiene un documento JSON válido."}
+	var dependency_folder := folder + "/" + resource_id + "_deps"
+	var copied_paths: Array[String] = []
+	var total_bytes := 0
+	for section_name in ["buffers", "images"]:
+		var section: Variant = parsed.get(section_name, [])
+		if not section is Array:
+			return _rollback_gltf_dependencies(copied_paths, dependency_folder, "La sección %s del GLTF no es válida." % section_name)
+		for entry in section:
+			if not entry is Dictionary:
+				return _rollback_gltf_dependencies(copied_paths, dependency_folder, "El GLTF contiene una dependencia con estructura inválida.")
+			var uri_value := str(entry.get("uri", ""))
+			if uri_value.is_empty() or uri_value.begins_with("data:"):
+				continue
+			var decoded_uri := uri_value.uri_decode()
+			if decoded_uri.begins_with("/") or decoded_uri.contains("\\") or decoded_uri.contains(":") or decoded_uri.contains("?") or decoded_uri.contains("#"):
+				return _rollback_gltf_dependencies(copied_paths, dependency_folder, "El GLTF contiene una ruta externa o no segura: " + uri_value)
+			for segment in decoded_uri.split("/", false):
+				if segment == "." or segment == "..":
+					return _rollback_gltf_dependencies(copied_paths, dependency_folder, "El GLTF intenta salir de la carpeta de origen: " + uri_value)
+			var source_dependency := source_path.get_base_dir().path_join(decoded_uri)
+			if not FileAccess.file_exists(source_dependency):
+				return _rollback_gltf_dependencies(copied_paths, dependency_folder, "No se encuentra la dependencia GLTF: " + decoded_uri)
+			var dependency_file := FileAccess.open(source_dependency, FileAccess.READ)
+			if dependency_file == null:
+				return _rollback_gltf_dependencies(copied_paths, dependency_folder, "No se pudo leer la dependencia GLTF: " + decoded_uri)
+			total_bytes += dependency_file.get_length()
+			dependency_file.close()
+			var make_dir := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dependency_folder))
+			if make_dir != OK and make_dir != ERR_ALREADY_EXISTS:
+				return _rollback_gltf_dependencies(copied_paths, dependency_folder, "No se pudo crear la carpeta de dependencias GLTF.")
+			var safe_filename := "%d_%s" % [hash(decoded_uri), decoded_uri.get_file().validate_filename()]
+			var destination_dependency := dependency_folder + "/" + safe_filename
+			var copy_error := DirAccess.copy_absolute(ProjectSettings.globalize_path(source_dependency), ProjectSettings.globalize_path(destination_dependency))
+			if copy_error != OK:
+				return _rollback_gltf_dependencies(copied_paths, dependency_folder, "No se pudo copiar la dependencia GLTF: " + decoded_uri)
+			copied_paths.append(destination_dependency)
+			entry["uri"] = resource_id + "_deps/" + safe_filename
+		parsed[section_name] = section
+	var output := FileAccess.open(destination_path, FileAccess.WRITE)
+	if output == null:
+		return _rollback_gltf_dependencies(copied_paths, dependency_folder, "No se pudo actualizar el documento GLTF importado.")
+	output.store_string(JSON.stringify(parsed, "\\t"))
+	output.close()
+	return {"ok": true, "paths": copied_paths, "bytes": total_bytes}
+
+func _rollback_gltf_dependencies(paths: Array[String], dependency_folder: String, error_message: String) -> Dictionary:
+	for dependency_path in paths:
+		if FileAccess.file_exists(dependency_path):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(dependency_path))
+	if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(dependency_folder)):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(dependency_folder))
+	return {"ok": false, "error": error_message}
 
 func _create_thumbnail(source_path: String, thumbnail_path: String) -> bool:
 	var source := Image.new()

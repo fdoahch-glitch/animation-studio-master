@@ -38,3 +38,8 @@ Al importar imágenes, la biblioteca genera una miniatura PNG de 160×120 con le
 ## Etiquetas editables
 
 La biblioteca permite editar etiquetas del recurso seleccionado, normalizarlas a minúsculas, eliminar duplicados y guardarlas en el documento del proyecto. El buscador filtra también por estas etiquetas. Prueba: `tests/test_resource_library.gd`.
+
+
+## Dependencias externas de GLTF
+
+Al importar `.gltf`, la biblioteca analiza las referencias de `buffers` e `images`, copia sus archivos al almacenamiento administrado, reescribe las URI del documento importado y registra los bytes agregados. Las URI embebidas `data:` se conservan; las rutas absolutas, remotas o con traversal se rechazan. Al eliminar el modelo también se eliminan las dependencias copiadas. Prueba: `tests/test_resource_library.gd`.
