@@ -14,24 +14,46 @@ func export_bundle(path: String, project: Dictionary) -> Dictionary:
 	var manifest := {"format": FORMAT, "version": VERSION, "created_at": Time.get_datetime_string_from_system(true), "project": project.duplicate(true), "assets": []}
 	var seen := {}
 	var total := 0
+	var sources: Array[Dictionary] = []
 	for resource in project.get("resources", []):
 		if not resource is Dictionary:
 			writer.close()
 			_remove_partial_bundle(path)
 			return {"ok": false, "error": "La lista de recursos contiene una entrada inválida."}
-		var source := str(resource.get("path", ""))
+		var resource_path := str(resource.get("path", ""))
+		if not resource_path.is_empty():
+			sources.append({"path": resource_path, "resource_id": str(resource.get("id", ""))})
+	for dialogue_script in project.get("dialogue_scripts", []):
+		if not dialogue_script is Dictionary:
+			continue
+		for take in dialogue_script.get("audio_tracks", []):
+			if take is Dictionary:
+				var audio_path := str(take.get("audio_path", ""))
+				if not audio_path.is_empty():
+					sources.append({"path": audio_path, "resource_id": ""})
+	var video_timeline: Dictionary = project.get("video_timeline", {})
+	for track in video_timeline.get("tracks", []):
+		if not track is Dictionary:
+			continue
+		for clip in track.get("clips", []):
+			if clip is Dictionary:
+				var media_path := str(clip.get("source", ""))
+				if not media_path.is_empty() and (media_path.begins_with("user://") or media_path.begins_with("res://")):
+					sources.append({"path": media_path, "resource_id": ""})
+	for source_item in sources:
+		var source := str(source_item.get("path", ""))
 		if source.is_empty() or seen.has(source):
 			continue
 		seen[source] = true
 		if not FileAccess.file_exists(source):
 			writer.close()
 			_remove_partial_bundle(path)
-			return {"ok": false, "error": "No se encuentra un recurso del proyecto: %s" % source}
+			return {"ok": false, "error": "No se encuentra un archivo del proyecto: %s" % source}
 		var bytes := FileAccess.get_file_as_bytes(source)
 		if bytes.is_empty():
 			writer.close()
 			_remove_partial_bundle(path)
-			return {"ok": false, "error": "No se pudo leer el recurso del proyecto: %s" % source}
+			return {"ok": false, "error": "No se pudo leer un archivo del proyecto: %s" % source}
 		total += bytes.size()
 		if total > MAX_TOTAL_BYTES:
 			writer.close()
@@ -42,13 +64,13 @@ func export_bundle(path: String, project: Dictionary) -> Dictionary:
 		if error != OK:
 			writer.close()
 			_remove_partial_bundle(path)
-			return {"ok": false, "error": "No se pudo iniciar la escritura de un recurso: %s" % error}
+			return {"ok": false, "error": "No se pudo iniciar la escritura de un archivo: %s" % error}
 		error = writer.write_file(bytes)
 		if error != OK:
 			writer.close()
 			_remove_partial_bundle(path)
-			return {"ok": false, "error": "No se pudo escribir un recurso en el paquete: %s" % error}
-		manifest.assets.append({"source_path": source, "entry": entry, "resource_id": str(resource.get("id", ""))})
+			return {"ok": false, "error": "No se pudo escribir un archivo en el paquete: %s" % error}
+		manifest.assets.append({"source_path": source, "entry": entry, "resource_id": str(source_item.get("resource_id", ""))})
 	error = writer.start_file("project_manifest.json")
 	if error == OK:
 		error = writer.write_file(JSON.stringify(manifest, "\t").to_utf8_buffer())
@@ -137,6 +159,25 @@ func import_bundle(path: String, destination: String) -> Dictionary:
 			var old := str(resource.get("path", ""))
 			if restored.has(old):
 				resource["path"] = restored[old]
+	for dialogue_script in project.get("dialogue_scripts", []):
+		if not dialogue_script is Dictionary:
+			continue
+		for take in dialogue_script.get("audio_tracks", []):
+			if take is Dictionary:
+				var old_audio := str(take.get("audio_path", ""))
+				if restored.has(old_audio):
+					take["audio_path"] = restored[old_audio]
+	var imported_video_timeline: Dictionary = project.get("video_timeline", {})
+	for track in imported_video_timeline.get("tracks", []):
+		if not track is Dictionary:
+			continue
+		for clip in track.get("clips", []):
+			if clip is Dictionary:
+				var old_media := str(clip.get("source", ""))
+				if restored.has(old_media):
+					clip["source"] = restored[old_media]
+	if project.has("video_timeline"):
+		project["video_timeline"] = imported_video_timeline
 	return {"ok": true, "project": project, "asset_count": restored.size(), "bytes": total, "restored_paths": restored}
 
 func validate_bundle_manifest(manifest: Dictionary) -> Dictionary:
