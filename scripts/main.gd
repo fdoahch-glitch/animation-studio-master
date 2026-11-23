@@ -469,9 +469,11 @@ func _on_ai_segmentation_completed(response: Dictionary) -> void:
 	lines.append("Piezas válidas: %d · rechazadas: %d" % [saved.size(), validation.get("rejected", []).size()])
 	for part in saved:
 		lines.append("• %s · confianza %.0f%% · %s" % [part.name, float(part.confidence) * 100.0, part.path])
+	lines.append("Puntos articulares reconocidos: %d" % validation.get("joints", {}).size())
 	lines.append("Los recortes se guardaron como archivos independientes. Revisa máscaras y pivotes antes de animar.")
 	image_result_output.text = "\n".join(lines)
 	imported_character_data["ai_segments"] = saved
+	imported_character_data["ai_joints"] = validation.get("joints", {})
 	_save_project()
 	_set_status("Segmentación IA recibida y recortes guardados.")
 
