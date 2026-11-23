@@ -4028,7 +4028,6 @@ func _show_environment_studio() -> void:
 	environment_layer_list.custom_minimum_size.y = 100
 	environment_layer_list.item_selected.connect(_on_environment_layer_selected)
 	page.add_child(environment_layer_list)
-	_refresh_environment_layers()
 	environment_layer_depth = SpinBox.new()
 	environment_layer_depth.min_value = -10000
 	environment_layer_depth.max_value = 10000
@@ -4048,6 +4047,7 @@ func _show_environment_studio() -> void:
 	environment_layer_visible.text = "Capa visible"
 	environment_layer_visible.button_pressed = true
 	page.add_child(environment_layer_visible)
+	_refresh_environment_layers()
 	_add_button(page, "Aplicar propiedades a la capa", _apply_environment_layer_settings)
 	_add_button(page, "Añadir fondo seleccionado como capa", func():
 		var result = environment_director.add_background_layer(active_environment, selected_resource_id, float(active_environment.background_layers.size()), 0.35)
