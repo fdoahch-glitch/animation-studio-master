@@ -61,7 +61,7 @@ func _run_tests() -> void:
 		quit(1)
 		return
 
-	var standard_overlay: Control = IK_DRAG_OVERLAY.new()
+	var standard_overlay = IK_DRAG_OVERLAY.new()
 	root.add_child(standard_overlay)
 	standard_overlay.configure(procedural_rig, builder)
 	if not standard_overlay._is_supported_rig():
@@ -107,7 +107,7 @@ func _run_tests() -> void:
 		segmented_parts.append({"name": part_name, "path": source_path, "rect": part_rects[part_name]})
 	var sprite_rig: Node2D = builder.build_segmented_sprite_rig(segmented_parts, {}, Vector2i(128, 256))
 	root.add_child(sprite_rig)
-	var segmented_overlay: Control = IK_DRAG_OVERLAY.new()
+	var segmented_overlay = IK_DRAG_OVERLAY.new()
 	root.add_child(segmented_overlay)
 	segmented_overlay.configure(sprite_rig, builder)
 	if not segmented_overlay._is_supported_rig():
