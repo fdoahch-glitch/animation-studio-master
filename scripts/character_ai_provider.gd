@@ -12,8 +12,10 @@ var api_key: String = ""
 
 func configure(service_endpoint: String, secret_key: String = "") -> bool:
 	var candidate := service_endpoint.strip_edges()
-	if not (candidate.begins_with("https://") or candidate.begins_with("http://localhost") or candidate.begins_with("http://127.0.0.1")):
-		request_failed.emit("Usa HTTPS o un endpoint local en localhost.")
+	var local_host := candidate == "http://localhost" or candidate.begins_with("http://localhost:") or candidate.begins_with("http://localhost/")
+	var local_ip := candidate == "http://127.0.0.1" or candidate.begins_with("http://127.0.0.1:") or candidate.begins_with("http://127.0.0.1/")
+	if not candidate.begins_with("https://") and not local_host and not local_ip:
+		request_failed.emit("Usa HTTPS o un endpoint local exacto en localhost/127.0.0.1.")
 		return false
 	endpoint = candidate.trim_suffix("/")
 	api_key = secret_key.strip_edges()
