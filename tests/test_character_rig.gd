@@ -220,7 +220,7 @@ func _run_tests() -> void:
 		return
 	var chain_ik: Dictionary = spatial_animator.apply_two_bone_ik("arm_right", Vector3(0.6, 1.4, 0.1))
 	if not bool(chain_ik.get("ok", false)) or not chain_ik.has("actual_end"):
-		push_error("No se pudo aplicar IK 3D a la cadena del brazo derecho.")
+		push_error("No se pudo aplicar IK 3D a la cadena del brazo derecho: " + str(chain_ik))
 		quit(1)
 		return
 	if not spatial_animator.play_clip(spatial_clips[1], 1.0):
