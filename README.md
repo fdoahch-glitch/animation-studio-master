@@ -1,4 +1,4 @@
-# Animation Studio Manager
+# Animation Studio Master
 
 Estudio visual de animación por escenas, desarrollado con Godot 4.x y orientado a Windows 10/11 x64.
 
@@ -6,7 +6,9 @@ Estudio visual de animación por escenas, desarrollado con Godot 4.x y orientado
 - Asistente inicial antes de abrir el espacio de trabajo.
 - Presets de resolución hasta 4K, orientación y 24/25/30/50/60 FPS.
 - Modos 2D, 2.5D, 3D e Híbrido.
-- Secciones de Escenas, Personajes, Fondos, Elementos, Decoraciones, Tiempo y clima, Animación, Audio y doblaje y Exportar.
+- Panel de producción por tareas: Escenas, Personajes, Biblioteca, Animación, Diálogos, Ambiente y Exportación.
+- Timeline visual de animación con regla de fotogramas, pistas y keyframes; el usuario selecciona el tiempo por fotograma y el motor lo convierte usando los FPS del proyecto.
+- La edición audiovisual multipista se conserva en Herramientas audiovisuales heredadas y no es el centro del flujo de trabajo.
 - Estudio de personajes con ficha, estilo y tipo de rig.
 - Constructor de rig 2D editable en tiempo de ejecución, con pivotes, controles manuales de articulaciones y manejadores IK por arrastre para manos y pies (rig estándar y por sprites segmentados).
 - Importación de imagen, eliminación local aproximada de fondo plano y exportación de recortes anatómicos proporcionales.
