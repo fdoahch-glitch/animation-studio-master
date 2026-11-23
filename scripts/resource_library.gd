@@ -109,11 +109,23 @@ func validate_resource(resource: Dictionary) -> Dictionary:
 	if not supported_extensions(category).has(extension):
 		return {"ok": false, "error": "La extensión no corresponde a la categoría."}
 	var path := str(resource.get("path", ""))
+	var bytes_value: Variant = resource.get("bytes", 0)
+	if not (bytes_value is int or bytes_value is float) or float(bytes_value) < 0.0 or float(bytes_value) > 256.0 * 1024.0 * 1024.0:
+		return {"ok": false, "error": "El tamaño declarado del recurso no es válido."}
+	var tags_value: Variant = resource.get("tags", [])
+	if not tags_value is Array:
+		return {"ok": false, "error": "Las etiquetas deben ser una lista."}
+	for tag in tags_value:
+		if str(tag).strip_edges().is_empty():
+			return {"ok": false, "error": "Las etiquetas no pueden estar vacías."}
+	var modes_value: Variant = resource.get("compatible_modes", _compatible_modes(extension))
+	if not modes_value is Array:
+		return {"ok": false, "error": "Los modos compatibles deben ser una lista."}
 	var managed_prefix := "user://animation_studio_assets/" + category + "/"
 	if not path.begins_with(managed_prefix) or path.contains("\\"):
 		return {"ok": false, "error": "La ruta no pertenece a la carpeta de su categoría."}
 	var filename := path.get_file()
-	if filename.is_empty() or filename == "." or filename == ".." or path.trim_prefix(managed_prefix).contains("/"):
+	if filename.is_empty() or filename == "." or filename == ".." or path.trim_prefix(managed_prefix).contains("/") or filename.contains(":") or filename.contains("%"):
 		return {"ok": false, "error": "La ruta del recurso no es válida."}
 	if filename.get_extension().to_lower() != extension:
 		return {"ok": false, "error": "La extensión declarada no coincide con el archivo."}

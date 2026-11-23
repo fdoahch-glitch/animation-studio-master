@@ -6,6 +6,8 @@ class_name VideoTimeline
 const TRACK_TYPES := ["video", "audio", "title", "overlay", "effect"]
 const MIN_CLIP_DURATION := 0.04
 
+var _clip_sequence: int = 0
+
 func create_timeline(fps: int = 30) -> Dictionary:
 	return {"version": 1, "fps": clampi(fps, 1, 120), "tracks": [], "duration": 0.0}
 
@@ -23,8 +25,18 @@ func add_clip(track: Dictionary, source: String, start: float, duration: float, 
 		return {"ok": false, "error": "La pista está bloqueada."}
 	if not TRACK_TYPES.has(str(track.get("type", ""))):
 		return {"ok": false, "error": "La pista no tiene un tipo válido."}
+	if source.strip_edges().is_empty() or not _is_finite(start) or not _is_finite(duration):
+		return {"ok": false, "error": "El origen y los tiempos del clip deben ser válidos y finitos."}
+	var source_in := float(options.get("source_in", 0.0))
+	var volume := float(options.get("volume", 1.0))
+	var opacity := float(options.get("opacity", 1.0))
+	if not _is_finite(source_in) or not _is_finite(volume) or not _is_finite(opacity):
+		return {"ok": false, "error": "Los parámetros de origen y mezcla deben ser finitos."}
+	var metadata_value: Variant = options.get("metadata", {})
+	if not metadata_value is Dictionary:
+		return {"ok": false, "error": "Los metadatos del clip deben ser un objeto."}
 	var clip_duration := maxf(MIN_CLIP_DURATION, duration)
-	var clip := {"id": "clip_%d" % Time.get_ticks_usec(), "source": source, "name": str(options.get("name", source.get_file() if source.contains("/") else source)), "start": maxf(0.0, start), "duration": clip_duration, "source_in": maxf(0.0, float(options.get("source_in", 0.0))), "volume": clampf(float(options.get("volume", 1.0)), 0.0, 2.0), "opacity": clampf(float(options.get("opacity", 1.0)), 0.0, 1.0), "enabled": true, "metadata": options.get("metadata", {}).duplicate(true)}
+	var clip := {"id": _next_clip_id(), "source": source, "name": str(options.get("name", source.get_file() if source.contains("/") else source)), "start": maxf(0.0, start), "duration": clip_duration, "source_in": maxf(0.0, source_in), "volume": clampf(volume, 0.0, 2.0), "opacity": clampf(opacity, 0.0, 1.0), "enabled": true, "metadata": metadata_value.duplicate(true)}
 	var clips: Array = track.get("clips", [])
 	clips.append(clip)
 	clips.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a.get("start", 0.0)) < float(b.get("start", 0.0)))
@@ -37,6 +49,8 @@ func move_clip(track: Dictionary, clip_id: String, new_start: float) -> Dictiona
 		return {"ok": false, "error": "No se encontró el clip."}
 	if bool(track.get("locked", false)):
 		return {"ok": false, "error": "La pista está bloqueada."}
+	if not _is_finite(new_start):
+		return {"ok": false, "error": "La posición del clip debe ser finita."}
 	var clips: Array = track.get("clips", [])
 	clips[index]["start"] = maxf(0.0, new_start)
 	clips.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a.get("start", 0.0)) < float(b.get("start", 0.0)))
@@ -49,6 +63,8 @@ func trim_clip(track: Dictionary, clip_id: String, new_start: float, new_end: fl
 		return {"ok": false, "error": "No se encontró el clip."}
 	if bool(track.get("locked", false)):
 		return {"ok": false, "error": "La pista está bloqueada."}
+	if not _is_finite(new_start) or not _is_finite(new_end):
+		return {"ok": false, "error": "Los límites del recorte deben ser finitos."}
 	var start := maxf(0.0, new_start)
 	var finish := maxf(start + MIN_CLIP_DURATION, new_end)
 	var clip: Dictionary = track["clips"][index]
@@ -78,7 +94,7 @@ func split_clip(track: Dictionary, clip_id: String, at_time: float) -> Dictionar
 	var left := original.duplicate(true)
 	var right := original.duplicate(true)
 	left["duration"] = at_time - start
-	right["id"] = "clip_%d" % Time.get_ticks_usec()
+	right["id"] = _next_clip_id()
 	right["start"] = at_time
 	right["duration"] = finish - at_time
 	right["source_in"] = float(original.get("source_in", 0.0)) + at_time - start
@@ -96,7 +112,7 @@ func duplicate_clip(track: Dictionary, clip_id: String, new_start: float = -1.0)
 		return {"ok": false, "error": "La pista está bloqueada."}
 	var clips: Array = track.get("clips", [])
 	var copy: Dictionary = clips[index].duplicate(true)
-	copy["id"] = "clip_%d" % Time.get_ticks_usec()
+	copy["id"] = _next_clip_id()
 	if new_start >= 0.0:
 		copy["start"] = new_start
 	else:
@@ -127,19 +143,29 @@ func snap_time(time: float, fps: int) -> float:
 	return snappedf(maxf(0.0, time), 1.0 / float(clampi(fps, 1, 120)))
 
 func validate_timeline(timeline: Dictionary) -> Dictionary:
+	var fps := int(timeline.get("fps", 0))
+	if fps < 1 or fps > 120:
+		return {"ok": false, "error": "La frecuencia del montaje debe estar entre 1 y 120 FPS."}
 	var ids := {}
 	for track in timeline.get("tracks", []):
+		if not track is Dictionary or not track.get("clips", []) is Array:
+			return {"ok": false, "error": "La estructura de pista o clips no es válida."}
 		var track_id := str(track.get("id", ""))
 		if track_id.is_empty() or ids.has(track_id) or not TRACK_TYPES.has(str(track.get("type", ""))):
 			return {"ok": false, "error": "Hay una pista con ID duplicado o tipo inválido."}
 		ids[track_id] = true
 		var clip_ids := {}
 		for clip in track.get("clips", []):
+			if not clip is Dictionary:
+				return {"ok": false, "error": "La pista contiene un clip con estructura inválida."}
 			var clip_id := str(clip.get("id", ""))
 			var start := float(clip.get("start", -1.0))
 			var duration := float(clip.get("duration", 0.0))
-			if clip_id.is_empty() or clip_ids.has(clip_id) or start < 0.0 or duration < MIN_CLIP_DURATION:
-				return {"ok": false, "error": "Hay un clip con ID o duración inválida."}
+			var source_in := float(clip.get("source_in", 0.0))
+			var volume := float(clip.get("volume", 1.0))
+			var opacity := float(clip.get("opacity", 1.0))
+			if clip_id.is_empty() or clip_ids.has(clip_id) or not _is_finite(start) or not _is_finite(duration) or not _is_finite(source_in) or not _is_finite(volume) or not _is_finite(opacity) or start < 0.0 or duration < MIN_CLIP_DURATION or source_in < 0.0 or volume < 0.0 or volume > 2.0 or opacity < 0.0 or opacity > 1.0 or str(clip.get("source", "")).strip_edges().is_empty():
+				return {"ok": false, "error": "Hay un clip con origen, tiempo o parámetros de mezcla inválidos."}
 			clip_ids[clip_id] = true
 	return {"ok": true, "duration": timeline_duration(timeline), "tracks": ids.size()}
 
@@ -157,3 +183,10 @@ func _default_track_name(track_type: String, tracks: Array) -> String:
 		if str(track.get("type", "")) == track_type:
 			count += 1
 	return "%s %d" % [names.get(track_type, "Pista"), count]
+
+func _next_clip_id() -> String:
+	_clip_sequence += 1
+	return "clip_%d_%d" % [Time.get_ticks_usec(), _clip_sequence]
+
+func _is_finite(value: float) -> bool:
+	return not is_nan(value) and not is_inf(value)

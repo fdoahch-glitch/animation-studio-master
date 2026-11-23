@@ -20,6 +20,15 @@ func _initialize() -> void:
 	var traversal_resource := valid.duplicate(true)
 	traversal_resource.path = "user://animation_studio_assets/background/../a1.webp"
 	assert(not library.validate_resource(traversal_resource).ok, "Debe rechazar rutas con traversal")
+	var invalid_tags := valid.duplicate(true)
+	invalid_tags.tags = "not-an-array"
+	assert(not library.validate_resource(invalid_tags).ok, "Debe exigir etiquetas en formato de lista")
+	var invalid_size := valid.duplicate(true)
+	invalid_size.bytes = 300 * 1024 * 1024
+	assert(not library.validate_resource(invalid_size).ok, "Debe rechazar tamaños declarados fuera del límite")
+	var invalid_modes := valid.duplicate(true)
+	invalid_modes.compatible_modes = "2D"
+	assert(not library.validate_resource(invalid_modes).ok, "Debe exigir modos compatibles en formato de lista")
 	var traversal := library.remove_resource({"path":"user://animation_studio_assets/../../important.cfg"})
 	assert(not traversal.ok)
 	var wrong_category_path := library.remove_resource({"path":"user://animation_studio_assets/unknown/file.webp"})

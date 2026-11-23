@@ -24,6 +24,13 @@ func _initialize() -> void:
 	assert(is_equal_approx(model.timeline_duration(timeline), 15.0))
 	assert(is_equal_approx(model.snap_time(1.01, 30), 1.0))
 	assert(model.validate_timeline(timeline).ok)
+	assert(not model.add_clip(video, "res://bad.mp4", INF, 1.0).ok, "Debe rechazar inicios infinitos")
+	assert(not model.add_clip(video, "res://bad.mp4", 0.0, NAN).ok, "Debe rechazar duraciones NaN")
+	assert(not model.add_clip(video, "res://bad.mp4", 0.0, 1.0, {"metadata": "invalid"}).ok, "Debe validar el tipo de metadatos")
+	var corrupted: Dictionary = timeline.duplicate(true)
+	corrupted.tracks[0].clips[0].volume = 5.0
+	assert(not model.validate_timeline(corrupted).ok, "Debe rechazar volúmenes fuera de rango")
+	assert(not model.trim_clip(video, str(video.clips[0].id), NAN, 4.0).ok, "Debe rechazar recortes no finitos")
 	audio.locked = true
 	assert(not model.remove_clip(audio, str(audio.clips[0].id)))
 	print("VIDEO_TIMELINE_TESTS_OK")
