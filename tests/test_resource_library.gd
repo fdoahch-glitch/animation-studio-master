@@ -11,6 +11,15 @@ func _initialize() -> void:
 	var valid := {"id":"a1","name":"Bosque","category":"background","path":"user://animation_studio_assets/background/a1.webp","extension":"webp"}
 	assert(library.validate_resource(valid).ok)
 	assert(not library.validate_resource({"id":"bad","category":"unknown"}).ok)
+	var wrong_folder := valid.duplicate(true)
+	wrong_folder.path = "user://animation_studio_assets/character/a1.webp"
+	assert(not library.validate_resource(wrong_folder).ok, "Debe rechazar recursos guardados en otra categoría")
+	var wrong_extension := valid.duplicate(true)
+	wrong_extension.extension = "png"
+	assert(not library.validate_resource(wrong_extension).ok, "Debe rechazar extensiones que no coinciden con el archivo")
+	var traversal_resource := valid.duplicate(true)
+	traversal_resource.path = "user://animation_studio_assets/background/../a1.webp"
+	assert(not library.validate_resource(traversal_resource).ok, "Debe rechazar rutas con traversal")
 	var traversal := library.remove_resource({"path":"user://animation_studio_assets/../../important.cfg"})
 	assert(not traversal.ok)
 	var wrong_category_path := library.remove_resource({"path":"user://animation_studio_assets/unknown/file.webp"})
