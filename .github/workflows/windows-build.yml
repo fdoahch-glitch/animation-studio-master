@@ -44,7 +44,13 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path build | Out-Null
-          godot --headless --path . --export-release "Windows Desktop" "build/AnimationStudioMaster.exe"
+          $exportOutput = & godot --headless --verbose --path . --export-release "Windows Desktop" "build/AnimationStudioMaster.exe" 2>&1
+          $exportExit = $LASTEXITCODE
+          $exportOutput | ForEach-Object { Write-Host $_ }
+          if ($exportExit -ne 0) {
+            throw "Godot export command failed with exit code $exportExit"
+          }
+          Get-ChildItem -Force build | Format-Table Name, Length
           if (-not (Test-Path "build/AnimationStudioMaster.exe")) {
             throw "Godot finished without producing AnimationStudioMaster.exe"
           }
