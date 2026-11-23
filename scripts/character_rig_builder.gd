@@ -263,28 +263,28 @@ func _part_pivot_key(part_name: String) -> String:
 		return "torso"
 	if name.contains("pelvis"):
 		return "pelvis"
-	if name.contains("upper_arm_left") or name.contains("arm_left"):
-		return "shoulder_left"
 	if name.contains("lower_arm_left"):
 		return "elbow_left"
+	if name.contains("upper_arm_left") or name.contains("arm_left"):
+		return "shoulder_left"
 	if name.contains("hand_left"):
 		return "wrist_left"
-	if name.contains("upper_arm_right") or name.contains("arm_right"):
-		return "shoulder_right"
 	if name.contains("lower_arm_right"):
 		return "elbow_right"
+	if name.contains("upper_arm_right") or name.contains("arm_right"):
+		return "shoulder_right"
 	if name.contains("hand_right"):
 		return "wrist_right"
-	if name.contains("upper_leg_left") or name.contains("leg_left"):
-		return "hip_left"
 	if name.contains("lower_leg_left"):
 		return "knee_left"
+	if name.contains("upper_leg_left") or name.contains("leg_left"):
+		return "hip_left"
 	if name.contains("foot_left"):
 		return "ankle_left"
-	if name.contains("upper_leg_right") or name.contains("leg_right"):
-		return "hip_right"
 	if name.contains("lower_leg_right"):
 		return "knee_right"
+	if name.contains("upper_leg_right") or name.contains("leg_right"):
+		return "hip_right"
 	if name.contains("foot_right"):
 		return "ankle_right"
 	return name.replace(" ", "_")
