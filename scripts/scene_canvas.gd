@@ -30,17 +30,23 @@ func set_selected(instance_id: String) -> void:
 	queue_redraw()
 
 func set_resource_catalog(resources: Array) -> void:
-	resource_textures.clear()
+	var active_ids: Dictionary = {}
 	for resource in resources:
 		if not resource is Dictionary or str(resource.get("mime_group","")) != "image":
 			continue
 		var resource_id := str(resource.get("id",""))
 		var path := str(resource.get("path",""))
-		if resource_id.is_empty() or path.is_empty() or not FileAccess.file_exists(path):
+		if resource_id.is_empty() or path.is_empty():
+			continue
+		active_ids[resource_id] = true
+		if resource_textures.has(resource_id) or not FileAccess.file_exists(path):
 			continue
 		var source := Image.new()
 		if source.load(path) == OK and not source.is_empty():
 			resource_textures[resource_id] = ImageTexture.create_from_image(source)
+	for cached_id in resource_textures.keys():
+		if not active_ids.has(cached_id):
+			resource_textures.erase(cached_id)
 	queue_redraw()
 
 func _canvas_scale() -> float:
