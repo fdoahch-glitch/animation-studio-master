@@ -6,6 +6,16 @@ func _initialize():
  assert(io.validate_bundle_manifest(manifest).ok)
  manifest.format="bad"
  assert(not io.validate_bundle_manifest(manifest).ok)
+ manifest.format="animation_studio_project_bundle"
+ manifest.assets=[{"source_path":"user://safe.png","entry":"assets/safe.png"}]
+ assert(io.validate_bundle_manifest(manifest).ok, "Debe aceptar una entrada segura")
+ manifest.assets=[{"source_path":"user://safe.png","entry":"assets/../escape.png"}]
+ assert(not io.validate_bundle_manifest(manifest).ok, "Debe rechazar traversal en el manifiesto")
+ manifest.assets=[{"source_path":"user://safe.png","entry":"assets\\\\escape.png"}]
+ assert(not io.validate_bundle_manifest(manifest).ok, "Debe rechazar separadores alternativos")
+ manifest.assets=[{"source_path":"user://safe.png","entry":"assets/safe.png"},{"source_path":"user://other.png","entry":"assets/safe.png"}]
+ assert(not io.validate_bundle_manifest(manifest).ok, "Debe rechazar entradas duplicadas")
+ manifest.assets=[]
  var source="user://bundle_roundtrip_source.asbundle"
  var exported=io.export_bundle(source,{"name":"Roundtrip","width":1920,"height":1080,"fps":60,"scenes":[],"resources":[]})
  assert(exported.ok)
