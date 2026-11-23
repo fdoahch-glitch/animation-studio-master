@@ -44,7 +44,7 @@ jobs:
 
       - name: Test character image preparation
         id: character_image_processor
-        timeout-minutes: 3
+        timeout-minutes: 1
         continue-on-error: true
         run: godot --headless --path . --script res://tests/test_character_image_processor.gd
 
