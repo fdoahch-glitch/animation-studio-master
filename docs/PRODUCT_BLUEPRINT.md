@@ -200,13 +200,13 @@ Cada recurso tendrá ID estable, tipo, ruta, metadatos y compatibilidad 2D/2.5D/
 | Importar PNG/JPG/WebP | Implementado en la interfaz |
 | Eliminar fondo plano conectado al borde | Implementado como herramienta local aproximada |
 | Recortes iniciales de cabeza/torso/pelvis/brazos/piernas | Implementado como regiones proporcionales; requiere revisión |
-| Segmentación semántica IA y máscaras | Cliente HTTP y contrato implementados; requiere endpoint/modelo compatible |
-| Puntos articulares IA | Validación, persistencia y uso como pivotes implementados |
+| Segmentación semántica automática | No incluida; se mantiene preparación local aproximada y corrección manual |
+| Puntos articulares | Pivotes estimados localmente y editables; no hay inferencia IA |
 | Rig 2D por piezas independientes | Implementado; depende de la calidad de recortes/máscaras |
-| Animaciones 2D base y controles articulares | Implementado para rigs procedurales y rigs de sprites |
+| Animaciones 2D base y procedurales | 12 ciclos con keyframes matemáticos; instalables en rigs estándar y segmentados |
 | Solver matemático IK de dos huesos | Implementado como función base; falta conectarlo a controles de arrastre en el lienzo |
-| Generación IA de vistas frente/perfil/espalda/tres cuartos | Cliente y contrato implementados; requiere endpoint generativo |
-| Generación IA de poses | Cliente y contrato implementados; requiere endpoint generativo |
+| Vistas frente/perfil/espalda/tres cuartos | Referencias esquemáticas; una imagen plana no se transforma en vistas nuevas automáticamente |
+| Generación procedural de poses | Implementadas 12 poses editables mediante ángulos articulares |
 | Esqueleto 3D con piezas de referencia | Implementado como estructura Skeleton3D; no tiene skinning de malla artística |
 | Animación 3D completa, IK 3D y deformación de malla | Pendiente |
 | Rig 2.5D por planos | Utilidad y vista de plano importado implementadas; parallax multicapa/rig 2.5D pendiente |
