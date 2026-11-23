@@ -1125,22 +1125,56 @@ func _add_pivot_offset_control(parent: Node, label_text: String, pivot_name: Str
 	slider.value_changed.connect(_on_pivot_offset_changed.bind(pivot_name, axis))
 	row.add_child(slider)
 
+func _spatial_bone_name(joint_key: String) -> String:
+	var names := {
+		"pelvis":"Pelvis", "torso":"Chest", "neck":"Neck", "head":"Head",
+		"shoulder_left":"Shoulder_L", "elbow_left":"Elbow_L", "wrist_left":"Wrist_L",
+		"shoulder_right":"Shoulder_R", "elbow_right":"Elbow_R", "wrist_right":"Wrist_R",
+		"hip_left":"Hip_L", "knee_left":"Knee_L", "ankle_left":"Ankle_L",
+		"hip_right":"Hip_R", "knee_right":"Knee_R", "ankle_right":"Ankle_R"
+	}
+	return str(names.get(joint_key, ""))
+
+func _capture_joint_editor_pose() -> Dictionary:
+	if is_instance_valid(runtime_rig):
+		return rig_builder.capture_procedural_pose(runtime_rig)
+	if is_instance_valid(runtime_spatial_animator):
+		return runtime_spatial_animator.capture_pose()
+	return {}
+
+func _apply_joint_editor_pose(snapshot: Dictionary) -> void:
+	if is_instance_valid(runtime_rig):
+		rig_builder.stop_animation(runtime_rig)
+		rig_builder.apply_procedural_pose(runtime_rig, snapshot)
+	elif is_instance_valid(runtime_spatial_animator):
+		runtime_spatial_animator.apply_pose({"bone_rotations_degrees": snapshot})
+
 func _on_joint_editor_selection_changed(index: int) -> void:
-	if not is_instance_valid(runtime_rig) or not is_instance_valid(joint_picker):
+	if not is_instance_valid(joint_picker):
 		return
 	var key := str(joint_picker.get_item_metadata(index))
-	var angles: Dictionary = rig_builder.capture_procedural_pose(runtime_rig)
-	var value := float(angles.get(key, 0.0))
+	var value := 0.0
+	if is_instance_valid(runtime_rig):
+		value = float(rig_builder.capture_procedural_pose(runtime_rig).get(key, 0.0))
+	elif is_instance_valid(runtime_spatial_animator):
+		var bone_name := _spatial_bone_name(key)
+		var rotations: Dictionary = runtime_spatial_animator.capture_pose()
+		var angles: Array = rotations.get(bone_name, [0.0, 0.0, 0.0])
+		value = float(angles[2]) if angles.size() >= 3 else 0.0
+	else:
+		return
 	joint_editor_syncing = true
 	joint_angle_slider.value = value
 	joint_angle_spin.value = value
 	joint_editor_syncing = false
 
 func _on_joint_editor_angle_changed(value: float) -> void:
-	if joint_editor_syncing or not is_instance_valid(runtime_rig) or not is_instance_valid(joint_picker):
+	if joint_editor_syncing or not is_instance_valid(joint_picker):
 		return
 	var key := str(joint_picker.get_item_metadata(joint_picker.selected))
-	var before: Dictionary = rig_builder.capture_procedural_pose(runtime_rig)
+	var before := _capture_joint_editor_pose()
+	if before.is_empty():
+		return
 	joint_undo_stack.append(before.duplicate(true))
 	if joint_undo_stack.size() > 50:
 		joint_undo_stack.pop_front()
@@ -1149,58 +1183,87 @@ func _on_joint_editor_angle_changed(value: float) -> void:
 	joint_angle_slider.value = value
 	joint_angle_spin.value = value
 	joint_editor_syncing = false
-	var applied := rig_builder.apply_procedural_pose(runtime_rig, {key: value})
-	if applied == 0:
-		_set_status("Esta articulación no existe en el rig actual.")
-		return
+	if is_instance_valid(runtime_rig):
+		var applied := rig_builder.apply_procedural_pose(runtime_rig, {key: value})
+		if applied == 0:
+			_set_status("Esta articulación no existe en el rig actual.")
+			return
+	elif is_instance_valid(runtime_spatial_animator):
+		var bone_name := _spatial_bone_name(key)
+		if bone_name == "":
+			_set_status("Esta articulación no existe en el rig 3D actual.")
+			return
+		var rotations := before.duplicate(true)
+		rotations[bone_name] = [0.0, 0.0, clampf(value, -180.0, 180.0)]
+		runtime_spatial_animator.apply_pose({"bone_rotations_degrees": rotations})
 	_set_status("Articulación %s ajustada a %.0f°." % [joint_picker.get_item_text(joint_picker.selected), value])
 
 func _restore_joint_snapshot(snapshot: Dictionary) -> void:
-	if not is_instance_valid(runtime_rig):
-		return
-	rig_builder.stop_animation(runtime_rig)
-	rig_builder.apply_procedural_pose(runtime_rig, snapshot)
+	_apply_joint_editor_pose(snapshot)
 	_on_joint_editor_selection_changed(joint_picker.selected if is_instance_valid(joint_picker) else 0)
 
 func _undo_joint_edit() -> void:
-	if joint_undo_stack.is_empty() or not is_instance_valid(runtime_rig):
+	if joint_undo_stack.is_empty():
 		return
-	joint_redo_stack.append(rig_builder.capture_procedural_pose(runtime_rig))
+	var current := _capture_joint_editor_pose()
+	if current.is_empty():
+		return
+	joint_redo_stack.append(current)
 	var snapshot: Dictionary = joint_undo_stack.pop_back()
 	_restore_joint_snapshot(snapshot)
 	_set_status("Último ajuste de articulación deshecho.")
 
 func _redo_joint_edit() -> void:
-	if joint_redo_stack.is_empty() or not is_instance_valid(runtime_rig):
+	if joint_redo_stack.is_empty():
 		return
-	joint_undo_stack.append(rig_builder.capture_procedural_pose(runtime_rig))
+	var current := _capture_joint_editor_pose()
+	if current.is_empty():
+		return
+	joint_undo_stack.append(current)
 	var snapshot: Dictionary = joint_redo_stack.pop_back()
 	_restore_joint_snapshot(snapshot)
 	_set_status("Ajuste de articulación rehecho.")
 
 func _reset_selected_joint() -> void:
-	if not is_instance_valid(runtime_rig) or not is_instance_valid(joint_picker):
+	if not is_instance_valid(joint_picker):
 		return
 	var key := str(joint_picker.get_item_metadata(joint_picker.selected))
-	var before: Dictionary = rig_builder.capture_procedural_pose(runtime_rig)
+	var before := _capture_joint_editor_pose()
+	if before.is_empty():
+		return
 	joint_undo_stack.append(before.duplicate(true))
 	joint_redo_stack.clear()
-	rig_builder.stop_animation(runtime_rig)
-	if rig_builder.apply_procedural_pose(runtime_rig, {key: 0.0}) > 0:
-		_on_joint_editor_selection_changed(joint_picker.selected)
-		_set_status("Articulación restablecida a 0°.")
+	if is_instance_valid(runtime_rig):
+		rig_builder.stop_animation(runtime_rig)
+		if rig_builder.apply_procedural_pose(runtime_rig, {key: 0.0}) > 0:
+			_on_joint_editor_selection_changed(joint_picker.selected)
+			_set_status("Articulación restablecida a 0°.")
+	elif is_instance_valid(runtime_spatial_animator):
+		var bone_name := _spatial_bone_name(key)
+		if bone_name != "":
+			var rotations := before.duplicate(true)
+			rotations[bone_name] = [0.0, 0.0, 0.0]
+			runtime_spatial_animator.apply_pose({"bone_rotations_degrees": rotations})
+			_on_joint_editor_selection_changed(joint_picker.selected)
+			_set_status("Articulación 3D restablecida a 0°.")
 
 func _reset_all_joints() -> void:
-	if not is_instance_valid(runtime_rig):
+	var before := _capture_joint_editor_pose()
+	if before.is_empty():
 		return
-	var before: Dictionary = rig_builder.capture_procedural_pose(runtime_rig)
 	joint_undo_stack.append(before.duplicate(true))
 	joint_redo_stack.clear()
-	var neutral: Dictionary = {}
-	for key in before.keys():
-		neutral[key] = 0.0
-	rig_builder.stop_animation(runtime_rig)
-	rig_builder.apply_procedural_pose(runtime_rig, neutral)
+	if is_instance_valid(runtime_rig):
+		var neutral: Dictionary = {}
+		for key in before.keys():
+			neutral[key] = 0.0
+		rig_builder.stop_animation(runtime_rig)
+		rig_builder.apply_procedural_pose(runtime_rig, neutral)
+	elif is_instance_valid(runtime_spatial_animator):
+		var neutral_3d: Dictionary = {}
+		for key in before.keys():
+			neutral_3d[key] = [0.0, 0.0, 0.0]
+		runtime_spatial_animator.apply_pose({"bone_rotations_degrees": neutral_3d})
 	_on_joint_editor_selection_changed(joint_picker.selected if is_instance_valid(joint_picker) else 0)
 	_set_status("Todas las articulaciones se restablecieron a 0°.")
 
