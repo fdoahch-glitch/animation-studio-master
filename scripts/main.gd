@@ -1098,6 +1098,15 @@ func _director_create_camera_track() -> void:
 		return
 	_director_tracks().append(track)
 	director_selected_track = _director_tracks().size() - 1
+	match property:
+		"position":
+			director_value_input.value = float(project_data.get("width", 1920)) * 0.5
+			director_value_y_input.value = float(project_data.get("height", 1080)) * 0.5
+		"zoom":
+			director_value_input.value = 1.0
+		"rotation":
+			director_value_input.value = 0.0
+	director_value_y_input.visible = property == "position"
 	_refresh_director_tracks()
 	if is_instance_valid(director_track_list):
 		director_track_list.select(director_selected_track)
@@ -1391,7 +1400,17 @@ func _active_scene() -> Dictionary:
 	var scenes: Array = project_data.get("scenes", [])
 	if selected_scene_index < 0 or selected_scene_index >= scenes.size():
 		return {}
-	return scenes[selected_scene_index]
+	var scene: Dictionary = scenes[selected_scene_index]
+	if not scene.has("camera"):
+		scene["camera"] = {
+			"x": float(project_data.get("width", 1920)) * 0.5,
+			"y": float(project_data.get("height", 1080)) * 0.5,
+			"zoom": 1.0,
+			"rotation": 0.0
+		}
+		scenes[selected_scene_index] = scene
+		project_data["scenes"] = scenes
+	return scene
 
 func _refresh_scene_canvas() -> void:
 	if not is_instance_valid(scene_canvas): return

@@ -33,6 +33,10 @@ func _initialize() -> void:
 	assert(camera_center.distance_to(canvas._canvas_rect().get_center()) < 0.01, "El centro de cámara debe quedar en el centro de la composición")
 	assert(is_equal_approx(camera_right.x - camera_center.x, 40.0 * canvas._canvas_scale() * 2.0), "El zoom de cámara debe ampliar el encuadre")
 	assert(canvas._screen_to_scene(camera_right).distance_to(Vector2(1000.0, 540.0)) < 0.01, "La cámara debe invertir coordenadas correctamente")
+	camera_scene["camera"]["rotation"] = 90.0
+	canvas.set_scene_data(camera_scene, 1920.0, 1080.0)
+	var rotated_right := canvas._scene_to_screen(Vector2(1000.0, 540.0))
+	assert(absf(rotated_right.x - camera_center.x) < 0.01 and rotated_right.y < camera_center.y, "La rotación de cámara debe rotar el encuadre y conservar el centro")
 	canvas.pan = Vector2(35, -20)
 	canvas.reset_view()
 	assert(canvas.zoom == 1.0 and canvas.pan == Vector2.ZERO, "Debe reiniciar cámara")
