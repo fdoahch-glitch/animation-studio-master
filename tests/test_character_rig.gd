@@ -222,6 +222,15 @@ func _run_tests() -> void:
 		push_error("El clip 3D no aplicó las rotaciones de sus fotogramas clave.")
 		quit(1)
 		return
+	if spatial_animator.bake_clips_to_animation_player(spatial_rig, spatial_clips) != spatial_clips.size():
+		push_error("No se pudieron convertir todos los ciclos procedurales a pistas AnimationPlayer.")
+		quit(1)
+		return
+	var baked_player := spatial_rig.get_node_or_null("ProceduralAnimationPlayer") as AnimationPlayer
+	if baked_player == null or not baked_player.has_animation("procedural/walk"):
+		push_error("No se generó la animación 3D nativa para exportación.")
+		quit(1)
+		return
 	var gltf_exporter := GLTFDocument.new()
 	var gltf_export_state := GLTFState.new()
 	if gltf_exporter.append_from_scene(spatial_rig, gltf_export_state) != OK:
