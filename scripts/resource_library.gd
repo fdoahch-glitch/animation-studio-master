@@ -7,6 +7,7 @@ class_name ResourceLibrary
 const CATEGORIES := ["character", "background", "element", "decoration"]
 const IMAGE_EXTENSIONS := ["png", "jpg", "jpeg", "webp"]
 const MODEL_EXTENSIONS := ["glb", "gltf"]
+const MAX_RESOURCE_BYTES := 256 * 1024 * 1024
 
 func normalize_category(value: String) -> String:
 	var key := value.to_lower().strip_edges()
@@ -37,7 +38,7 @@ func import_file(source_path: String, category: String, display_name := "", tags
 		return {"ok": false, "error": "No se pudo leer el archivo."}
 	var bytes := file.get_length()
 	file.close()
-	if bytes <= 0 or bytes > 256 * 1024 * 1024:
+	if not is_resource_size_allowed(bytes):
 		return {"ok": false, "error": "El archivo está vacío o supera el límite de 256 MB."}
 	var id := "asset_%d_%d" % [Time.get_unix_time_from_system(), Time.get_ticks_msec() % 100000]
 	var safe_name := (display_name.strip_edges() if not display_name.strip_edges().is_empty() else source_path.get_file().get_basename()).validate_filename()
@@ -55,7 +56,7 @@ func import_file(source_path: String, category: String, display_name := "", tags
 	var dependency_paths: Array = []
 	var total_bytes := bytes
 	if extension == "gltf":
-		var dependency_result: Dictionary = _copy_gltf_dependencies(source_path, relative_path, folder, id)
+		var dependency_result: Dictionary = _copy_gltf_dependencies(source_path, relative_path, folder, id, bytes)
 		if not bool(dependency_result.get("ok", false)):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(relative_path))
 			return dependency_result
@@ -130,6 +131,9 @@ func search(resources: Array, query: String, category := "") -> Array:
 			result.append(item.duplicate(true))
 	return result
 
+func is_resource_size_allowed(total_bytes: int) -> bool:
+	return total_bytes > 0 and total_bytes <= MAX_RESOURCE_BYTES
+
 func validate_resource(resource: Dictionary) -> Dictionary:
 	for key in ["id", "name", "category", "path", "extension"]:
 		if str(resource.get(key, "")).strip_edges().is_empty():
@@ -187,7 +191,7 @@ func is_compatible(resource: Dictionary, visual_mode: String) -> bool:
 		return visual_mode == "Híbrido"
 	return modes_value.has(visual_mode) or visual_mode == "Híbrido"
 
-func _copy_gltf_dependencies(source_path: String, destination_path: String, folder: String, resource_id: String) -> Dictionary:
+func _copy_gltf_dependencies(source_path: String, destination_path: String, folder: String, resource_id: String, source_bytes: int) -> Dictionary:
 	var source_file := FileAccess.open(source_path, FileAccess.READ)
 	if source_file == null:
 		return {"ok": false, "error": "No se pudo leer el archivo GLTF."}
@@ -220,8 +224,11 @@ func _copy_gltf_dependencies(source_path: String, destination_path: String, fold
 			var dependency_file := FileAccess.open(source_dependency, FileAccess.READ)
 			if dependency_file == null:
 				return _rollback_gltf_dependencies(copied_paths, dependency_folder, "No se pudo leer la dependencia GLTF: " + decoded_uri)
-			total_bytes += dependency_file.get_length()
+			var dependency_bytes := dependency_file.get_length()
 			dependency_file.close()
+			total_bytes += dependency_bytes
+			if not is_resource_size_allowed(source_bytes + total_bytes):
+				return _rollback_gltf_dependencies(copied_paths, dependency_folder, "El modelo GLTF y sus dependencias superan el límite total de 256 MB.")
 			var make_dir := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dependency_folder))
 			if make_dir != OK and make_dir != ERR_ALREADY_EXISTS:
 				return _rollback_gltf_dependencies(copied_paths, dependency_folder, "No se pudo crear la carpeta de dependencias GLTF.")
