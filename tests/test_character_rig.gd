@@ -71,6 +71,18 @@ func _run_tests() -> void:
 		push_error("No se pudo reproducir la animación walk del rig segmentado.")
 		quit(1)
 		return
+	if builder.apply_procedural_pose(sprite_rig, poses[2].get("joint_angles", {})) < 1:
+		push_error("No se pudo aplicar una pose al rig de sprites segmentado.")
+		quit(1)
+		return
+	if builder.add_procedural_animation_set(sprite_rig, clips) < 15:
+		push_error("No se pudieron instalar ciclos procedurales en el rig segmentado.")
+		quit(1)
+		return
+	if not builder.play_animation(sprite_rig, "proc_caminar", 1.2):
+		push_error("No se pudo reproducir el ciclo procedural en el rig segmentado.")
+		quit(1)
+		return
 
 	var spatial_builder = SPATIAL_BUILDER.new()
 	var spatial_rig: Node3D = spatial_builder.build_humanoid_3d("CI_Test_3D")
