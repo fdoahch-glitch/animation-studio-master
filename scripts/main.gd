@@ -922,6 +922,7 @@ func _show_director_timeline() -> void:
 	director_timeline_view.custom_minimum_size = Vector2(420, 190)
 	director_timeline_view.frame_selected.connect(_on_director_timeline_frame_selected)
 	director_timeline_view.track_selected.connect(_on_director_track_selected)
+	director_timeline_view.keyframe_moved.connect(_on_director_keyframe_moved)
 	page.add_child(director_timeline_view)
 	director_playhead = HSlider.new()
 	director_playhead.min_value = 0
@@ -1079,6 +1080,42 @@ func _director_add_keyframe() -> void:
 	_refresh_director_timeline_view()
 	_save_project()
 	_set_status("Keyframe guardado en el fotograma %d." % int(director_time_input.value))
+
+func _on_director_keyframe_moved(track_index: int, old_time: float, new_frame: int) -> void:
+	var tracks := _director_tracks()
+	if track_index < 0 or track_index >= tracks.size():
+		return
+	var fps := maxi(1, int(project_data.get("fps", 24)))
+	var new_time: float = timeline_model.frame_to_seconds(new_frame, fps)
+	if absf(new_time - old_time) <= 0.0001:
+		return
+	var track: Dictionary = tracks[track_index].duplicate(true)
+	var old_key: Dictionary = {}
+	for key in track.get("keyframes", []):
+		if absf(float(key.get("time", -1.0)) - old_time) <= 0.0001:
+			old_key = key.duplicate(true)
+			break
+	if old_key.is_empty():
+		_set_status("No se encontró el keyframe que intentabas mover.")
+		return
+	var removed: Dictionary = timeline_model.remove_property_keyframe(track, old_time, 0.0001)
+	if not bool(removed.get("ok", false)):
+		_set_status(str(removed.get("error", "No se pudo mover el keyframe.")))
+		return
+	var inserted: Dictionary = timeline_model.insert_property_keyframe(track, new_time, old_key.get("value"), str(old_key.get("easing", "linear")))
+	if not bool(inserted.get("ok", false)):
+		_set_status(str(inserted.get("error", "No se pudo mover el keyframe.")))
+		return
+	tracks[track_index] = track
+	director_selected_track = track_index
+	if is_instance_valid(director_time_input):
+		director_time_input.value = new_frame
+	if is_instance_valid(director_playhead):
+		director_playhead.value = new_frame
+	_refresh_director_tracks()
+	_refresh_director_timeline_view()
+	_save_project()
+	_set_status("Keyframe movido al fotograma %d." % new_frame)
 
 func _director_delete_keyframe_at_frame() -> void:
 	var tracks := _director_tracks()

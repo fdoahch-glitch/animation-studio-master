@@ -32,3 +32,8 @@ Los botones de la paleta generan marcadores vectoriales de previsualización con
 - La prueba headless del lienzo verifica el zoom anclado y el desplazamiento de cámara además de selección, coordenadas, movimiento y colocación por arrastrar/soltar.
 
 La biblioteca real de recursos y la previsualización GLB pertenecen a la etapa 3; los botones de composición de esta etapa permiten crear marcadores de escena que después se pueden vincular a recursos importados.
+
+
+## Edición directa de keyframes
+
+En el timeline de dirección, los diamantes de keyframe se pueden arrastrar horizontalmente para cambiar su fotograma. El editor conserva el valor y la curva de interpolación originales, ajusta el tiempo al FPS del proyecto y guarda el cambio. La interacción se cubre con una prueba automatizada de arrastre y señal.

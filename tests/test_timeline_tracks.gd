@@ -1,6 +1,7 @@
 extends SceneTree
 
 const TIMELINE = preload("res://scripts/animation_timeline.gd")
+const TIMELINE_VIEW = preload("res://scripts/animation_timeline_view.gd")
 
 func _initialize() -> void:
 	var timeline = TIMELINE.new()
@@ -37,5 +38,32 @@ func _initialize() -> void:
 	assert(removed.ok and track.keyframes.size() == 1)
 	assert(is_equal_approx(float(track.keyframes[0].time), 2.0))
 	assert(not timeline.remove_property_keyframe(track, 9.0, 0.001).ok)
+	var view = TIMELINE_VIEW.new()
+	root.add_child(view)
+	view.size = Vector2(800, 180)
+	var drag_track := timeline.create_track("drag_track", "Posición", "object_1", "x")
+	timeline.insert_property_keyframe(drag_track, 1.0, 12.0, "ease_in")
+	view.configure([drag_track], 24, 120, 24, 0)
+	var moved_events: Array = []
+	view.keyframe_moved.connect(func(track_index: int, old_time: float, new_frame: int) -> void:
+		moved_events.append({"track": track_index, "old": old_time, "frame": new_frame})
+	)
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	press.position = Vector2(view._frame_x(24), 30.0 + 16.0)
+	view._gui_input(press)
+	var motion := InputEventMouseMotion.new()
+	motion.position = Vector2(view._frame_x(48), 30.0 + 16.0)
+	motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+	view._gui_input(motion)
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	release.pressed = false
+	release.position = motion.position
+	view._gui_input(release)
+	assert(moved_events.size() == 1, "Arrastrar un diamante debe emitir un único cambio de keyframe")
+	assert(moved_events[0].track == 0 and is_equal_approx(float(moved_events[0].old), 1.0) and moved_events[0].frame == 48, "El arrastre debe conservar pista/origen y calcular el nuevo fotograma")
+	view.queue_free()
 	print("TIMELINE_TRACK_TESTS_OK")
 	quit(0)
