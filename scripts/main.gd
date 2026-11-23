@@ -8,6 +8,7 @@ const CHARACTER_SPATIAL_RIG_BUILDER = preload("res://scripts/character_spatial_r
 const CHARACTER_SPATIAL_ANIMATOR = preload("res://scripts/character_spatial_animator.gd")
 const IK_DRAG_OVERLAY = preload("res://scripts/ik_drag_overlay.gd")
 const ANIMATION_TIMELINE = preload("res://scripts/animation_timeline.gd")
+const ANIMATION_TIMELINE_VIEW = preload("res://scripts/animation_timeline_view.gd")
 const VIDEO_TIMELINE = preload("res://scripts/video_timeline.gd")
 const CHARACTER_PACKAGE_IO = preload("res://scripts/character_package_io.gd")
 const PROJECT_DOCUMENT_IO = preload("res://scripts/project_document_io.gd")
@@ -100,6 +101,7 @@ var director_time_input: SpinBox
 var director_value_input: SpinBox
 var director_easing_picker: OptionButton
 var director_playhead: HSlider
+var director_timeline_view
 var director_selected_track := -1
 var package_export_dialog: FileDialog
 var package_import_dialog: FileDialog
@@ -716,7 +718,9 @@ func _show_director_timeline() -> void:
 	page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	page.add_theme_constant_override("separation", 8)
 	content.add_child(page)
-	_add_heading(page, "Timeline · Dirección de escena", "Anima transformaciones de objetos de la escena mediante pistas y curvas; no requiere un rig de personaje.")
+	var fps := maxi(1, int(project_data.get("fps", 24)))
+	var duration := float(_active_scene().get("duration_seconds", 10.0))
+	_add_heading(page, "Animación · Timeline", "Anima los objetos de esta escena. El tiempo se edita por fotogramas y se convierte automáticamente a segundos según los FPS del proyecto.")
 	var controls := HBoxContainer.new()
 	page.add_child(controls)
 	director_target_picker = OptionButton.new()
@@ -733,10 +737,10 @@ func _show_director_timeline() -> void:
 	var edit := HBoxContainer.new()
 	page.add_child(edit)
 	director_time_input = SpinBox.new()
-	director_time_input.min_value = 0.0
-	director_time_input.max_value = 600.0
-	director_time_input.step = 0.01
-	director_time_input.prefix = "Tiempo "
+	director_time_input.min_value = 0
+	director_time_input.max_value = maxi(1, int(ceil(duration * fps)))
+	director_time_input.step = 1
+	director_time_input.prefix = "Fotograma "
 	edit.add_child(director_time_input)
 	director_value_input = SpinBox.new()
 	director_value_input.min_value = -100000.0
@@ -751,13 +755,19 @@ func _show_director_timeline() -> void:
 	_add_button(edit, "Añadir keyframe", _director_add_keyframe)
 	_add_button(edit, "Eliminar pista", _director_delete_track)
 	director_track_list = ItemList.new()
-	director_track_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	director_track_list.custom_minimum_size.y = 72
 	director_track_list.item_selected.connect(_on_director_track_selected)
 	page.add_child(director_track_list)
+	director_timeline_view = ANIMATION_TIMELINE_VIEW.new()
+	director_timeline_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	director_timeline_view.custom_minimum_size = Vector2(420, 190)
+	director_timeline_view.frame_selected.connect(_on_director_timeline_frame_selected)
+	director_timeline_view.track_selected.connect(_on_director_track_selected)
+	page.add_child(director_timeline_view)
 	director_playhead = HSlider.new()
-	director_playhead.min_value = 0.0
-	director_playhead.max_value = 10.0
-	director_playhead.step = 0.01
+	director_playhead.min_value = 0
+	director_playhead.max_value = maxi(1, int(ceil(duration * fps)))
+	director_playhead.step = 1
 	director_playhead.value_changed.connect(_on_director_playhead_changed)
 	page.add_child(director_playhead)
 	var footer := HBoxContainer.new()
@@ -766,6 +776,22 @@ func _show_director_timeline() -> void:
 	_add_button(footer, "Guardar timeline", _save_project)
 	_add_button(footer, "Volver", _show_workspace)
 	_refresh_director_tracks()
+	_refresh_director_timeline_view()
+
+func _refresh_director_timeline_view() -> void:
+	if not is_instance_valid(director_timeline_view):
+		return
+	var fps := maxi(1, int(project_data.get("fps", 24)))
+	var duration := float(_active_scene().get("duration_seconds", 10.0))
+	var frames := maxi(1, int(ceil(duration * fps)))
+	var current := int(director_playhead.value) if is_instance_valid(director_playhead) else 0
+	director_timeline_view.configure(_director_tracks(), fps, frames, current, director_selected_track)
+
+func _on_director_timeline_frame_selected(frame: int) -> void:
+	if is_instance_valid(director_time_input):
+		director_time_input.value = frame
+	if is_instance_valid(director_playhead):
+		director_playhead.value = frame
 
 func _director_tracks() -> Array:
 	if not project_data.has("scene_animation_tracks"):
@@ -786,6 +812,7 @@ func _director_create_track() -> void:
 		return
 	_director_tracks().append(track)
 	_refresh_director_tracks()
+	_refresh_director_timeline_view()
 	_save_project()
 	_set_status("Pista de %s creada." % property)
 
@@ -802,9 +829,10 @@ func _on_director_track_selected(index: int) -> void:
 	if index >= 0 and index < tracks.size():
 		var frames: Array = tracks[index].get("keyframes",[])
 		if not frames.is_empty():
-			director_time_input.value = float(frames[-1].get("time",0.0))
+			director_time_input.value = timeline_model.seconds_to_frame(float(frames[-1].get("time",0.0)), maxi(1, int(project_data.get("fps", 24))))
 			director_value_input.value = float(frames[-1].get("value",0.0))
 		_refresh_director_tracks()
+		_refresh_director_timeline_view()
 
 func _director_add_keyframe() -> void:
 	var tracks := _director_tracks()
@@ -813,14 +841,17 @@ func _director_add_keyframe() -> void:
 		return
 	var track: Dictionary = tracks[director_selected_track]
 	var easing := director_easing_picker.get_item_text(director_easing_picker.selected)
-	var result: Dictionary = timeline_model.insert_property_keyframe(track, director_time_input.value, director_value_input.value, easing)
+	var fps := maxi(1, int(project_data.get("fps", 24)))
+	var key_time := timeline_model.frame_to_seconds(int(director_time_input.value), fps)
+	var result: Dictionary = timeline_model.insert_property_keyframe(track, key_time, director_value_input.value, easing)
 	if not bool(result.get("ok",false)):
 		_set_status(str(result.get("error","No se pudo añadir el keyframe.")))
 		return
 	tracks[director_selected_track] = track
 	_refresh_director_tracks()
+	_refresh_director_timeline_view()
 	_save_project()
-	_set_status("Keyframe guardado en %.2f s." % director_time_input.value)
+	_set_status("Keyframe guardado en el fotograma %d." % int(director_time_input.value))
 
 func _director_delete_track() -> void:
 	var tracks := _director_tracks()
@@ -829,13 +860,16 @@ func _director_delete_track() -> void:
 	tracks.remove_at(director_selected_track)
 	director_selected_track = -1
 	_refresh_director_tracks()
+	_refresh_director_timeline_view()
 	_save_project()
 
 func _on_director_playhead_changed(value: float) -> void:
+	var fps := maxi(1, int(project_data.get("fps", 24)))
+	var seconds := timeline_model.frame_to_seconds(int(value), fps)
 	var scene := _active_scene()
 	var tracks := _director_tracks()
 	for track in tracks:
-		var sampled: Variant = timeline_model.sample_track(track, value)
+		var sampled: Variant = timeline_model.sample_track(track, seconds)
 		if sampled == null:
 			continue
 		for object_index in range(scene.get("objects",[]).size()):
@@ -849,6 +883,7 @@ func _on_director_playhead_changed(value: float) -> void:
 		project_data["scenes"][selected_scene_index] = scene
 	if is_instance_valid(scene_canvas):
 		_refresh_scene_canvas()
+	_refresh_director_timeline_view()
 
 func _show_scene_manager() -> void:
 	_clear_content()
