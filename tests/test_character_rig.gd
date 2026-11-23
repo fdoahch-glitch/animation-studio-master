@@ -4,6 +4,7 @@ const RIG_BUILDER = preload("res://scripts/character_rig_builder.gd")
 const IMAGE_PROCESSOR = preload("res://scripts/character_image_processor.gd")
 const SPATIAL_BUILDER = preload("res://scripts/character_spatial_rig_builder.gd")
 const PROCEDURAL_ANIMATOR = preload("res://scripts/character_procedural_animator.gd")
+const IK_DRAG_OVERLAY = preload("res://scripts/ik_drag_overlay.gd")
 
 func _initialize() -> void:
 	call_deferred("_run_tests")
@@ -60,6 +61,19 @@ func _run_tests() -> void:
 		quit(1)
 		return
 
+	var standard_overlay: Control = IK_DRAG_OVERLAY.new()
+	root.add_child(standard_overlay)
+	standard_overlay.configure(procedural_rig, builder)
+	if not standard_overlay._is_supported_rig():
+		push_error("El editor IK no reconoce el rig 2D estándar.")
+		quit(1)
+		return
+	for handle_name in standard_overlay.handle_specs.keys():
+		if standard_overlay._get_chain_end(standard_overlay.handle_specs[handle_name]).x < -1000.0:
+			push_error("Falta un punto IK arrastrable en el rig estándar: " + str(handle_name))
+			quit(1)
+			return
+
 	var image := Image.create(128, 256, false, Image.FORMAT_RGBA8)
 	image.fill(Color.WHITE)
 	for y in range(25, 245):
@@ -81,8 +95,23 @@ func _run_tests() -> void:
 		quit(1)
 		return
 
-	var sprite_rig: Node2D = builder.build_segmented_sprite_rig(prepared.parts, {}, Vector2i(128, 256))
+	var segmented_parts: Array = []
+	for part_name in ["pelvis", "torso", "upper_arm_left", "lower_arm_left", "hand_left", "upper_arm_right", "lower_arm_right", "hand_right", "upper_leg_left", "lower_leg_left", "foot_left", "upper_leg_right", "lower_leg_right", "foot_right"]:
+		segmented_parts.append({"name": part_name, "path": source_path, "rect": [20, 20, 70, 100]})
+	var sprite_rig: Node2D = builder.build_segmented_sprite_rig(segmented_parts, {}, Vector2i(128, 256))
 	root.add_child(sprite_rig)
+	var segmented_overlay: Control = IK_DRAG_OVERLAY.new()
+	root.add_child(segmented_overlay)
+	segmented_overlay.configure(sprite_rig, builder)
+	if not segmented_overlay._is_supported_rig():
+		push_error("El editor IK no reconoce el rig segmentado.")
+		quit(1)
+		return
+	for handle_name in segmented_overlay.handle_specs.keys():
+		if segmented_overlay._get_chain_end(segmented_overlay.handle_specs[handle_name]).x < -1000.0:
+			push_error("Falta un punto IK arrastrable en el rig segmentado: " + str(handle_name))
+			quit(1)
+			return
 	if not builder.play_animation(sprite_rig, "walk"):
 		push_error("No se pudo reproducir la animación walk del rig segmentado.")
 		quit(1)
