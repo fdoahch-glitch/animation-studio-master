@@ -444,7 +444,7 @@ func _segmented_pivot_path(pivot_name: String) -> String:
 	}
 	return str(paths.get(pivot_name, "Pivot_" + pivot_name))
 
-func add_ai_animation_set(rig: Node2D, clips: Array) -> int:
+func add_procedural_animation_set(rig: Node2D, clips: Array) -> int:
 	var player := rig.get_node_or_null("AnimationPlayer") as AnimationPlayer
 	if player == null or not player.has_animation_library("base"):
 		return 0
