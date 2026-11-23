@@ -172,9 +172,10 @@ func build_viseme_track_from_wav(audio: AudioStreamWAV, start_time: float = 0.0,
  var bytes_per_sample := 2 if audio.format == AudioStreamWAV.FORMAT_16_BITS else (1 if audio.format == AudioStreamWAV.FORMAT_8_BITS else 0)
  if bytes_per_sample == 0:
   return result
+ var pcm_data: PackedByteArray = audio.data
  var channels := 2 if audio.stereo else 1
  var frame_stride := bytes_per_sample * channels
- var sample_count := int(audio.data.size() / frame_stride)
+ var sample_count := int(pcm_data.size() / frame_stride)
  if sample_count <= 0:
   return result
  var samples_per_frame := maxi(1, int(round(float(audio.mix_rate) / frame_rate)))
@@ -189,12 +190,12 @@ func build_viseme_track_from_wav(audio: AudioStreamWAV, start_time: float = 0.0,
     var byte_index := sample_index * frame_stride + channel * bytes_per_sample
     var amplitude := 0.0
     if bytes_per_sample == 2:
-     var raw := int(audio.data[byte_index]) | (int(audio.data[byte_index + 1]) << 8)
+     var raw := int(pcm_data[byte_index]) | (int(pcm_data[byte_index + 1]) << 8)
      if raw >= 32768:
       raw -= 65536
      amplitude = float(raw) / 32768.0
     else:
-     var raw_8 := int(audio.data[byte_index])
+     var raw_8 := int(pcm_data[byte_index])
     if raw_8 >= 128:
      raw_8 -= 256
     amplitude = float(raw_8) / 128.0
