@@ -339,3 +339,13 @@ func _make_pivot_animation(pose_data: Dictionary, duration: float, looping: bool
 		animation.track_insert_key(track, duration * 0.5, float(values[1]))
 		animation.track_insert_key(track, duration, float(values[2]))
 	return animation
+
+func apply_segment_pose(rig: Node2D, joint_angles_degrees: Dictionary) -> int:
+	var applied := 0
+	for joint_name in joint_angles_degrees.keys():
+		var pivot := rig.get_node_or_null("Pivot_" + str(joint_name)) as Node2D
+		if pivot == null:
+			continue
+		pivot.rotation = deg_to_rad(clampf(float(joint_angles_degrees[joint_name]), -180.0, 180.0))
+		applied += 1
+	return applied
