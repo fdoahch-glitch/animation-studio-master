@@ -1,6 +1,6 @@
 extends Control
 
-const CHARACTER_AI = preload("res://scripts/character_ai.gd")
+const CHARACTER_BLUEPRINT_BUILDER = preload("res://scripts/character_blueprint_builder.gd")
 const CHARACTER_RIG_BUILDER = preload("res://scripts/character_rig_builder.gd")
 const CHARACTER_IMAGE_PROCESSOR = preload("res://scripts/character_image_processor.gd")
 const CHARACTER_PROCEDURAL_ANIMATOR = preload("res://scripts/character_procedural_animator.gd")
@@ -8,7 +8,7 @@ const CHARACTER_SPATIAL_RIG_BUILDER = preload("res://scripts/character_spatial_r
 const DEFAULT_PROJECT := {"name":"Mi primera animación","width":1920,"height":1080,"fps":60,"orientation":"Horizontal","visual_mode":"2D","background_mode":"Vacío"}
 
 var project_data: Dictionary = DEFAULT_PROJECT.duplicate(true)
-var ai
+var blueprint_builder
 var rig_builder
 var spatial_builder
 var runtime_spatial_rig: Node3D
@@ -92,13 +92,11 @@ class CharacterPreview:
 		draw_string(ThemeDB.fallback_font, Vector2(16, size.y-18), view_name.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#42566b"))
 
 func _ready() -> void:
-	ai = CHARACTER_AI.new()
+	blueprint_builder = CHARACTER_BLUEPRINT_BUILDER.new()
 	rig_builder = CHARACTER_RIG_BUILDER.new()
 	spatial_builder = CHARACTER_SPATIAL_RIG_BUILDER.new()
 	image_processor = CHARACTER_IMAGE_PROCESSOR.new()
 	procedural_animator = CHARACTER_PROCEDURAL_ANIMATOR.new()
-	ai.name = "CharacterAI"
-	add_child(ai)
 	_build_shell()
 	image_dialog = FileDialog.new()
 	image_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
@@ -555,12 +553,12 @@ func _generate_character() -> void:
 	var label := character_name.text.strip_edges()
 	if label == "":
 		label = "Personaje nuevo"
-	generated_character = ai.build_character_blueprint(label, character_description.text.strip_edges(), character_mode.get_item_text(character_mode.selected))
+	generated_character = blueprint_builder.build_character_blueprint(label, character_description.text.strip_edges(), character_mode.get_item_text(character_mode.selected))
 	character_preview.character_label = label
 	character_preview.rig_data = generated_character.rig
 	character_preview.queue_redraw()
 	character_output.text = "Ficha creada: %s\nEstilo: %s\nVistas de referencia: frente, perfil, espalda y tres cuartos. El dibujo visible es una guía esquemática; las poses se generan con el sistema procedural integrado." % [label,character_style.get_item_text(character_style.selected)]
-	skeleton_output.text = ai.format_rig_summary(generated_character.rig)
+	skeleton_output.text = blueprint_builder.format_rig_summary(generated_character.rig)
 	_build_runtime_character()
 	if not project_data.has("characters"):
 		project_data["characters"] = []
@@ -609,11 +607,11 @@ func _build_runtime_character() -> void:
 		rig_builder.play_animation(runtime_rig, "idle")
 
 func _build_imported_segment_rig() -> void:
-	var parts: Array = imported_character_data.get("ai_segments", imported_character_data.get("parts", []))
+	var parts: Array = imported_character_data.get("parts", [])
 	if parts.is_empty():
 		_set_status("No hay piezas recortadas para construir el rig.")
 		return
-	var joints: Dictionary = imported_character_data.get("ai_joints", {})
+	var joints: Dictionary = {}
 	var source_size := Vector2i(int(imported_character_data.get("width", 1)), int(imported_character_data.get("height", 1)))
 	if is_instance_valid(runtime_rig):
 		runtime_rig.queue_free()
@@ -625,10 +623,7 @@ func _build_imported_segment_rig() -> void:
 	runtime_rig.position = Vector2(210, 145)
 	rig_subviewport.add_child(runtime_rig)
 	rig_builder.play_animation(runtime_rig, "idle")
-	if imported_character_data.has("ai_segments"):
-		character_output.text = "Rig construido con recortes locales y pivotes estimados. Revisa las máscaras, pivotes y solapamientos; las piezas aún pueden requerir corrección."
-	else:
-		character_output.text = "Rig de prueba construido con regiones proporcionales. Son recortes aproximados, no segmentación semántica; ajusta los pivotes y las piezas manualmente si es necesario."
+	character_output.text = "Rig construido con regiones proporcionales locales. Son recortes aproximados, no segmentación semántica; ajusta los pivotes y las piezas manualmente si es necesario."
 	_set_status("Rig de imagen creado. Prueba las animaciones y corrige los pivotes.")
 
 func _add_joint_control(parent: Node, label_text: String, joint_path: String, minimum: float, maximum: float) -> void:
