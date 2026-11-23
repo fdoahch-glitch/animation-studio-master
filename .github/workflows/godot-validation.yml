@@ -38,3 +38,5 @@ jobs:
         run: godot --headless --path . --script res://tests/test_resource_library.gd
       - name: Test scene animation tracks
         run: godot --headless --path . --script res://tests/test_timeline_tracks.gd
+      - name: Test spatial rigs and retargeting
+        run: godot --headless --path . --script res://tests/test_spatial_retargeting.gd
