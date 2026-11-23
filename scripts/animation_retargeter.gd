@@ -73,18 +73,18 @@ func build_bone_map(source: Skeleton3D, target: Skeleton3D) -> Dictionary:
    unmapped.append(source_name)
  return {"ok":true,"mapping":mapping,"unmapped":unmapped,"source_count":source.get_bone_count(),"target_count":target.get_bone_count(),"mapped_count":mapping.size(),"coverage":float(mapping.size()) / maxf(1.0,float(source.get_bone_count()))}
 
-func retarget_pose(source_pose: Dictionary, mapping: Dictionary, rotation_scale := Vector3.ONE, rotation_offset := Vector3.ZERO) -> Dictionary:
+func retarget_pose(source_pose: Dictionary, mapping: Dictionary, rotation_scale := Vector3.ONE, rotation_offset := Vector3.ZERO, bind_pose_offsets: Dictionary = {}) -> Dictionary:
  var result := {}
  for source_name in mapping:
   if not source_pose.has(source_name):
    continue
-  var value: Variant = source_pose[source_name]
-  var rotation := _as_vector3(value)
-  rotation = rotation * rotation_scale + rotation_offset
-  result[str(mapping[source_name])] = [rotation.x,rotation.y,rotation.z]
+  var target_name := str(mapping[source_name])
+  var rotation := _as_vector3(source_pose[source_name]) * rotation_scale + rotation_offset
+  rotation += _as_vector3(bind_pose_offsets.get(str(source_name), bind_pose_offsets.get(target_name, Vector3.ZERO)))
+  result[target_name] = [rotation.x,rotation.y,rotation.z]
  return result
 
-func retarget_animation_clip(clip: Dictionary, profile: Dictionary, rotation_scale := Vector3.ONE, rotation_offset := Vector3.ZERO) -> Dictionary:
+func retarget_animation_clip(clip: Dictionary, profile: Dictionary, rotation_scale := Vector3.ONE, rotation_offset := Vector3.ZERO, options: Dictionary = {}) -> Dictionary:
  var profile_report := validate_profile(profile)
  if not bool(profile_report.get("ok", false)):
   return profile_report
@@ -92,6 +92,9 @@ func retarget_animation_clip(clip: Dictionary, profile: Dictionary, rotation_sca
  if not source_frames is Array or source_frames.is_empty():
   return {"ok": false, "error": "El clip no contiene keyframes retargetables."}
  var mapping: Dictionary = profile.get("mapping", {})
+ var bind_pose_offsets: Dictionary = options.get("bind_pose_offsets", profile.get("bind_pose_offsets", {}))
+ var root_motion_scale := _as_vector3(options.get("root_motion_scale", profile.get("root_motion_scale", Vector3.ONE)))
+ var root_motion_offset := _as_vector3(options.get("root_motion_offset", profile.get("root_motion_offset", Vector3.ZERO)))
  var canonical_mapping: Dictionary = {}
  for source_name in mapping.keys():
   var canonical := canonical_name(str(source_name))
@@ -128,13 +131,16 @@ func retarget_animation_clip(clip: Dictionary, profile: Dictionary, rotation_sca
  result["retarget_profile"] = str(profile.get("name", "Retarget profile"))
  result["mapped_bone_count"] = mapped_bones.size()
  result["unmapped_bones"] = unmapped_bones.keys()
+ result["bind_pose_offsets"] = bind_pose_offsets.duplicate(true)
+ result["root_motion_scale"] = [root_motion_scale.x, root_motion_scale.y, root_motion_scale.z]
+ result["root_motion_offset"] = [root_motion_offset.x, root_motion_offset.y, root_motion_offset.z]
  return {"ok": true, "clip": result, "mapped_bone_count": mapped_bones.size(), "unmapped_bones": unmapped_bones.keys()}
 
-func create_profile(source: Skeleton3D, target: Skeleton3D, label := "Retarget profile") -> Dictionary:
+func create_profile(source: Skeleton3D, target: Skeleton3D, label := "Retarget profile", bind_pose_offsets: Dictionary = {}, root_motion_scale := Vector3.ONE, root_motion_offset := Vector3.ZERO) -> Dictionary:
  var report := build_bone_map(source,target)
  if not report.get("ok",false):
   return report
- return {"ok":true,"name":label,"version":1,"mapping":report.mapping,"unmapped":report.unmapped,"source_bone_count":report.source_count,"target_bone_count":report.target_count,"mapped_bone_count":report.mapped_count,"coverage":report.coverage}
+ return {"ok":true,"name":label,"version":2,"mapping":report.mapping,"unmapped":report.unmapped,"source_bone_count":report.source_count,"target_bone_count":report.target_count,"mapped_bone_count":report.mapped_count,"coverage":report.coverage,"bind_pose_offsets":bind_pose_offsets.duplicate(true),"root_motion_scale":[root_motion_scale.x,root_motion_scale.y,root_motion_scale.z],"root_motion_offset":[root_motion_offset.x,root_motion_offset.y,root_motion_offset.z]}
 
 func validate_profile(profile: Dictionary) -> Dictionary:
  var mapping: Variant = profile.get("mapping",{})
@@ -143,7 +149,23 @@ func validate_profile(profile: Dictionary) -> Dictionary:
  for source_name in mapping:
   if str(source_name).is_empty() or str(mapping[source_name]).is_empty():
    return {"ok":false,"error":"El perfil contiene nombres de huesos vacíos."}
+ var offsets: Variant = profile.get("bind_pose_offsets", {})
+ if not offsets is Dictionary:
+  return {"ok":false,"error":"Los offsets de bind pose deben ser un mapa por hueso."}
+ for bone_name in offsets:
+  if str(bone_name).is_empty() or not _is_vector3_value(offsets[bone_name]):
+   return {"ok":false,"error":"El offset de bind pose para %s no es válido." % str(bone_name)}
+ for key in ["root_motion_scale", "root_motion_offset"]:
+  if profile.has(key) and not _is_vector3_value(profile[key]):
+   return {"ok":false,"error":"El parámetro %s debe contener tres componentes finitos." % key}
  return {"ok":true,"mapped_count":mapping.size()}
+
+func _is_vector3_value(value: Variant) -> bool:
+ if value is Vector3:
+  return is_finite(value.x) and is_finite(value.y) and is_finite(value.z)
+ if value is Array and value.size() >= 3:
+  return is_finite(float(value[0])) and is_finite(float(value[1])) and is_finite(float(value[2]))
+ return false
 
 func _as_vector3(value: Variant) -> Vector3:
  if value is Vector3:
