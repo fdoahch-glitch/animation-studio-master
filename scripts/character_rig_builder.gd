@@ -471,7 +471,13 @@ func add_procedural_animation_set(rig: Node2D, clips: Array) -> int:
 				var key := str(joint_name)
 				if not tracks.has(key):
 					var pivot := rig.find_child("Pivot_" + key, true, false)
-					var track_path := _segmented_pivot_path(key) if pivot != null else _bone_path(key)
+					var track_path := ""
+					if pivot != null:
+						track_path = _segmented_pivot_path(key)
+					else:
+						track_path = _bone_path(key)
+						if rig.get_node_or_null(NodePath(track_path)) == null:
+							continue
 					var track := animation.add_track(Animation.TYPE_VALUE)
 					animation.track_set_path(track, NodePath(track_path + ":rotation"))
 					animation.track_set_interpolation_type(track, Animation.INTERPOLATION_CUBIC)
