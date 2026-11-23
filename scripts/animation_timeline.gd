@@ -6,7 +6,8 @@ class_name AnimationTimeline
 func insert_keyframe(frames: Array, time: float, pose_data: Dictionary, pose_key: String = "joint_angles") -> Array:
 	var result: Array = frames.duplicate(true)
 	var frame_time := maxf(0.0, time)
-	var replacement := {"time": frame_time, pose_key: pose_data.duplicate(true)}
+	var replacement := {"time": frame_time}
+	replacement[pose_key] = pose_data.duplicate(true)
 	var replaced := false
 	for i in range(result.size()):
 		if absf(float(result[i].get("time", 0.0)) - frame_time) <= 0.0001:
