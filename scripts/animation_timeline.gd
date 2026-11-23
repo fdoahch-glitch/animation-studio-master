@@ -38,6 +38,23 @@ func insert_property_keyframe(track: Dictionary, time: float, value: Variant, ea
 	track["keyframes"] = frames
 	return {"ok":true,"track":track}
 
+func remove_property_keyframe(track: Dictionary, time: float, tolerance := 0.0001) -> Dictionary:
+	if track.is_empty() or not _is_finite_number(time) or not _is_finite_number(tolerance) or tolerance < 0.0:
+		return {"ok": false, "error": "Pista, tiempo o tolerancia no válidos."}
+	var frames: Array = track.get("keyframes", []).duplicate(true)
+	var match_index := -1
+	var nearest := INF
+	for index in range(frames.size()):
+		var distance := absf(float(frames[index].get("time", -1.0)) - time)
+		if distance <= tolerance and distance < nearest:
+			nearest = distance
+			match_index = index
+	if match_index < 0:
+		return {"ok": false, "error": "No existe un keyframe en el fotograma seleccionado."}
+	frames.remove_at(match_index)
+	track["keyframes"] = frames
+	return {"ok": true, "track": track, "removed_index": match_index}
+
 func sample_track(track: Dictionary, time: float) -> Variant:
 	var frames: Array = track.get("keyframes", [])
 	if frames.is_empty():

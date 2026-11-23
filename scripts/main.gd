@@ -769,7 +769,8 @@ func _show_director_timeline() -> void:
 	for easing in ["linear","ease_in","ease_out","ease_in_out","step"]:
 		director_easing_picker.add_item(easing)
 	edit.add_child(director_easing_picker)
-	_add_button(edit, "Añadir keyframe", _director_add_keyframe)
+	_add_button(edit, "Añadir / actualizar keyframe", _director_add_keyframe)
+	_add_button(edit, "Eliminar keyframe actual", _director_delete_keyframe_at_frame)
 	_add_button(edit, "Eliminar pista", _director_delete_track)
 	director_track_list = ItemList.new()
 	director_track_list.custom_minimum_size.y = 72
@@ -848,6 +849,13 @@ func _on_director_timeline_frame_selected(frame: int) -> void:
 		director_time_input.value = frame
 	if is_instance_valid(director_playhead):
 		director_playhead.value = frame
+	var tracks := _director_tracks()
+	if director_selected_track >= 0 and director_selected_track < tracks.size():
+		var fps := maxi(1, int(project_data.get("fps", 24)))
+		var seconds := timeline_model.frame_to_seconds(frame, fps)
+		var sampled: Variant = timeline_model.sample_track(tracks[director_selected_track], seconds)
+		if sampled is int or sampled is float:
+			director_value_input.value = float(sampled)
 
 func _director_tracks() -> Array:
 	if not project_data.has("scene_animation_tracks"):
@@ -908,6 +916,23 @@ func _director_add_keyframe() -> void:
 	_refresh_director_timeline_view()
 	_save_project()
 	_set_status("Keyframe guardado en el fotograma %d." % int(director_time_input.value))
+
+func _director_delete_keyframe_at_frame() -> void:
+	var tracks := _director_tracks()
+	if director_selected_track < 0 or director_selected_track >= tracks.size():
+		_set_status("Selecciona una pista antes de eliminar un keyframe.")
+		return
+	var fps := maxi(1, int(project_data.get("fps", 24)))
+	var key_time := timeline_model.frame_to_seconds(int(director_time_input.value), fps)
+	var result: Dictionary = timeline_model.remove_property_keyframe(tracks[director_selected_track], key_time, 0.5 / float(fps))
+	if not bool(result.get("ok", false)):
+		_set_status(str(result.get("error", "No hay un keyframe en el fotograma seleccionado.")))
+		return
+	tracks[director_selected_track] = result.track
+	_refresh_director_tracks()
+	_refresh_director_timeline_view()
+	_save_project()
+	_set_status("Keyframe eliminado en el fotograma %d." % int(director_time_input.value))
 
 func _director_delete_track() -> void:
 	var tracks := _director_tracks()
