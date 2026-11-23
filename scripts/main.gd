@@ -40,6 +40,7 @@ var timeline_model
 var package_io
 var package_export_dialog: FileDialog
 var package_import_dialog: FileDialog
+var spritesheet_export_dialog: FileDialog
 var timeline_clip_picker: OptionButton
 var timeline_key_list: ItemList
 var timeline_duration: SpinBox
@@ -145,6 +146,13 @@ func _ready() -> void:
 	package_import_dialog.filters = PackedStringArray(["*.json ; Paquete de personaje JSON"])
 	package_import_dialog.file_selected.connect(_import_character_package_from_path)
 	add_child(package_import_dialog)
+	spritesheet_export_dialog = FileDialog.new()
+	spritesheet_export_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	spritesheet_export_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	spritesheet_export_dialog.filters = PackedStringArray(["*.png ; Hoja de sprites PNG"])
+	spritesheet_export_dialog.current_file = "animacion_spritesheet.png"
+	spritesheet_export_dialog.file_selected.connect(_export_timeline_spritesheet)
+	add_child(spritesheet_export_dialog)
 	_show_wizard()
 
 func _build_shell() -> void:
@@ -570,6 +578,7 @@ func _show_character_lab() -> void:
 	_add_button(timeline_actions, "Guardar clips", _save_timeline_clips)
 	_add_button(timeline_actions, "Exportar personaje JSON", _open_package_export_dialog)
 	_add_button(timeline_actions, "Importar paquete JSON", _open_package_import_dialog)
+	_add_button(timeline_actions, "Exportar hoja de sprites PNG", _open_spritesheet_export_dialog)
 	if timeline_model == null:
 		timeline_model = ANIMATION_TIMELINE.new()
 	_refresh_timeline_ui()
@@ -1179,6 +1188,74 @@ func _play_rig_animation(animation_name: String) -> void:
 	if is_instance_valid(runtime_rig):
 		rig_builder.play_animation(runtime_rig, animation_name, animation_speed_slider.value if is_instance_valid(animation_speed_slider) else 1.0)
 
+
+
+func _open_spritesheet_export_dialog() -> void:
+	var clip := _active_timeline_clip()
+	if clip.is_empty() or clip.get("keyframes", []).is_empty():
+		_set_status("Crea un clip con fotogramas clave antes de exportar la hoja de sprites.")
+		return
+	if not is_instance_valid(runtime_rig) or not is_instance_valid(rig_subviewport):
+		_set_status("Construye un rig 2D para generar la hoja de sprites.")
+		return
+	spritesheet_export_dialog.current_file = str(clip.get("name", "animacion")).validate_filename() + "_spritesheet.png"
+	spritesheet_export_dialog.popup_centered(Vector2i(760, 520))
+
+func _export_timeline_spritesheet(path: String) -> void:
+	var clip := _active_timeline_clip()
+	if clip.is_empty() or not is_instance_valid(runtime_rig) or not is_instance_valid(rig_subviewport):
+		_set_status("No hay un clip o rig disponible para exportar.")
+		return
+	var frame_count := 12
+	var columns := 4
+	var rows := 3
+	var frame_size := rig_subviewport.size
+	var sheet := Image.create(frame_size.x * columns, frame_size.y * rows, true, Image.FORMAT_RGBA8)
+	var previous_pose: Dictionary = rig_builder.capture_procedural_pose(runtime_rig)
+	var previous_transparency := rig_subviewport.transparent_bg
+	var background := rig_subviewport.find_child("ColorRect", false, false) as ColorRect
+	var background_was_visible := background.visible if is_instance_valid(background) else false
+	if is_instance_valid(background):
+		background.visible = false
+	rig_subviewport.transparent_bg = true
+	rig_builder.stop_animation(runtime_rig)
+	var duration := maxf(float(clip.get("duration", 1.0)), 0.05)
+	for frame_index in range(frame_count):
+		var sample_time := duration * float(frame_index) / float(frame_count)
+		var pose: Dictionary = timeline_model.sample_pose(clip, sample_time)
+		if not pose.is_empty():
+			rig_builder.apply_procedural_pose(runtime_rig, pose)
+		await RenderingServer.frame_post_draw
+		var rendered := rig_subviewport.get_texture().get_image()
+		if rendered != null and not rendered.is_empty():
+			var destination := Vector2i((frame_index % columns) * frame_size.x, int(frame_index / columns) * frame_size.y)
+			sheet.blit_rect(rendered, Rect2i(Vector2i.ZERO, frame_size), destination)
+	if is_instance_valid(background):
+		background.visible = background_was_visible
+	rig_subviewport.transparent_bg = previous_transparency
+	if not previous_pose.is_empty():
+		rig_builder.apply_procedural_pose(runtime_rig, previous_pose)
+	if sheet.save_png(path) != OK:
+		_set_status("No se pudo guardar la hoja de sprites PNG.")
+		return
+	var metadata := {
+		"format": "animation_studio_spritesheet",
+		"version": 1,
+		"clip_name": str(clip.get("name", "Animación")),
+		"frame_count": frame_count,
+		"columns": columns,
+		"rows": rows,
+		"frame_width": frame_size.x,
+		"frame_height": frame_size.y,
+		"duration_seconds": duration,
+		"frames_per_second": float(frame_count) / duration,
+		"alpha": true
+	}
+	var metadata_file := FileAccess.open(path.get_basename() + ".json", FileAccess.WRITE)
+	if metadata_file != null:
+		metadata_file.store_string(JSON.stringify(metadata, "\t"))
+		metadata_file.close()
+	_set_status("Hoja de sprites exportada: 12 fotogramas PNG (4×3) y metadatos JSON.")
 
 func _open_package_export_dialog() -> void:
 	if not is_instance_valid(package_export_dialog):
