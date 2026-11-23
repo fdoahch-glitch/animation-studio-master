@@ -53,6 +53,6 @@ La compilación del ejecutable todavía no se ha ejecutado ni verificado en CI.
 
 ## Documentación
 - Diseño funcional: docs/PRODUCT_BLUEPRINT.md
-- Diseño del sistema de personajes: docs/CHARACTER_AI_DESIGN.md
+- Diseño del sistema de personajes: docs/CHARACTER_SYSTEM_DESIGN.md
 - Rig en tiempo real: docs/RIG_RUNTIME.md
 - Generador procedural: scripts/character_procedural_animator.gd
