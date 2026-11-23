@@ -43,12 +43,18 @@
         "escenas y capítulos",
         "lienzo con selección y arrastrar/soltar",
         "inspector contextual",
-        "cámara, capas, profundidad y transiciones"
+        "cámara, capas, profundidad y transiciones",
+        "modelo de instancias reutilizables por escena",
+        "transformaciones 2D, profundidad y visibilidad",
+        "orden de capas y transiciones configurables",
+        "validación estructural de composición"
       ],
       "acceptance": [],
-      "tests": [],
+      "tests": [
+        "tests/test_scene_composition.gd: creación, duplicación, transformación, límites, rotación, orden de capas, transiciones y eliminación (ejecución CI pendiente)."
+      ],
       "commit": null,
-      "notes": "Gestor CRUD de escenas implementado inicialmente; falta compositor visual con instancias, drag-and-drop, inspector contextual, cámara y transiciones."
+      "notes": "CRUD de escenas ya existente. En esta iteración se añadió un modelo de composición reutilizable con instancias, transformaciones, capas y transiciones. Falta integrar el lienzo visual, selección/arrastre en viewport, inspector contextual y cámara antes del cierre."
     },
     {
       "id": 3,
