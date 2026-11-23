@@ -732,6 +732,13 @@ func _export_3d_model_to_path(path: String) -> void:
 		runtime_spatial_animator.stop_animation()
 	if is_instance_valid(runtime_imported_3d_animation_player):
 		runtime_imported_3d_animation_player.stop()
+	var baked_count := 0
+	if is_instance_valid(runtime_spatial_animator):
+		var spatial_clips: Array = project_data.get("spatial_animation_clips", [])
+		if spatial_clips.is_empty():
+			spatial_clips = runtime_spatial_animator.generate_animation_library(motion_intensity_slider.value if is_instance_valid(motion_intensity_slider) else 1.0)
+			project_data["spatial_animation_clips"] = spatial_clips
+		baked_count = runtime_spatial_animator.bake_clips_to_animation_player(runtime_spatial_rig, spatial_clips)
 	var document := GLTFDocument.new()
 	var state := GLTFState.new()
 	var append_error := document.append_from_scene(runtime_spatial_rig, state)
@@ -742,7 +749,7 @@ func _export_3d_model_to_path(path: String) -> void:
 	if write_error != OK:
 		_set_status("No se pudo escribir el modelo GLB. Código: %d" % write_error)
 		return
-	_set_status("Modelo 3D exportado a GLB. Exporta también el paquete JSON para conservar poses y clips procedurales.")
+	_set_status("Modelo 3D exportado a GLB con %d clips procedurales nativos. El paquete JSON conserva además poses y datos editables." % baked_count)
 
 func _open_3d_model_dialog() -> void:
 	if is_instance_valid(model_3d_dialog):
