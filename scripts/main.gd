@@ -10,6 +10,8 @@ const IK_DRAG_OVERLAY = preload("res://scripts/ik_drag_overlay.gd")
 const ANIMATION_TIMELINE = preload("res://scripts/animation_timeline.gd")
 const CHARACTER_PACKAGE_IO = preload("res://scripts/character_package_io.gd")
 const PROJECT_DOCUMENT_IO = preload("res://scripts/project_document_io.gd")
+const SCENE_COMPOSITION_MODEL = preload("res://scripts/scene_composition_model.gd")
+const SCENE_CANVAS = preload("res://scripts/scene_canvas.gd")
 const DEFAULT_PROJECT := {"name":"Mi primera animación","width":1920,"height":1080,"fps":60,"orientation":"Horizontal","visual_mode":"2D","background_mode":"Vacío"}
 
 var project_data: Dictionary = DEFAULT_PROJECT.duplicate(true)
@@ -59,6 +61,20 @@ var scene_name_input: LineEdit
 var scene_duration_input: SpinBox
 var scene_notes_input: TextEdit
 var selected_scene_index := -1
+var scene_model
+var scene_canvas
+var selected_instance_id := ""
+var object_x: SpinBox
+var object_y: SpinBox
+var object_scale_x: SpinBox
+var object_scale_y: SpinBox
+var object_rotation: SpinBox
+var object_depth: SpinBox
+var object_visible: CheckBox
+var transition_picker: OptionButton
+var transition_duration: SpinBox
+var layer_list: ItemList
+var scene_canvas_guard := false
 var package_export_dialog: FileDialog
 var package_import_dialog: FileDialog
 var spritesheet_export_dialog: FileDialog
