@@ -167,32 +167,51 @@
     {
       "id": 7,
       "name": "Escenarios, iluminación, tiempo y clima",
-      "status": "pending",
+      "status": "partial",
       "scope": [
         "fondos multicapa y parallax 2.5D",
         "hora del día e iluminación",
         "lluvia, nieve, viento, niebla y partículas",
         "animación de cambios ambientales"
       ],
-      "acceptance": [],
-      "tests": [],
-      "commit": null,
-      "notes": ""
+      "acceptance": [
+        "El modelo ambiental guarda hora, iluminación, color de cielo y ambiente en el proyecto.",
+        "Se pueden definir capas de fondo con profundidad, parallax, opacidad y visibilidad.",
+        "Hay presets de amanecer, mañana, mediodía, tarde, atardecer y noche.",
+        "Se pueden configurar lluvia, nieve, viento, niebla y polvo con intensidad y perfiles de partículas.",
+        "Los keyframes ambientales se ordenan, reemplazan y muestrean con interpolación.",
+        "La interfaz permite ajustar hora, preset, clima, intensidad, guardar keyframes y añadir una capa parallax."
+      ],
+      "tests": [
+        "tests/test_environment_director.gd: presets, clima, capas, keyframes, interpolación y validación.",
+        "GitHub Actions: ejecución pendiente en commit de integración."
+      ],
+      "commit": "35feb89170fb93246ce88815971194d71b6f270e",
+      "notes": "Implementados scripts/environment_director.gd y panel Tiempo y clima en scripts/main.gd. Los parámetros y perfiles de partículas quedan modelados y persistidos. Falta conectar las propiedades a luces/partículas reales del renderizador y validar visualmente parallax y clima en dispositivo. No se cierra por las etapas 2–6 aún incompletas."
     },
     {
       "id": 8,
       "name": "Guion, diálogos, audio y doblaje",
-      "status": "pending",
+      "status": "partial",
       "scope": [
         "guion y subtítulos temporizados",
         "captura de micrófono con cuenta regresiva",
         "tomas, retomas y pistas de audio",
         "visemas y sincronización labial ajustable"
       ],
-      "acceptance": [],
-      "tests": [],
-      "commit": null,
-      "notes": ""
+      "acceptance": [
+        "El proyecto admite guiones con locutor/personaje y líneas temporizadas.",
+        "Los subtítulos se validan y ordenan por tiempo.",
+        "Se pueden registrar múltiples tomas de audio por línea, seleccionar toma y guardar metadatos de mezcla.",
+        "Se generan pistas de visemas estimadas a partir de muestras PCM con marcas temporales.",
+        "La interfaz permite crear, listar, validar y guardar diálogos e importar una toma de audio."
+      ],
+      "tests": [
+        "tests/test_dialogue_studio.gd: guion, subtítulos, tomas, selección y generación de visemas.",
+        "GitHub Actions: ejecución pendiente en commit de integración."
+      ],
+      "commit": "35feb89170fb93246ce88815971194d71b6f270e",
+      "notes": "Implementados scripts/dialogue_studio.gd y panel Audio y doblaje. La pista de visemas es una estimación simple por amplitud, no reconocimiento fonético. Captura directa del micrófono, cuenta regresiva, monitorización/mezcla en tiempo real y sincronización con rigs no están implementadas. No se cierra por validación pendiente y por las etapas previas incompletas."
     },
     {
       "id": 9,
