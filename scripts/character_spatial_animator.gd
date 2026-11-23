@@ -259,8 +259,8 @@ func blend_pose(source_pose: Dictionary, target_pose: Dictionary, amount: float)
 	for bone_name in target_pose.keys():
 		bone_names[str(bone_name)] = true
 	for bone_name in bone_names.keys():
-		var source_rotation := _as_vector3(source_pose.get(bone_name, target_pose.get(bone_name, Vector3.ZERO)))
-		var target_rotation := _as_vector3(target_pose.get(bone_name, source_rotation))
+		var source_rotation := _as_vector3(source_pose.get(bone_name, Vector3.ZERO))
+		var target_rotation := _as_vector3(target_pose.get(bone_name, Vector3.ZERO))
 		result[str(bone_name)] = source_rotation.lerp(target_rotation, weight)
 	return result
 

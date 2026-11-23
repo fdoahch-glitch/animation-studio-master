@@ -56,6 +56,8 @@ func _initialize() -> void:
  var retargeted_animator = ANIMATOR.new()
  var blend_sample: Dictionary = retargeted_animator.blend_pose({"Pelvis": [0.0, 0.0, 0.0]}, {"Pelvis": [0.0, 90.0, 0.0]}, 0.5)
  assert(is_equal_approx(float(blend_sample.Pelvis[1]), 45.0), "Las poses deben interpolarse suavemente")
+ var blended_out: Dictionary = retargeted_animator.blend_pose({"Tail": [0.0, 30.0, 0.0]}, {}, 0.5)
+ assert(is_equal_approx(float(blended_out.Tail[1]), 15.0), "Los huesos sin destino deben desvanecerse hacia la pose neutra")
  retargeted_animator.configure(source)
  assert(retargeted_animator.play_clip(converted_clip_result.clip), "El clip retargeteado debe poder reproducirse en un esqueleto compatible")
  retargeted_animator.stop_animation()
