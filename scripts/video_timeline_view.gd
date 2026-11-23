@@ -112,6 +112,9 @@ func _gui_input(event: InputEvent) -> void:
 				var track: Dictionary = tracks[row]
 				var clip: Dictionary = track.get("clips", [])[clip_index]
 				clip_selected.emit(row, clip_index)
+				if bool(track.get("locked", false)):
+					accept_event()
+					return
 				dragging = true
 				drag_changed = false
 				drag_track = row

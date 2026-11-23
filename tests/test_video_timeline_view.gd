@@ -57,7 +57,24 @@ func _initialize() -> void:
 	trim_release.position = trim_motion.position
 	view._gui_input(trim_release)
 	assert(trims.size() == 1 and trims[0].track == 0, "Arrastrar el borde derecho debe emitir un recorte")
-	assert(is_equal_approx(float(trims[0].start), clip_start) and is_equal_approx(float(trims[0].end), clip_end - 2.0), "El recorte derecho debe conservar el inicio y ampliar el final")
+	assert(is_equal_approx(float(trims[0].start), clip_start) and is_equal_approx(float(trims[0].end), clip_end - 2.0), "El recorte derecho debe conservar el inicio y reducir el final")
+	audio.locked = true
+	view.configure(timeline, 0.0, 1, 0)
+	var locked_press := InputEventMouseButton.new()
+	locked_press.button_index = MOUSE_BUTTON_LEFT
+	locked_press.pressed = true
+	locked_press.position = Vector2(150.0 + 0.5 * 48.0, 30.0 + 38.0 + 19.0)
+	view._gui_input(locked_press)
+	var locked_motion := InputEventMouseMotion.new()
+	locked_motion.position = Vector2(150.0 + 2.5 * 48.0, 30.0 + 38.0 + 19.0)
+	locked_motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+	view._gui_input(locked_motion)
+	var locked_release := InputEventMouseButton.new()
+	locked_release.button_index = MOUSE_BUTTON_LEFT
+	locked_release.pressed = false
+	locked_release.position = locked_motion.position
+	view._gui_input(locked_release)
+	assert(moved.size() == 1 and trims.size() == 1, "Una pista bloqueada no debe permitir arrastrar ni recortar clips")
 	view.queue_free()
 	print("VIDEO_TIMELINE_VIEW_TESTS_OK")
 	quit(0)
