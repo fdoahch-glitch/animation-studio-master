@@ -227,7 +227,7 @@
     {
       "id": 9,
       "name": "Proyecto portable, importación y exportación",
-      "status": "in_progress",
+      "status": "done",
       "scope": [
         "formato de proyecto versionado",
         "paquete portable de personajes y recursos",
@@ -245,15 +245,16 @@
       "tests": [
         "tests/test_project_document.gd: persistencia y migración .amsproj/JSON.",
         "tests/test_project_bundle.gd: manifiesto y exportación/importación ZIP roundtrip.",
-        "CI Godot: ejecución pendiente en commit de integración."
+        "CI Godot: ejecución pendiente en commit de integración.",
+        "PR #7 fusionado en main: commit 7ecb19b7acc85328d4475b3bdc7e05570519c2d5; GitHub Actions run 45283905451: Godot validation success; supervisor run 45283905467: success. test_project_bundle valida ZIP roundtrip, audio restaurado, SHA-256 y rechazo de un recurso manipulado."
       ],
-      "commit": "748d5521a6ece74667e70d9d1d3b4e2fc5d7ae2c",
-      "notes": "Etapa activa del par 9–10. El paquete .asbundle ya tiene manifiesto versionado, exportación/importación ZIP, validación de rutas y UI. Trabajo pendiente: endurecer importación con recursos reales, revisar exportación audiovisual/subtítulos y completar recuperación/guardado incremental."
+      "commit": "7ecb19b7acc85328d4475b3bdc7e05570519c2d5",
+      "notes": "Cerrada por aceptación automatizada: proyecto .amsproj versionado, paquete .asbundle con manifiesto y recursos de biblioteca/audio/vídeo, validación de rutas y límites, restauración con actualización de rutas, tamaño y SHA-256 por recurso y rechazo de entradas ZIP no declaradas o alteradas. Se mantiene exportación de personaje JSON y spritesheet PNG. CI y supervisor aprobados."
     },
     {
       "id": 10,
       "name": "Calidad, rendimiento y distribución Windows",
-      "status": "partial",
+      "status": "in_progress",
       "scope": [
         "pruebas automatizadas y aceptación funcional",
         "perfilado y optimización de escenas grandes",
@@ -272,10 +273,11 @@
       "tests": [
         "tests/test_performance_auditor.gd: métricas, presupuestos, memoria estimada y escala dinámica sugerida.",
         "CI Godot: ejecución pendiente en commit de integración.",
-        "La compilación Windows, instalador y prueba limpia aún no están configurados ni certificados."
+        "La compilación Windows, instalador y prueba limpia aún no están configurados ni certificados.",
+        "PR #7 fusionado en main: build Windows añade SHA256SUMS.txt y BUILD_INFO.json; CI Godot run 45283905451: test_performance_auditor success. Falta resultado del workflow Windows disparado por el merge final."
       ],
-      "commit": "748d5521a6ece74667e70d9d1d3b4e2fc5d7ae2c",
-      "notes": "La auditoría de rendimiento y política de escala dinámica están implementadas y probadas. Existe workflow Windows x64 que produce ejecutable, ZIP portable e instalador; build 96 pasó smoke test y publicó assets. Falta certificar instalación limpia y publicar una compilación posterior a las etapas 7–8."
+      "commit": "7ecb19b7acc85328d4475b3bdc7e05570519c2d5",
+      "notes": "Etapa activa del par final 9–10. Auditoría reproducible, memoria estimada y política de escala dinámica pasan tests. Workflow Windows automatiza exportación x64, ZIP portable, instalador Inno Setup, instalación silenciosa, arranque y desinstalación; ahora añade checksums SHA-256 y BUILD_INFO.json con commit/versiones. Falta verificar el nuevo build publicado desde este commit final para cerrar."
     }
   ]
 }
