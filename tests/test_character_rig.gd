@@ -241,6 +241,34 @@ func _run_tests() -> void:
 		push_error("No se generó la animación 3D nativa para exportación.")
 		quit(1)
 		return
+	var spatial_builder = SPATIAL_BUILDER.new()
+	var quadruped_rig: Node3D = spatial_builder.build_quadruped_3d("Dinosaurio_CI")
+	root.add_child(quadruped_rig)
+	var quadruped_skeleton := quadruped_rig.get_node_or_null("Skeleton3D") as Skeleton3D
+	if quadruped_skeleton == null or quadruped_skeleton.find_bone("Tail_04") < 0:
+		push_error("No se construyó el rig 3D cuadrúpedo con cola.")
+		quit(1)
+		return
+	var quadruped_animator = SPATIAL_ANIMATOR.new()
+	quadruped_rig.add_child(quadruped_animator)
+	quadruped_animator.configure(quadruped_skeleton)
+	var quadruped_poses: Array = quadruped_animator.generate_pose_library(1.0)
+	var quadruped_clips: Array = quadruped_animator.generate_animation_library(1.0)
+	if quadruped_poses.size() < 18 or quadruped_clips.size() < 8:
+		push_error("El generador de dinosaurios no creó suficientes poses o ciclos.")
+		quit(1)
+		return
+	if not quadruped_animator.play_animation("roar", 1.0, 1.0):
+		push_error("No se pudo iniciar el ciclo procedural de rugido.")
+		quit(1)
+		return
+	quadruped_animator._process(0.12)
+	var quadruped_ik: Dictionary = quadruped_animator.apply_two_bone_ik("front_leg_left", Vector3(0.6, 0.5, 0.1))
+	if not bool(quadruped_ik.get("ok", false)):
+		push_error("No se pudo aplicar IK a la pata delantera del dinosaurio: " + str(quadruped_ik))
+		quit(1)
+		return
+
 	var gltf_exporter := GLTFDocument.new()
 	var gltf_export_state := GLTFState.new()
 	if gltf_exporter.append_from_scene(spatial_rig, gltf_export_state) != OK:
