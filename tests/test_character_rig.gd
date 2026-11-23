@@ -35,8 +35,12 @@ func _run_tests() -> void:
 		quit(1)
 		return
 	var captured_pose: Dictionary = builder.capture_procedural_pose(procedural_rig)
-	if captured_pose.is_empty() or not captured_pose.has("head"):
+	if captured_pose.is_empty() or not captured_pose.has("head") or not captured_pose.has("neck") or not captured_pose.has("pelvis"):
 		push_error("No se pudo capturar la pose manual del rig estándar.")
+		quit(1)
+		return
+	if builder.apply_procedural_pose(procedural_rig, {"neck": 12.0, "pelvis": -5.0}) < 2:
+		push_error("No se pudieron ajustar cuello y pelvis en el editor de articulaciones.")
 		quit(1)
 		return
 	if builder.add_procedural_animation_set(procedural_rig, clips) < 18:
