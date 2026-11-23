@@ -24,6 +24,7 @@ var image_result_output: RichTextLabel
 var build_segmented_button: Button
 var animation_controls: GridContainer
 var pose_controls: GridContainer
+var animation_speed_slider: HSlider
 var imported_character_data: Dictionary = {}
 var procedural_poses: Array = []
 var runtime_rig: Node2D
@@ -375,6 +376,25 @@ func _show_character_lab() -> void:
 	right.add_child(animation_controls)
 	for animation_name in ["idle","walk","run","jump","talk","wave"]:
 		_add_button(animation_controls, animation_name.capitalize(), _play_rig_animation.bind(animation_name))
+	var speed_row := HBoxContainer.new()
+	right.add_child(speed_row)
+	var speed_label := Label.new()
+	speed_label.text = "Velocidad de animación"
+	speed_label.custom_minimum_size.x = 150
+	speed_row.add_child(speed_label)
+	animation_speed_slider = HSlider.new()
+	animation_speed_slider.min_value = 0.25
+	animation_speed_slider.max_value = 2.5
+	animation_speed_slider.step = 0.05
+	animation_speed_slider.value = 1.0
+	animation_speed_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	speed_row.add_child(animation_speed_slider)
+	var speed_value := Label.new()
+	speed_value.text = "1.00×"
+	speed_row.add_child(speed_value)
+	animation_speed_slider.value_changed.connect(func(value: float) -> void:
+		speed_value.text = "%.2f×" % value
+	)
 	var pose_title := Label.new()
 	pose_title.text = "BIBLIOTECA DE POSES PROCEDURALES"
 	right.add_child(pose_title)
@@ -509,8 +529,14 @@ func _generate_procedural_pose_set() -> void:
 	lines.append("Clips añadidos al rig actual: %d" % added)
 	lines.append("Primera pose aplicada: %d articulaciones" % applied)
 	lines.append("")
-	lines.append("Poses: reposo, atención, feliz, triste, enojado, sorprendido, saludo, brazos arriba, brazos cruzados, señalar, agachado y preparado para correr.")
-	lines.append("Animaciones: respirar, caminar, correr, saltar, saludar, hablar, celebrar, bailar, caminar lento, cojear, rebotar y mirar alrededor.")
+	var pose_names := PackedStringArray()
+	for pose in procedural_poses:
+		pose_names.append(str(pose.get("name", "Pose")))
+	var clip_names := PackedStringArray()
+	for clip in clips:
+		clip_names.append(str(clip.get("name", "Animación")))
+	lines.append("Poses: " + ", ".join(pose_names))
+	lines.append("Animaciones: " + ", ".join(clip_names))
 	lines.append("Cálculo local determinista: curvas matemáticas y keyframes; sin conexión, modelos ni procesos externos.")
 	if is_instance_valid(image_result_output):
 		image_result_output.text = "\n".join(lines)
@@ -670,7 +696,7 @@ func _on_joint_slider_changed(value: float, joint_path: String) -> void:
 
 func _play_rig_animation(animation_name: String) -> void:
 	if is_instance_valid(runtime_rig):
-		rig_builder.play_animation(runtime_rig, animation_name)
+		rig_builder.play_animation(runtime_rig, animation_name, animation_speed_slider.value if is_instance_valid(animation_speed_slider) else 1.0)
 
 func _save_project() -> void:
 	var file := FileAccess.open("user://animation_studio_manager_project.json", FileAccess.WRITE)
