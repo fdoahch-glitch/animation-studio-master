@@ -201,7 +201,7 @@ func _show_wizard() -> void:
 	wizard_fps = _add_option(page, "Fotogramas por segundo", ["24","25","30","50","60"], 4)
 	wizard_orientation = _add_option(page, "Orientación", ["Horizontal","Vertical","Cuadrada"], 0)
 	wizard_mode = _add_option(page, "Espacio de trabajo", ["2D","2.5D","3D","Híbrido"], 0)
-	wizard_background = _add_option(page, "Fondo inicial", ["Vacío","Biblioteca","Importar imagen","Preparar con IA"], 0)
+	wizard_background = _add_option(page, "Fondo inicial", ["Vacío","Biblioteca","Importar imagen","Capas manuales"], 0)
 	var note := Label.new()
 	note.text = "Recomendado: 1920 × 1080 · 60 FPS. El modo elegido filtrará los recursos y herramientas disponibles."
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -324,7 +324,6 @@ func _show_character_lab() -> void:
 	build_segmented_button.disabled = true
 	_add_button(form, "Generar poses y animaciones procedurales", _generate_procedural_pose_set)
 	_add_button(form, "Crear diseño base + esqueleto", _generate_character)
-	_add_button(form, "Preparar prompt para IA", _request_ai_character)
 	var right := VBoxContainer.new()
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right.custom_minimum_size.x = 420
@@ -574,7 +573,7 @@ func _build_imported_segment_rig() -> void:
 	rig_subviewport.add_child(runtime_rig)
 	rig_builder.play_animation(runtime_rig, "idle")
 	if imported_character_data.has("ai_segments"):
-		character_output.text = "Rig construido con recortes y puntos articulares devueltos por el proveedor IA. Revisa las máscaras, pivotes y solapamientos; las piezas aún pueden requerir corrección."
+		character_output.text = "Rig construido con recortes locales y pivotes estimados. Revisa las máscaras, pivotes y solapamientos; las piezas aún pueden requerir corrección."
 	else:
 		character_output.text = "Rig de prueba construido con regiones proporcionales. Son recortes aproximados, no segmentación semántica; ajusta los pivotes y las piezas manualmente si es necesario."
 	_set_status("Rig de imagen creado. Prueba las animaciones y corrige los pivotes.")
