@@ -852,6 +852,7 @@ func _active_scene() -> Dictionary:
 func _refresh_scene_canvas() -> void:
 	if not is_instance_valid(scene_canvas): return
 	var scene := _active_scene()
+	scene_canvas.set_resource_catalog(project_data.get("resources", []))
 	scene_canvas.set_scene_data(scene, float(project_data.get("width", 1920)), float(project_data.get("height", 1080)))
 	_refresh_layer_list()
 	_update_scene_inspector()
