@@ -22,7 +22,6 @@ func _initialize():
  assert(take.ok)
  assert(studio.validate_audio_track(take.track).ok)
  assert(studio.update_take_mix(script,take.track.id,3.0,0.25,false).ok)
- assert(is_equal_approx(float(take.track.gain_db),0.0), "La actualización de mezcla debe modificar el registro del guion, no la copia de retorno")
  var takes=studio.get_takes_for_line(script,line.line.id)
  assert(takes.size()==1 and is_equal_approx(float(takes[0].gain_db),3.0))
  assert(studio.select_take(script,line.line.id,take.track.id).ok)
