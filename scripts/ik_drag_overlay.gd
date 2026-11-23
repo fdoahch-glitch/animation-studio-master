@@ -93,7 +93,7 @@ func _apply_drag(pointer: Vector2) -> void:
 	if root == null:
 		return
 	var joint := root.get_node_or_null(str(spec.joint)) as Node2D
-	var line := joint.get_node_or_null("Segmento") as Line2D if joint != null else null
+	var line: Line2D = joint.get_node_or_null("Segmento") as Line2D if joint != null else null
 	var upper_line := root.get_node_or_null("Segmento") as Line2D
 	if joint == null or line == null or upper_line == null or upper_line.points.size() < 2 or line.points.size() < 2:
 		return
