@@ -861,13 +861,14 @@ func _load_3d_model_from_path(path: String, update_status: bool = true) -> bool:
 		runtime_spatial_animator = CHARACTER_SPATIAL_ANIMATOR.new()
 		runtime_spatial_animator.name = "Procedural3DAnimator"
 		model_root.add_child(runtime_spatial_animator)
-		runtime_spatial_animator.configure(imported_skeleton, runtime_imported_3d_animation_player)
+		runtime_spatial_animator.configure(imported_skeleton, runtime_imported_3d_animation_player, model_root)
 		runtime_spatial_animator.play_animation("idle")
 		if is_instance_valid(animation_controls):
 			for child in animation_controls.get_children():
 				child.queue_free()
 			_add_button(animation_controls, "Idle procedural", _play_rig_animation.bind("idle"))
 			_append_imported_3d_animation_buttons()
+		_append_facial_expression_buttons()
 		character_output.text = "Modelo 3D importado con Skeleton3D. Se conservan sus mallas, materiales y texturas; puedes reproducir sus animaciones originales y generar poses procedurales usando equivalencias de huesos humanoides."
 		if update_status:
 			_set_status("Modelo 3D con esqueleto importado. Animaciones originales disponibles y rig procedural conectado.")
@@ -923,6 +924,37 @@ func _append_imported_3d_animation_buttons() -> void:
 			var baked_label := "GLB: " + baked_key
 			if not _animation_button_exists(baked_label):
 				_add_button(animation_controls, baked_label, _play_baked_3d_animation.bind(baked_key))
+
+func _append_facial_expression_buttons() -> void:
+	if not is_instance_valid(animation_controls) or not is_instance_valid(runtime_spatial_animator):
+		return
+	if not runtime_spatial_animator.has_facial_expressions():
+		return
+	var separator := HSeparator.new()
+	separator.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	animation_controls.add_child(separator)
+	var heading := Label.new()
+	heading.text = "EXPRESIONES FACIALES"
+	heading.add_theme_color_override("font_color", Color("#315b83"))
+	animation_controls.add_child(heading)
+	for expression_name in runtime_spatial_animator.get_facial_expression_names():
+		_add_button(animation_controls, str(expression_name), _apply_facial_expression.bind(str(expression_name)))
+	var available_shapes := ", ".join(runtime_spatial_animator.get_blend_shape_names())
+	var info := Label.new()
+	info.text = "Blend shapes detectados: " + available_shapes
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	animation_controls.add_child(info)
+
+func _apply_facial_expression(expression_name: String) -> void:
+	if not is_instance_valid(runtime_spatial_animator):
+		return
+	runtime_spatial_animator.stop_animation()
+	var changed := runtime_spatial_animator.apply_facial_expression(expression_name)
+	if changed > 0:
+		_set_status("Expresión «%s» aplicada a %d controles faciales." % [expression_name, changed])
+	else:
+		_set_status("No se encontró un blend shape compatible con «%s» en este modelo." % expression_name)
 
 func _animation_button_exists(label: String) -> bool:
 	if not is_instance_valid(animation_controls):
@@ -1095,6 +1127,7 @@ func _generate_spatial_pose_set() -> void:
 		for clip in clips:
 			_add_button(animation_controls, str(clip.get("name", "Animación")).capitalize(), _play_rig_animation.bind(str(clip.get("name", ""))))
 		_append_imported_3d_animation_buttons()
+		_append_facial_expression_buttons()
 	project_data["spatial_animation_clips"] = clips
 	_refresh_timeline_ui()
 	project_data["spatial_procedural_poses"] = procedural_poses.duplicate(true)
@@ -1373,7 +1406,7 @@ func _build_runtime_character() -> void:
 		runtime_spatial_animator = CHARACTER_SPATIAL_ANIMATOR.new()
 		runtime_spatial_animator.name = "Procedural3DAnimator"
 		runtime_spatial_rig.add_child(runtime_spatial_animator)
-		runtime_spatial_animator.configure(spatial_skeleton)
+		runtime_spatial_animator.configure(spatial_skeleton, null, runtime_spatial_rig)
 		runtime_spatial_animator.play_animation("idle")
 		character_output.text = "Rig espacial 3D creado con Skeleton3D, articulaciones independientes y animación procedural local. Genera poses y ciclos desde el botón de animación."
 	elif selected_mode == "2.5D por planos":
