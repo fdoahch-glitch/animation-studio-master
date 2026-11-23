@@ -469,6 +469,12 @@ func _on_character_image_selected(path: String) -> void:
 	_set_status("Imagen preparada. Revisa los recortes y corrige las zonas antes de animar.")
 
 func _generate_procedural_pose_set() -> void:
+	if not is_instance_valid(runtime_rig):
+		var selected_mode := character_mode.get_item_text(character_mode.selected)
+		if selected_mode == "3D esqueleto" or (selected_mode == "2.5D por planos" and imported_preview.texture != null):
+			_set_status("El generador actual trabaja con rigs 2D y 2D segmentados. Cambia el tipo de rig a 2D esquelético o Híbrido.")
+			return
+		_generate_character()
 	if procedural_animator == null:
 		procedural_animator = CHARACTER_PROCEDURAL_ANIMATOR.new()
 	var generated: Dictionary = procedural_animator.generate_pose_library()
@@ -489,7 +495,7 @@ func _generate_procedural_pose_set() -> void:
 		for child in animation_controls.get_children():
 			child.queue_free()
 		for clip in clips:
-			var clip_key := "ai_" + str(clip.get("name", "generated")).validate_filename().to_lower()
+			var clip_key := "proc_" + str(clip.get("name", "generated")).validate_filename().to_lower()
 			_add_button(animation_controls, str(clip.get("name", "Animación")), _play_rig_animation.bind(clip_key))
 	var record := {"character": character_name.text if is_instance_valid(character_name) else "Personaje", "poses": procedural_poses, "animations": clips, "generator": "procedural_v1"}
 	if not project_data.has("procedural_pose_sets"):
