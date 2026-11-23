@@ -174,6 +174,23 @@ var generated_character: Dictionary = {}
 var environment_director
 var dialogue_studio
 var active_environment: Dictionary = {}
+var environment_preview_canvas
+var environment_hour_slider: HSlider
+var environment_sun_energy_slider: HSlider
+var environment_ambient_energy_slider: HSlider
+var environment_sky_picker: ColorPickerButton
+var environment_sun_picker: ColorPickerButton
+var environment_weather_picker: OptionButton
+var environment_weather_intensity_slider: HSlider
+var environment_particles_toggle: CheckBox
+var environment_layer_list: ItemList
+var environment_layer_depth: SpinBox
+var environment_layer_parallax: HSlider
+var environment_layer_opacity: HSlider
+var environment_layer_visible: CheckBox
+var environment_keyframe_list: ItemList
+var environment_keyframe_time: SpinBox
+var environment_selected_layer_id := ""
 var active_script: Dictionary = {}
 var dialogue_line_list: ItemList
 var microphone_player: AudioStreamPlayer
@@ -3903,41 +3920,250 @@ func _ensure_environment() -> void:
 func _show_environment_studio() -> void:
 	_ensure_environment()
 	_clear_content()
-	var page=VBoxContainer.new()
-	page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	page.add_theme_constant_override("separation",8)
-	content.add_child(page)
-	_add_heading(page,"Escenarios · iluminación, tiempo y clima","Configura la atmósfera y capas de fondo del proyecto.")
-	var presets=HBoxContainer.new()
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	content.add_child(scroll)
+	var page := VBoxContainer.new()
+	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	page.add_theme_constant_override("separation", 8)
+	scroll.add_child(page)
+	_add_heading(page, "Escenarios · iluminación, tiempo y clima", "Ajusta la atmósfera y comprueba el resultado en la previsualización.")
+	environment_preview_canvas = SCENE_CANVAS.new()
+	environment_preview_canvas.custom_minimum_size = Vector2(680, 300)
+	environment_preview_canvas.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	page.add_child(environment_preview_canvas)
+	environment_preview_canvas.set_scene_data({"id":"environment_preview","objects":[]}, float(project_data.get("width",1920)), float(project_data.get("height",1080)))
+	environment_preview_canvas.set_resource_catalog(project_data.get("resources", []))
+	environment_preview_canvas.set_environment_data(active_environment)
+
+	var presets := HBoxContainer.new()
 	page.add_child(presets)
 	for preset in ["dawn","morning","noon","afternoon","sunset","night"]:
-		_add_button(presets,{"dawn":"Amanecer","morning":"Mañana","noon":"Mediodía","afternoon":"Tarde","sunset":"Atardecer","night":"Noche"}[preset],_apply_environment_preset.bind(preset))
-	var hour=HSlider.new()
-	hour.min_value=0
-	hour.max_value=23.99
-	hour.step=0.25
-	hour.value=float(active_environment.get("hour",12.0))
-	_labeled_control(page,"Hora del día",hour)
-	hour.value_changed.connect(func(v): active_environment["hour"]=v; active_environment["sun_energy"]=clampf(1.0-absf(v-12.0)/15.0,0.12,1.15); _save_environment())
-	var weather=OptionButton.new()
-	var weather_names=["clear","rain","snow","wind","fog","dust"]
-	for w in weather_names: weather.add_item({"clear":"Despejado","rain":"Lluvia","snow":"Nieve","wind":"Viento","fog":"Niebla","dust":"Polvo"}[w])
-	weather.select(maxi(0,weather_names.find(str(active_environment.get("weather","clear")))))
-	_labeled_control(page,"Clima",weather)
-	var intensity=HSlider.new()
-	intensity.min_value=0
-	intensity.max_value=1
-	intensity.step=0.01
-	intensity.value=float(active_environment.get("weather_intensity",0.0))
-	_labeled_control(page,"Intensidad",intensity)
-	_add_button(page,"Aplicar clima",func(): environment_director.set_weather(active_environment,weather_names[weather.selected],intensity.value); _save_environment(); _set_status("Perfil de clima aplicado: "+weather_names[weather.selected]))
-	_add_button(page,"Añadir keyframe ambiental",func(): var result=environment_director.add_keyframe(active_environment,float(active_environment.hour)*60.0,{"sun_energy":float(active_environment.get("sun_energy",1.0)),"weather_intensity":float(active_environment.get("weather_intensity",0.0))}); _save_environment(); _set_status("Keyframe guardado." if result.ok else str(result.error)))
-	_add_button(page,"Añadir capa parallax del fondo seleccionado",func(): var result=environment_director.add_background_layer(active_environment,selected_resource_id,float(active_environment.background_layers.size()),0.35); _save_environment(); _set_status("Capa añadida." if result.ok else str(result.error)))
-	_add_button(page,"Guardar ambiente",_save_environment)
-	var summary=Label.new()
-	summary.text="Capas: %d · Luz solar: %.2f · Ambiente: %.2f" % [active_environment.background_layers.size(),float(active_environment.get("sun_energy",1.0)),float(active_environment.get("ambient_energy",1.0))]
-	page.add_child(summary)
-	_add_button(page,"Volver",_show_workspace)
+		_add_button(presets, {"dawn":"Amanecer","morning":"Mañana","noon":"Mediodía","afternoon":"Tarde","sunset":"Atardecer","night":"Noche"}[preset], _apply_environment_preset.bind(preset))
+
+	environment_hour_slider = HSlider.new()
+	environment_hour_slider.min_value = 0.0
+	environment_hour_slider.max_value = 23.99
+	environment_hour_slider.step = 0.25
+	environment_hour_slider.value = float(active_environment.get("hour", 12.0))
+	_labeled_control(page, "Hora del día", environment_hour_slider)
+	environment_hour_slider.value_changed.connect(func(value: float):
+		environment_director.set_hour(active_environment, value)
+		if is_instance_valid(environment_sun_energy_slider): environment_sun_energy_slider.value = float(active_environment.sun_energy)
+		if is_instance_valid(environment_ambient_energy_slider): environment_ambient_energy_slider.value = float(active_environment.ambient_energy)
+		if is_instance_valid(environment_sky_picker): environment_sky_picker.color = _environment_color_from_value(active_environment.sky_color, Color("#9bc7df"))
+		if is_instance_valid(environment_sun_picker): environment_sun_picker.color = _environment_color_from_value(active_environment.sun_color, Color("#fff4dc"))
+		_save_environment()
+	)
+
+	environment_sun_energy_slider = HSlider.new()
+	environment_sun_energy_slider.min_value = 0.0
+	environment_sun_energy_slider.max_value = 1.5
+	environment_sun_energy_slider.step = 0.01
+	environment_sun_energy_slider.value = float(active_environment.get("sun_energy", 1.0))
+	_labeled_control(page, "Luz solar", environment_sun_energy_slider)
+	environment_sun_energy_slider.value_changed.connect(func(value: float): active_environment["sun_energy"] = value; _save_environment())
+
+	environment_ambient_energy_slider = HSlider.new()
+	environment_ambient_energy_slider.min_value = 0.0
+	environment_ambient_energy_slider.max_value = 1.5
+	environment_ambient_energy_slider.step = 0.01
+	environment_ambient_energy_slider.value = float(active_environment.get("ambient_energy", 1.0))
+	_labeled_control(page, "Luz ambiental", environment_ambient_energy_slider)
+	environment_ambient_energy_slider.value_changed.connect(func(value: float): active_environment["ambient_energy"] = value; _save_environment())
+
+	environment_sky_picker = ColorPickerButton.new()
+	environment_sky_picker.color = _environment_color_from_value(active_environment.get("sky_color", [0.35,0.62,0.9]), Color("#9bc7df"))
+	_labeled_control(page, "Color del cielo", environment_sky_picker)
+	environment_sky_picker.color_changed.connect(func(color: Color): active_environment["sky_color"] = [color.r,color.g,color.b]; _save_environment())
+
+	environment_sun_picker = ColorPickerButton.new()
+	environment_sun_picker.color = _environment_color_from_value(active_environment.get("sun_color", [1.0,0.96,0.86]), Color("#fff4dc"))
+	_labeled_control(page, "Color de la luz", environment_sun_picker)
+	environment_sun_picker.color_changed.connect(func(color: Color): active_environment["sun_color"] = [color.r,color.g,color.b]; _save_environment())
+
+	var weather_row := HBoxContainer.new()
+	page.add_child(weather_row)
+	var weather_label := Label.new()
+	weather_label.text = "Clima"
+	weather_label.custom_minimum_size.x = 150
+	weather_row.add_child(weather_label)
+	environment_weather_picker = OptionButton.new()
+	var weather_names := ["clear","rain","snow","wind","fog","dust"]
+	for weather_name in weather_names:
+		environment_weather_picker.add_item({"clear":"Despejado","rain":"Lluvia","snow":"Nieve","wind":"Viento","fog":"Niebla","dust":"Polvo"}[weather_name])
+	environment_weather_picker.select(maxi(0, weather_names.find(str(active_environment.get("weather","clear")))))
+	environment_weather_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	weather_row.add_child(environment_weather_picker)
+	environment_weather_picker.item_selected.connect(func(index: int):
+		environment_director.set_weather(active_environment, weather_names[index], float(active_environment.get("weather_intensity",0.0)))
+		_save_environment()
+	)
+
+	environment_weather_intensity_slider = HSlider.new()
+	environment_weather_intensity_slider.min_value = 0.0
+	environment_weather_intensity_slider.max_value = 1.0
+	environment_weather_intensity_slider.step = 0.01
+	environment_weather_intensity_slider.value = float(active_environment.get("weather_intensity",0.0))
+	_labeled_control(page, "Intensidad del clima", environment_weather_intensity_slider)
+	environment_weather_intensity_slider.value_changed.connect(func(value: float):
+		environment_director.set_weather(active_environment, weather_names[environment_weather_picker.selected], value)
+		_save_environment()
+	)
+
+	environment_particles_toggle = CheckBox.new()
+	environment_particles_toggle.text = "Mostrar partículas ambientales"
+	environment_particles_toggle.button_pressed = bool(active_environment.get("particles_enabled", true))
+	page.add_child(environment_particles_toggle)
+	environment_particles_toggle.toggled.connect(func(enabled: bool): active_environment["particles_enabled"] = enabled; _save_environment())
+
+	_add_heading(page, "Capas de fondo · profundidad y parallax", "Añade recursos de imagen y ajusta su movimiento, opacidad y visibilidad.")
+	environment_layer_list = ItemList.new()
+	environment_layer_list.custom_minimum_size.y = 100
+	environment_layer_list.item_selected.connect(_on_environment_layer_selected)
+	page.add_child(environment_layer_list)
+	_refresh_environment_layers()
+	environment_layer_depth = SpinBox.new()
+	environment_layer_depth.min_value = -10000
+	environment_layer_depth.max_value = 10000
+	environment_layer_depth.step = 0.1
+	_labeled_control(page, "Profundidad", environment_layer_depth)
+	environment_layer_parallax = HSlider.new()
+	environment_layer_parallax.min_value = 0.0
+	environment_layer_parallax.max_value = 2.0
+	environment_layer_parallax.step = 0.01
+	_labeled_control(page, "Parallax", environment_layer_parallax)
+	environment_layer_opacity = HSlider.new()
+	environment_layer_opacity.min_value = 0.0
+	environment_layer_opacity.max_value = 1.0
+	environment_layer_opacity.step = 0.01
+	_labeled_control(page, "Opacidad", environment_layer_opacity)
+	environment_layer_visible = CheckBox.new()
+	environment_layer_visible.text = "Capa visible"
+	environment_layer_visible.button_pressed = true
+	page.add_child(environment_layer_visible)
+	_add_button(page, "Aplicar propiedades a la capa", _apply_environment_layer_settings)
+	_add_button(page, "Añadir fondo seleccionado como capa", func():
+		var result = environment_director.add_background_layer(active_environment, selected_resource_id, float(active_environment.background_layers.size()), 0.35)
+		if result.ok:
+			_refresh_environment_layers()
+			_save_environment()
+		else:
+			_set_status(str(result.error))
+	)
+	_add_button(page, "Eliminar capa seleccionada", _remove_selected_environment_layer)
+
+	_add_heading(page, "Keyframes ambientales", "Guarda cambios de iluminación y clima a lo largo de la escena.")
+	environment_keyframe_time = SpinBox.new()
+	environment_keyframe_time.min_value = 0.0
+	environment_keyframe_time.max_value = 86400.0
+	environment_keyframe_time.step = 0.1
+	environment_keyframe_time.value = float(active_environment.get("hour",12.0)) * 3600.0
+	_labeled_control(page, "Tiempo (segundos)", environment_keyframe_time)
+	environment_keyframe_list = ItemList.new()
+	environment_keyframe_list.custom_minimum_size.y = 100
+	page.add_child(environment_keyframe_list)
+	_refresh_environment_keyframes()
+	_add_button(page, "Añadir / reemplazar keyframe ambiental", func():
+		var values := {
+			"hour": float(active_environment.get("hour",12.0)),
+			"sun_energy": float(active_environment.get("sun_energy",1.0)),
+			"ambient_energy": float(active_environment.get("ambient_energy",1.0)),
+			"weather_intensity": float(active_environment.get("weather_intensity",0.0)),
+			"wind_strength": float(active_environment.get("wind_strength",0.0)),
+			"fog_density": float(active_environment.get("fog_density",0.0)),
+			"sun_color": active_environment.get("sun_color",[1.0,0.96,0.86]),
+			"sky_color": active_environment.get("sky_color",[0.35,0.62,0.9])
+		}
+		var result = environment_director.add_keyframe(active_environment, environment_keyframe_time.value, values)
+		if result.ok:
+			_refresh_environment_keyframes()
+			_save_environment()
+			_set_status("Keyframe ambiental guardado.")
+		else:
+			_set_status(str(result.error))
+	)
+	_add_button(page, "Eliminar keyframe seleccionado", _remove_selected_environment_keyframe)
+	_add_button(page, "Guardar ambiente", _save_environment)
+	_add_button(page, "Volver", _show_workspace)
+
+func _environment_color_from_value(value: Variant, fallback: Color) -> Color:
+	if value is Array and value.size() >= 3:
+		return Color(float(value[0]), float(value[1]), float(value[2]), 1.0)
+	return fallback
+
+func _refresh_environment_layers() -> void:
+	if not is_instance_valid(environment_layer_list):
+		return
+	environment_layer_list.clear()
+	var layers: Array = active_environment.get("background_layers", [])
+	for layer in layers:
+		environment_layer_list.add_item("%s · z %.1f · parallax %.2f" % [str(layer.get("resource_id","Fondo")),float(layer.get("depth",0.0)),float(layer.get("parallax",1.0))])
+		environment_layer_list.set_item_metadata(environment_layer_list.item_count - 1, str(layer.get("id","")))
+	if not layers.is_empty():
+		environment_layer_list.select(0)
+		_on_environment_layer_selected(0)
+
+func _on_environment_layer_selected(index: int) -> void:
+	if not is_instance_valid(environment_layer_list) or index < 0 or index >= environment_layer_list.item_count:
+		return
+	environment_selected_layer_id = str(environment_layer_list.get_item_metadata(index))
+	for layer in active_environment.get("background_layers", []):
+		if str(layer.get("id","")) == environment_selected_layer_id:
+			environment_layer_depth.value = float(layer.get("depth",0.0))
+			environment_layer_parallax.value = float(layer.get("parallax",1.0))
+			environment_layer_opacity.value = float(layer.get("opacity",1.0))
+			environment_layer_visible.button_pressed = bool(layer.get("visible",true))
+			return
+
+func _apply_environment_layer_settings() -> void:
+	if environment_selected_layer_id.is_empty():
+		_set_status("Selecciona una capa de fondo.")
+		return
+	var result = environment_director.update_background_layer(active_environment, environment_selected_layer_id, {
+		"depth": environment_layer_depth.value,
+		"parallax": environment_layer_parallax.value,
+		"opacity": environment_layer_opacity.value,
+		"visible": environment_layer_visible.button_pressed
+	})
+	if result.ok:
+		_refresh_environment_layers()
+		_save_environment()
+		_set_status("Propiedades de capa guardadas.")
+
+func _remove_selected_environment_layer() -> void:
+	if environment_selected_layer_id.is_empty():
+		_set_status("Selecciona una capa de fondo.")
+		return
+	var result = environment_director.remove_background_layer(active_environment, environment_selected_layer_id)
+	if result.ok:
+		environment_selected_layer_id = ""
+		_refresh_environment_layers()
+		_save_environment()
+		_set_status("Capa eliminada.")
+
+func _refresh_environment_keyframes() -> void:
+	if not is_instance_valid(environment_keyframe_list):
+		return
+	environment_keyframe_list.clear()
+	for frame in active_environment.get("keyframes", []):
+		environment_keyframe_list.add_item("%.2f s · luz %.2f · clima %.2f" % [float(frame.get("time",0.0)),float(frame.get("values",{}).get("sun_energy",0.0)),float(frame.get("values",{}).get("weather_intensity",0.0))])
+		environment_keyframe_list.set_item_metadata(environment_keyframe_list.item_count - 1, float(frame.get("time",0.0)))
+
+func _remove_selected_environment_keyframe() -> void:
+	if not is_instance_valid(environment_keyframe_list) or environment_keyframe_list.is_anything_selected() == false:
+		_set_status("Selecciona un keyframe ambiental.")
+		return
+	var selected := environment_keyframe_list.get_selected_items()
+	if selected.is_empty():
+		return
+	var time_seconds := float(environment_keyframe_list.get_item_metadata(selected[0]))
+	var result = environment_director.remove_keyframe(active_environment, time_seconds)
+	if result.ok:
+		_refresh_environment_keyframes()
+		_save_environment()
+		_set_status("Keyframe eliminado.")
+
 
 func _labeled_control(parent: Node, label_text: String, control: Control) -> HBoxContainer:
 	var row=HBoxContainer.new()
