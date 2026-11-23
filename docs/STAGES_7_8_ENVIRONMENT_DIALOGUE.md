@@ -23,3 +23,8 @@ El estudio de diálogos habilita la entrada de audio de Godot y crea un bus dedi
 ## Cuenta regresiva de grabación
 
 El botón de grabación inicia una cuenta regresiva de tres segundos antes de activar la captura de micrófono. El contador se puede cancelar antes de iniciar; al cambiar de área de trabajo se detiene una cuenta regresiva pendiente para evitar iniciar una grabación fuera del estudio de diálogo. La captura WAV y su vinculación a la última línea de diálogo se mantienen.
+
+
+## Selección de línea y cuenta regresiva
+
+La lista de diálogo permite elegir explícitamente la línea a la que se asociará una nueva toma, tanto de micrófono como importada. Si no hay una selección válida, se conserva el comportamiento de asociar a la última línea. La cuenta regresiva es una pequeña máquina de estados reutilizable y cubierta por pruebas.

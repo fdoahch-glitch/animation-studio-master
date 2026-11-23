@@ -176,6 +176,8 @@ var microphone_bus_name := "MicRecord"
 var microphone_countdown_timer: Timer
 var microphone_countdown_label: Label
 var microphone_countdown_remaining := 0
+var microphone_countdown_state: Dictionary = {}
+var selected_dialogue_line_id := ""
 
 class CharacterPreview:
 	extends Control
@@ -332,6 +334,7 @@ func _build_shell() -> void:
 func _clear_content() -> void:
 	if is_instance_valid(microphone_countdown_timer) and not microphone_countdown_timer.is_stopped():
 		microphone_countdown_timer.stop()
+		microphone_countdown_state = dialogue_studio.cancel_recording_countdown(microphone_countdown_state)
 		microphone_countdown_remaining = 0
 	_stop_director_playback()
 	for child in content.get_children():
@@ -3763,6 +3766,7 @@ func _show_dialogue_studio() -> void:
 		var result: Dictionary = dialogue_studio.add_line(active_script, speaker.text, line_text.text, start.value, finish.value)
 		if result.ok:
 			line_text.clear()
+			selected_dialogue_line_id = str(result.line.get("id", ""))
 			_refresh_dialogue_lines()
 			_save_dialogue_script()
 		else:
@@ -3770,6 +3774,7 @@ func _show_dialogue_studio() -> void:
 	)
 	dialogue_line_list=ItemList.new()
 	dialogue_line_list.custom_minimum_size.y=180
+	dialogue_line_list.item_selected.connect(_on_dialogue_line_selected)
 	page.add_child(dialogue_line_list)
 	_refresh_dialogue_lines()
 	microphone_countdown_label = Label.new()
@@ -3786,15 +3791,41 @@ func _show_dialogue_studio() -> void:
 	_add_button(page,"Registrar toma de audio importada",_register_dialogue_take)
 	_add_button(page,"Validar y guardar guion",_save_dialogue_script)
 	var note=Label.new()
-	note.text="La grabación directa guarda tomas WAV en el almacenamiento del proyecto. Requiere permiso del sistema y entrada de audio habilitada; comprueba el micrófono en el dispositivo de destino."
+	note.text="Selecciona una línea para asociar la toma de voz. Si no seleccionas ninguna, se usará la última línea. La grabación guarda WAV y requiere permiso del sistema y una entrada de audio habilitada."
 	note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	page.add_child(note)
 	_add_button(page,"Volver",_show_workspace)
 
 func _refresh_dialogue_lines() -> void:
-	if not is_instance_valid(dialogue_line_list): return
+	if not is_instance_valid(dialogue_line_list):
+		return
 	dialogue_line_list.clear()
-	for line in active_script.get("lines",[]): dialogue_line_list.add_item("[%0.2f–%0.2f] %s: %s" % [float(line.start),float(line.end),str(line.speaker),str(line.text)])
+	var lines: Array = active_script.get("lines", [])
+	var selected_index := -1
+	for index in range(lines.size()):
+		var line: Dictionary = lines[index]
+		dialogue_line_list.add_item("[%0.2f–%0.2f] %s: %s" % [float(line.start), float(line.end), str(line.speaker), str(line.text)])
+		dialogue_line_list.set_item_metadata(index, str(line.get("id", "")))
+		if str(line.get("id", "")) == selected_dialogue_line_id:
+			selected_index = index
+	if selected_index < 0 and not lines.is_empty():
+		selected_index = lines.size() - 1
+		selected_dialogue_line_id = str(lines[selected_index].get("id", ""))
+	if selected_index >= 0:
+		dialogue_line_list.select(selected_index)
+
+func _on_dialogue_line_selected(index: int) -> void:
+	if not is_instance_valid(dialogue_line_list) or index < 0 or index >= dialogue_line_list.item_count:
+		return
+	selected_dialogue_line_id = str(dialogue_line_list.get_item_metadata(index))
+	_set_status("Línea seleccionada para grabación: " + selected_dialogue_line_id)
+
+func _get_selected_dialogue_line_id() -> String:
+	for line in active_script.get("lines", []):
+		if str(line.get("id", "")) == selected_dialogue_line_id:
+			return selected_dialogue_line_id
+	var lines: Array = active_script.get("lines", [])
+	return str(lines[-1].get("id", "")) if not lines.is_empty() else ""
 
 func _begin_microphone_recording_countdown() -> void:
 	if active_script.get("lines", []).is_empty():
@@ -3809,14 +3840,16 @@ func _begin_microphone_recording_countdown() -> void:
 		microphone_countdown_timer.wait_time = 1.0
 		microphone_countdown_timer.timeout.connect(_on_microphone_countdown_tick)
 		add_child(microphone_countdown_timer)
-	microphone_countdown_remaining = 3
+	microphone_countdown_state = dialogue_studio.create_recording_countdown(3)
+	microphone_countdown_remaining = int(microphone_countdown_state.get("remaining", 3))
 	if is_instance_valid(microphone_countdown_label):
 		microphone_countdown_label.text = "Preparando micrófono · %d" % microphone_countdown_remaining
 	microphone_countdown_timer.start()
 
 func _on_microphone_countdown_tick() -> void:
-	microphone_countdown_remaining -= 1
-	if microphone_countdown_remaining > 0:
+	microphone_countdown_state = dialogue_studio.advance_recording_countdown(microphone_countdown_state)
+	microphone_countdown_remaining = int(microphone_countdown_state.get("remaining", 0))
+	if not bool(microphone_countdown_state.get("started", false)):
 		if is_instance_valid(microphone_countdown_label):
 			microphone_countdown_label.text = "Preparando micrófono · %d" % microphone_countdown_remaining
 		return
@@ -3828,6 +3861,7 @@ func _on_microphone_countdown_tick() -> void:
 func _stop_or_cancel_microphone_recording() -> void:
 	if is_instance_valid(microphone_countdown_timer) and not microphone_countdown_timer.is_stopped():
 		microphone_countdown_timer.stop()
+		microphone_countdown_state = dialogue_studio.cancel_recording_countdown(microphone_countdown_state)
 		microphone_countdown_remaining = 0
 		if is_instance_valid(microphone_countdown_label):
 			microphone_countdown_label.text = "Cuenta regresiva cancelada."
@@ -3892,7 +3926,7 @@ func _stop_microphone_recording() -> void:
 	if lines.is_empty():
 		_set_status("La grabación se guardó, pero no hay una línea de diálogo para vincularla: " + path)
 		return
-	var line_id := str(lines[-1].get("id", ""))
+	var line_id := _get_selected_dialogue_line_id()
 	var take_number := 1
 	for existing_take in active_script.get("audio_tracks", []):
 		if str(existing_take.get("line_id", "")) == line_id:
@@ -3923,7 +3957,7 @@ func _register_dialogue_take() -> void:
 		var duration=1.0
 		if path.get_extension().to_lower()=="wav":
 			duration = _wav_duration_from_file(path)
-		var line_id=str(active_script.lines[-1].id)
+		var line_id=_get_selected_dialogue_line_id()
 		var result=dialogue_studio.add_take(active_script,line_id,path,duration,active_script.audio_tracks.size()+1,"Toma importada")
 		_save_dialogue_script()
 		_set_status("Toma registrada." if result.ok else str(result.error))
