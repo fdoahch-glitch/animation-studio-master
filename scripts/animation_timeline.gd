@@ -5,6 +5,15 @@ class_name AnimationTimeline
 
 const EASINGS := ["linear", "ease_in", "ease_out", "ease_in_out", "step"]
 
+func seconds_to_frame(seconds: float, fps: int) -> int:
+	return maxi(0, int(round(maxf(0.0, seconds) * float(maxi(1, fps)))))
+
+func frame_to_seconds(frame: int, fps: int) -> float:
+	return float(maxi(0, frame)) / float(maxi(1, fps))
+
+func snap_time_to_frame(seconds: float, fps: int) -> float:
+	return frame_to_seconds(seconds_to_frame(seconds, fps), fps)
+
 func create_track(track_id: String, label: String, target_id: String, property: String, value_type := "number") -> Dictionary:
 	if track_id.strip_edges().is_empty() or target_id.strip_edges().is_empty() or property.strip_edges().is_empty():
 		return {}
