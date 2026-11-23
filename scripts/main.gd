@@ -43,6 +43,10 @@ var timeline_playhead: HSlider
 var timeline_loop: CheckBox
 var timeline_name_input: LineEdit
 var timeline_time_input: SpinBox
+var texture_brightness: HSlider
+var texture_contrast: HSlider
+var texture_saturation: HSlider
+var background_tolerance: HSlider
 var imported_character_data: Dictionary = {}
 var procedural_poses: Array = []
 var runtime_rig: Node2D
@@ -558,6 +562,14 @@ func _show_character_lab() -> void:
 	_add_pivot_offset_control(right, "Codo izquierdo Y", "elbow_left", "y")
 	_add_pivot_offset_control(right, "Hombro derecho X", "shoulder_right", "x")
 	_add_pivot_offset_control(right, "Hombro derecho Y", "shoulder_right", "y")
+	var texture_title := Label.new()
+	texture_title.text = "AJUSTE DE TEXTURA E SEGMENTACIÓN"
+	right.add_child(texture_title)
+	_add_image_adjustment_slider(right, "Brillo", "brightness", -1.0, 1.0, 0.0)
+	_add_image_adjustment_slider(right, "Contraste", "contrast", 0.5, 1.8, 1.0)
+	_add_image_adjustment_slider(right, "Saturación", "saturation", 0.0, 2.0, 1.0)
+	_add_image_adjustment_slider(right, "Tolerancia del fondo", "tolerance", 0.03, 0.45, 0.16)
+	_add_button(right, "Aplicar textura y regenerar recortes", _apply_texture_adjustments)
 	imported_preview = TextureRect.new()
 	imported_preview.custom_minimum_size = Vector2(420, 220)
 	imported_preview.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
@@ -589,6 +601,68 @@ func _on_character_view_changed(index: int) -> void:
 	if is_instance_valid(character_preview):
 		character_preview.view_name = character_view.get_item_text(index)
 		character_preview.queue_redraw()
+
+
+func _add_image_adjustment_slider(parent: Node, label_text: String, key: String, minimum: float, maximum: float, initial: float) -> void:
+	var row := HBoxContainer.new()
+	parent.add_child(row)
+	var label := Label.new()
+	label.text = label_text
+	label.custom_minimum_size.x = 145
+	row.add_child(label)
+	var slider := HSlider.new()
+	slider.min_value = minimum
+	slider.max_value = maximum
+	slider.step = 0.01
+	slider.value = initial
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(slider)
+	match key:
+		"brightness": texture_brightness = slider
+		"contrast": texture_contrast = slider
+		"saturation": texture_saturation = slider
+		"tolerance": background_tolerance = slider
+
+func _apply_texture_adjustments() -> void:
+	if imported_source_path.is_empty():
+		_set_status("Primero importa una imagen de personaje.")
+		return
+	var adjusted_path: String = image_processor.create_adjusted_texture(
+		imported_source_path,
+		texture_brightness.value if is_instance_valid(texture_brightness) else 0.0,
+		texture_contrast.value if is_instance_valid(texture_contrast) else 1.0,
+		texture_saturation.value if is_instance_valid(texture_saturation) else 1.0
+	)
+	if adjusted_path.is_empty():
+		_set_status("No se pudo generar la textura ajustada.")
+		return
+	var result: Dictionary = image_processor.process_character_image(
+		adjusted_path,
+		background_tolerance.value if is_instance_valid(background_tolerance) else 0.16
+	)
+	if not bool(result.get("ok", false)):
+		_set_status("No se pudieron regenerar los recortes: " + str(result.get("error", "")))
+		return
+	result["original_source"] = imported_source_path
+	result["adjusted_source"] = adjusted_path
+	imported_character_data = result
+	if is_instance_valid(build_segmented_button):
+		build_segmented_button.disabled = false
+	var preview_image := Image.new()
+	if preview_image.load(str(result.get("processed_image", ""))) == OK:
+		imported_preview.texture = ImageTexture.create_from_image(preview_image)
+	var lines := PackedStringArray()
+	lines.append("Textura ajustada: brillo %.2f · contraste %.2f · saturación %.2f" % [texture_brightness.value, texture_contrast.value, texture_saturation.value])
+	lines.append("Tolerancia de fondo: %.2f" % background_tolerance.value)
+	lines.append("Píxeles de fondo retirados: %d" % int(result.get("background_removed_pixels", 0)))
+	lines.append("Recortes regenerados: %d" % result.get("parts", []).size())
+	lines.append("Los cambios se aplican de forma local y no modifican el archivo original.")
+	image_result_output.text = "\n".join(lines)
+	if not project_data.has("image_imports"):
+		project_data["image_imports"] = []
+	project_data["image_imports"].append(result)
+	_save_project()
+	_set_status("Textura ajustada y recortes regenerados. Ya puedes reconstruir el rig.")
 
 func _open_character_image_dialog() -> void:
 	if image_dialog != null:
