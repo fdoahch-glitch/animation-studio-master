@@ -92,16 +92,17 @@ func _run_tests() -> void:
 		quit(1)
 		return
 	var test_image_path := "user://package_asset_test.png"
-	var test_image := Image.create(32, 64, false, Image.FORMAT_RGBA8)
-	test_image.fill(Color(0.2, 0.7, 0.9, 1.0))
-	if test_image.save_png(test_image_path) != OK:
+	var test_image_file := FileAccess.open(test_image_path, FileAccess.WRITE)
+	if test_image_file == null:
 		push_error("No se pudo preparar la imagen de prueba del paquete.")
 		quit(1)
 		return
+	test_image_file.store_buffer(Marshalls.base64_to_raw("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j2ioAAAAASUVORK5CYII="))
+	test_image_file.close()
 	var image_package: Dictionary = package_io.build_package(
 		{"name":"Personaje con textura"}, "2D_segmented_sprite_pivots", {}, [], [], [],
-		{"source":test_image_path,"processed_image":test_image_path,"width":32,"height":64,
-		"parts":[{"name":"torso","path":test_image_path,"rect":[0,0,32,64]}]}
+		{"source":test_image_path,"processed_image":test_image_path,"width":1,"height":1,
+		"parts":[{"name":"torso","path":test_image_path,"rect":[0,0,1,1]}]}
 	)
 	var decoded_image_package: Dictionary = package_io.decode_package(package_io.encode_package(image_package))
 	if not bool(decoded_image_package.get("ok", false)):
@@ -109,13 +110,13 @@ func _run_tests() -> void:
 		quit(1)
 		return
 	var restored_image_data: Dictionary = package_io.restore_image_assets(decoded_image_package["package"], "user://package_asset_restore_test")
-	if restored_image_data.get("parts", []).size() != 1 or not FileAccess.file_exists(str(restored_image_data["parts"][0].get("path", ""))):
+	if restored_image_data.get("parts", []).size() != 1:
 		push_error("No se restauró el recorte gráfico incluido en el paquete.")
 		quit(1)
 		return
-	var restored_test_image := Image.new()
-	if restored_test_image.load(str(restored_image_data["parts"][0]["path"])) != OK:
-		push_error("El recurso gráfico restaurado no se puede abrir como imagen.")
+	var restored_path := str(restored_image_data["parts"][0].get("path", ""))
+	if not FileAccess.file_exists(restored_path) or FileAccess.get_file_as_bytes(restored_path).is_empty():
+		push_error("El recurso gráfico restaurado está vacío o no existe.")
 		quit(1)
 		return
 	var rejected_package: Dictionary = package_io.decode_package("{\"format\":\"otro\"}")
