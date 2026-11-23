@@ -1304,6 +1304,11 @@ func _play_rig_animation(animation_name: String) -> void:
 	if is_instance_valid(runtime_rig):
 		rig_builder.play_animation(runtime_rig, animation_name, speed)
 	elif is_instance_valid(runtime_spatial_animator):
+		for clip in project_data.get("spatial_animation_clips", []):
+			if str(clip.get("name", "")).to_lower() == animation_name.to_lower():
+				if runtime_spatial_animator.play_clip(clip, speed):
+					_set_status("Reproduciendo animación 3D «%s»." % animation_name.capitalize())
+				return
 		if runtime_spatial_animator.play_animation(animation_name, speed, intensity):
 			_set_status("Reproduciendo animación 3D «%s»." % animation_name.capitalize())
 
@@ -1445,9 +1450,20 @@ func _import_character_package_from_path(path: String) -> void:
 		var imported_rig_type := str(project_data["imported_character_package"].get("rig_type", ""))
 		if imported_rig_type.begins_with("3D"):
 			character_mode.select(2)
+			procedural_poses = project_data["spatial_procedural_poses"].duplicate(true)
 			_build_runtime_character()
 			if is_instance_valid(runtime_spatial_animator):
 				runtime_spatial_animator.apply_pose({"bone_rotations_degrees": package.get("rig", {}).get("bone_rotations_degrees", {})})
+			if is_instance_valid(pose_controls):
+				for child in pose_controls.get_children():
+					child.queue_free()
+				for pose in procedural_poses:
+					_add_button(pose_controls, str(pose.get("name", "Pose")), _apply_generated_pose.bind(pose))
+			if is_instance_valid(animation_controls):
+				for child in animation_controls.get_children():
+					child.queue_free()
+				for clip in project_data["spatial_animation_clips"]:
+					_add_button(animation_controls, str(clip.get("name", "Animación")).capitalize(), _play_rig_animation.bind(str(clip.get("name", ""))))
 		elif is_instance_valid(rig_subviewport):
 			character_mode.select(0)
 			if not imported_character_data.get("parts", []).is_empty():
