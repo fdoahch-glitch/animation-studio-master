@@ -227,7 +227,7 @@ func solve_two_bone_ik(root_position: Vector3, target_position: Vector3, first_l
 	var direction_vector := target_position - root_position
 	var raw_distance := direction_vector.length()
 	if raw_distance < 0.0001 or first_length <= 0.0001 or second_length <= 0.0001:
-		return {"ok":false}
+		return {"ok":false,"error":"Distancia o longitud de cadena inválida.","distance":raw_distance,"first_length":first_length,"second_length":second_length}
 	var minimum_distance := absf(first_length - second_length) + 0.0001
 	var maximum_distance := maxf(minimum_distance, first_length + second_length - 0.0001)
 	var distance := clampf(raw_distance, minimum_distance, maximum_distance)
@@ -266,6 +266,8 @@ func apply_two_bone_ik(chain_name: String, target_position: Vector3, pole_positi
 	var end_position: Vector3 = skeleton.get_bone_global_pose(end_index).origin
 	var first_length := root_position.distance_to(middle_position)
 	var second_length := middle_position.distance_to(end_position)
+	if first_length <= 0.0001 or second_length <= 0.0001:
+		return {"ok":false,"error":"Longitudes de hueso no disponibles.","root":root_position,"middle":middle_position,"end":end_position,"first_length":first_length,"second_length":second_length}
 	var solution := solve_two_bone_ik(root_position, target_position, first_length, second_length, pole_position)
 	if not bool(solution.get("ok", false)):
 		return solution
