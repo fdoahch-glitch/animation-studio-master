@@ -294,11 +294,14 @@ func apply_facial_expression(expression_name: String, intensity: float = 1.0) ->
 			continue
 		var normalized := str(target.get("normalized", ""))
 		var value := 0.0
+		var matched := false
 		for alias in definition.keys():
 			if normalized.contains(str(alias)):
 				value = maxf(value, float(definition[alias]) * amount_scale)
+				matched = true
 		mesh_instance.set_blend_shape_value(int(target.get("index", -1)), value)
-		applied += 1
+		if matched:
+			applied += 1
 	facial_expression_values = capture_facial_expression()
 	return applied
 
