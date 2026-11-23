@@ -515,7 +515,7 @@ func _show_character_lab() -> void:
 	joint_picker = OptionButton.new()
 	joint_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var joint_options := [
-		["Pelvis", "pelvis"], ["Torso", "torso"], ["Cuello", "neck"], ["Cabeza", "head"],
+		["Pelvis", "pelvis"], ["Torso", "torso"], ["Cuello", "neck"], ["Cabeza", "head"], ["Mandíbula", "jaw"],
 		["Hombro izquierdo", "shoulder_left"], ["Codo izquierdo", "elbow_left"], ["Muñeca izquierda", "wrist_left"],
 		["Hombro derecho", "shoulder_right"], ["Codo derecho", "elbow_right"], ["Muñeca derecha", "wrist_right"],
 		["Cadera izquierda", "hip_left"], ["Rodilla izquierda", "knee_left"], ["Tobillo izquierdo", "ankle_left"],
@@ -1500,7 +1500,7 @@ func _apply_3d_ik_target() -> void:
 
 func _spatial_bone_name(joint_key: String) -> String:
 	var names := {
-		"pelvis":"Pelvis", "torso":"Chest", "neck":"Neck", "head":"Head",
+		"pelvis":"Pelvis", "torso":"Chest", "neck":"Neck", "head":"Head", "jaw":"Jaw",
 		"shoulder_left":"Shoulder_L", "elbow_left":"Elbow_L", "wrist_left":"Wrist_L",
 		"shoulder_right":"Shoulder_R", "elbow_right":"Elbow_R", "wrist_right":"Wrist_R",
 		"hip_left":"Hip_L", "knee_left":"Knee_L", "ankle_left":"Ankle_L",
