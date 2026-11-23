@@ -765,7 +765,8 @@ func _load_3d_model_from_path(path: String, update_status: bool = true) -> bool:
 			for child in animation_controls.get_children():
 				child.queue_free()
 			_add_button(animation_controls, "Idle procedural", _play_rig_animation.bind("idle"))
-			for animation_name in runtime_imported_3d_animation_player.get_animation_list() if is_instance_valid(runtime_imported_3d_animation_player) else []:
+			var imported_animation_names: PackedStringArray = runtime_imported_3d_animation_player.get_animation_list() if is_instance_valid(runtime_imported_3d_animation_player) else PackedStringArray()
+			for animation_name in imported_animation_names:
 				_add_button(animation_controls, str(animation_name), _play_rig_animation.bind(str(animation_name)))
 		character_output.text = "Modelo 3D importado con Skeleton3D. Se conservan sus mallas, materiales y texturas; puedes reproducir sus animaciones originales y generar poses procedurales usando equivalencias de huesos humanoides."
 		if update_status:
@@ -1433,13 +1434,19 @@ func _play_rig_animation(animation_name: String) -> void:
 	var intensity := motion_intensity_slider.value if is_instance_valid(motion_intensity_slider) else 1.0
 	if is_instance_valid(runtime_rig):
 		rig_builder.play_animation(runtime_rig, animation_name, speed)
-	elif is_instance_valid(runtime_spatial_animator):
+	elif is_instance_valid(runtime_spatial_rig):
 		for clip in project_data.get("spatial_animation_clips", []):
-			if str(clip.get("name", "")).to_lower() == animation_name.to_lower():
+			if str(clip.get("name", "")).to_lower() == animation_name.to_lower() and is_instance_valid(runtime_spatial_animator):
 				if runtime_spatial_animator.play_clip(clip, speed):
 					_set_status("Reproduciendo animación 3D «%s»." % animation_name.capitalize())
 				return
-		if runtime_spatial_animator.play_animation(animation_name, speed, intensity):
+		if is_instance_valid(runtime_imported_3d_animation_player) and runtime_imported_3d_animation_player.has_animation(animation_name):
+			if is_instance_valid(runtime_spatial_animator):
+				runtime_spatial_animator.stop_animation()
+			runtime_imported_3d_animation_player.play(animation_name)
+			_set_status("Reproduciendo animación original «%s»." % animation_name)
+			return
+		if is_instance_valid(runtime_spatial_animator) and runtime_spatial_animator.play_animation(animation_name, speed, intensity):
 			_set_status("Reproduciendo animación 3D «%s»." % animation_name.capitalize())
 
 
