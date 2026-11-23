@@ -27,6 +27,9 @@ jobs:
       - name: Run project headlessly
         run: godot --headless --path . --quit-after 3
       - name: Test character rig pipeline
+        id: character_rig
+        timeout-minutes: 8
+        continue-on-error: true
         run: godot --headless --path . --script res://tests/test_character_rig.gd
       - name: Test scene composition model
         run: godot --headless --path . --script res://tests/test_scene_composition.gd
@@ -50,3 +53,8 @@ jobs:
         run: godot --headless --path . --script res://tests/test_project_bundle.gd
       - name: Test performance auditor
         run: godot --headless --path . --script res://tests/test_performance_auditor.gd
+      - name: Report character rig pipeline result
+        if: always() && steps.character_rig.outcome != 'success'
+        run: |
+          echo "Character rig pipeline did not complete successfully (outcome: ${{ steps.character_rig.outcome }})." >&2
+          exit 1
