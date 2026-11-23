@@ -28,20 +28,6 @@ func _initialize() -> void:
 	canvas.pan = Vector2(35, -20)
 	canvas.reset_view()
 	assert(canvas.zoom == 1.0 and canvas.pan == Vector2.ZERO, "Debe reiniciar cámara")
-	var pan_event := InputEventMouseButton.new()
-	pan_event.button_index = MOUSE_BUTTON_RIGHT
-	pan_event.pressed = true
-	pan_event.position = Vector2(400, 300)
-	canvas._gui_input(pan_event)
-	var pan_motion := InputEventMouseMotion.new()
-	pan_motion.position = Vector2(435, 325)
-	canvas._gui_input(pan_motion)
-	var pan_release := InputEventMouseButton.new()
-	pan_release.button_index = MOUSE_BUTTON_RIGHT
-	pan_release.pressed = false
-	pan_release.position = Vector2(435, 325)
-	canvas._gui_input(pan_release)
-	assert(canvas.pan == Vector2(35, 25), "El botón derecho debe desplazar la cámara")
 	var dropped: Array = []
 	canvas.asset_dropped.connect(func(kind: String, position: Vector2): dropped.append({"kind":kind,"position":position}))
 	assert(canvas._can_drop_data(Vector2.ZERO, {"scene_asset_type":"character"}), "Debe aceptar tipos de recurso admitidos")
@@ -60,6 +46,20 @@ func _initialize() -> void:
 	}
 	root.add_child(interactive)
 	interactive.set_scene_data(interactive_scene, 1920.0, 1080.0)
+	var pan_event := InputEventMouseButton.new()
+	pan_event.button_index = MOUSE_BUTTON_RIGHT
+	pan_event.pressed = true
+	pan_event.position = Vector2(400, 300)
+	interactive._gui_input(pan_event)
+	var pan_motion := InputEventMouseMotion.new()
+	pan_motion.position = Vector2(435, 325)
+	interactive._gui_input(pan_motion)
+	var pan_release := InputEventMouseButton.new()
+	pan_release.button_index = MOUSE_BUTTON_RIGHT
+	pan_release.pressed = false
+	pan_release.position = Vector2(435, 325)
+	interactive._gui_input(pan_release)
+	assert(interactive.pan == Vector2(35, 25), "El botón derecho debe desplazar la cámara")
 	var press := InputEventMouseButton.new()
 	press.button_index = MOUSE_BUTTON_LEFT
 	press.pressed = true
