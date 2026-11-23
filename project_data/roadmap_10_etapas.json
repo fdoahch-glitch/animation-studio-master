@@ -17,21 +17,28 @@
     {
       "id": 1,
       "name": "Fundamentos y asistente de proyecto",
-      "status": "partial",
+      "status": "done",
       "scope": [
         "asistente de nuevo proyecto",
         "resolución, orientación, FPS y modo 2D/2.5D/3D/híbrido",
         "estructura portable y recuperación"
       ],
-      "acceptance": [],
-      "tests": [],
-      "commit": null,
-      "notes": "Hay configuración inicial y una escena principal; falta comprobar flujo completo de creación/guardado/recuperación."
+      "acceptance": [
+        "El asistente permite crear proyectos con nombre, resolución, FPS, orientación y modo visual.",
+        "Los proyectos se guardan como .amsproj o JSON y pueden abrirse desde un archivo.",
+        "El esquema se versiona y normaliza documentos antiguos al esquema actual."
+      ],
+      "tests": [
+        "tests/test_project_document.gd: migración, normalización, guardado/carga roundtrip y validación de FPS.",
+        "GitHub Actions run 45112898086: success."
+      ],
+      "commit": "866a16ae13ea5b9e3dd277c1f8eafcebdde59b11",
+      "notes": "Cerrada con persistencia portable, apertura/guardado en la interfaz y prueba automatizada. Implementación UI en 1e50b0febecfa975b79295b1fbedf1ac58ef2efb."
     },
     {
       "id": 2,
       "name": "Editor de escenas y composición visual",
-      "status": "partial",
+      "status": "in_progress",
       "scope": [
         "escenas y capítulos",
         "lienzo con selección y arrastrar/soltar",
@@ -41,7 +48,7 @@
       "acceptance": [],
       "tests": [],
       "commit": null,
-      "notes": "La interfaz contiene secciones; no se considera terminado sin validar edición real de escenas."
+      "notes": "Gestor CRUD de escenas implementado inicialmente; falta compositor visual con instancias, drag-and-drop, inspector contextual, cámara y transiciones."
     },
     {
       "id": 3,
