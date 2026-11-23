@@ -5,6 +5,7 @@ const CHARACTER_RIG_BUILDER = preload("res://scripts/character_rig_builder.gd")
 const CHARACTER_IMAGE_PROCESSOR = preload("res://scripts/character_image_processor.gd")
 const CHARACTER_PROCEDURAL_ANIMATOR = preload("res://scripts/character_procedural_animator.gd")
 const CHARACTER_SPATIAL_RIG_BUILDER = preload("res://scripts/character_spatial_rig_builder.gd")
+const IK_DRAG_OVERLAY = preload("res://scripts/ik_drag_overlay.gd")
 const DEFAULT_PROJECT := {"name":"Mi primera animación","width":1920,"height":1080,"fps":60,"orientation":"Horizontal","visual_mode":"2D","background_mode":"Vacío"}
 
 var project_data: Dictionary = DEFAULT_PROJECT.duplicate(true)
@@ -31,6 +32,7 @@ var imported_character_data: Dictionary = {}
 var procedural_poses: Array = []
 var runtime_rig: Node2D
 var rig_subviewport: SubViewport
+var ik_drag_overlay: Control
 var root_ui: VBoxContainer
 var content: Control
 var status_label: Label
@@ -371,6 +373,10 @@ func _show_character_lab() -> void:
 	rig_background.color = Color("#f4f7fb")
 	rig_background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	rig_subviewport.add_child(rig_background)
+	var ik_help := Label.new()
+	ik_help.text = "IK: arrastra los círculos de manos y pies para posar el personaje."
+	ik_help.add_theme_color_override("font_color", Color("#536779"))
+	right.add_child(ik_help)
 	animation_controls = GridContainer.new()
 	animation_controls.columns = 3
 	right.add_child(animation_controls)
@@ -647,6 +653,7 @@ func _build_runtime_character() -> void:
 			runtime_rig = rig_builder.build_runtime_rig(label, 1.0)
 			runtime_rig.position = Vector2(210, 145)
 			rig_subviewport.add_child(runtime_rig)
+			_attach_ik_overlay()
 			rig_builder.play_animation(runtime_rig, "idle")
 			character_output.text = "Importa una imagen para crear el plano 2.5D; se muestra temporalmente el rig 2D."
 	else:
@@ -655,7 +662,17 @@ func _build_runtime_character() -> void:
 		runtime_rig = rig_builder.build_runtime_rig(label, 1.0)
 		runtime_rig.position = Vector2(210, 145)
 		rig_subviewport.add_child(runtime_rig)
+		_attach_ik_overlay()
 		rig_builder.play_animation(runtime_rig, "idle")
+
+
+func _attach_ik_overlay() -> void:
+	if is_instance_valid(ik_drag_overlay):
+		ik_drag_overlay.queue_free()
+	ik_drag_overlay = IK_DRAG_OVERLAY.new()
+	ik_drag_overlay.name = "IKDragOverlay"
+	rig_subviewport.add_child(ik_drag_overlay)
+	ik_drag_overlay.configure(runtime_rig, rig_builder)
 
 func _build_imported_segment_rig() -> void:
 	var parts: Array = imported_character_data.get("parts", [])
@@ -673,6 +690,8 @@ func _build_imported_segment_rig() -> void:
 	runtime_rig = rig_builder.build_segmented_sprite_rig(parts, joints, source_size, Vector2(210, 245))
 	runtime_rig.position = Vector2(210, 145)
 	rig_subviewport.add_child(runtime_rig)
+	_attach_ik_overlay()
+	_attach_ik_overlay()
 	rig_builder.play_animation(runtime_rig, "idle")
 	character_output.text = "Rig construido con regiones proporcionales locales. Son recortes aproximados, no segmentación semántica; ajusta los pivotes y las piezas manualmente si es necesario."
 	_set_status("Rig de imagen creado. Prueba las animaciones y corrige los pivotes.")
