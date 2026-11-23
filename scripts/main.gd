@@ -1,343 +1,358 @@
 extends Control
 
-class DrawingCanvas:
-	extends Control
+const CHARACTER_AI = preload("res://scripts/character_ai.gd")
+const DEFAULT_PROJECT := {"name":"Mi primera animación","width":1920,"height":1080,"fps":60,"orientation":"Horizontal","visual_mode":"2D","background_mode":"Vacío"}
 
-	var strokes: Array[PackedVector2Array] = []
-	var current_stroke := PackedVector2Array()
-	var is_drawing := false
-
-	func _ready() -> void:
-		custom_minimum_size = Vector2(900, 620)
-		mouse_filter = Control.MOUSE_FILTER_STOP
-
-	func _gui_input(event: InputEvent) -> void:
-		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-			if event.pressed:
-				is_drawing = true
-				current_stroke = PackedVector2Array([event.position])
-				queue_redraw()
-			else:
-				is_drawing = false
-				if current_stroke.size() > 1:
-					strokes.append(current_stroke)
-				current_stroke = PackedVector2Array()
-				queue_redraw()
-		elif event is InputEventMouseMotion and is_drawing:
-			current_stroke.append(event.position)
-			queue_redraw()
-
-	func _draw() -> void:
-		draw_rect(Rect2(Vector2.ZERO, size), Color("#fffdf8"), true)
-		var grid_step := 32
-		for x in range(0, int(size.x), grid_step):
-			draw_line(Vector2(x, 0), Vector2(x, size.y), Color("#edf0f2"), 1.0)
-		for y in range(0, int(size.y), grid_step):
-			draw_line(Vector2(0, y), Vector2(size.x, y), Color("#edf0f2"), 1.0)
-		for stroke in strokes:
-			if stroke.size() > 1:
-				draw_polyline(stroke, Color("#263238"), 4.0, true)
-		if current_stroke.size() > 1:
-			draw_polyline(current_stroke, Color("#263238"), 4.0, true)
-
-	func clear_canvas() -> void:
-		strokes.clear()
-		current_stroke = PackedVector2Array()
-		queue_redraw()
-
-	func undo() -> void:
-		if not strokes.is_empty():
-			strokes.pop_back()
-			queue_redraw()
-
-	func to_data() -> Array:
-		var result: Array = []
-		for stroke in strokes:
-			var points: Array = []
-			for point in stroke:
-				points.append([point.x, point.y])
-			result.append(points)
-		return result
-
-	func from_data(data: Array) -> void:
-		strokes.clear()
-		for stroke_data in data:
-			var stroke := PackedVector2Array()
-			for point in stroke_data:
-				if point is Array and point.size() >= 2:
-					stroke.append(Vector2(float(point[0]), float(point[1])))
-			if not stroke.is_empty():
-				strokes.append(stroke)
-		queue_redraw()
-
-
-var canvas: DrawingCanvas
-var frames: Array = []
-var current_frame := 0
-var play_timer: Timer
+var project_data: Dictionary = DEFAULT_PROJECT.duplicate(true)
+var ai: Node
+var root_ui: VBoxContainer
+var content: Control
 var status_label: Label
-var frame_label: Label
-var is_playing := false
-var layer_list: VBoxContainer
+var wizard_name: LineEdit
+var wizard_width: OptionButton
+var wizard_height: OptionButton
+var wizard_fps: OptionButton
+var wizard_mode: OptionButton
+var wizard_orientation: OptionButton
+var wizard_background: OptionButton
+var character_name: LineEdit
+var character_description: TextEdit
+var character_style: OptionButton
+var character_mode: OptionButton
+var character_view: OptionButton
+var character_preview: Control
+var character_output: RichTextLabel
+var skeleton_output: RichTextLabel
+var generated_character: Dictionary = {}
 
+class CharacterPreview:
+	extends Control
+	var view_name := "Frente"
+	var character_label := "Personaje"
+	var rig_data: Dictionary = {}
+	func _draw() -> void:
+		draw_rect(Rect2(Vector2.ZERO, size), Color("#f4f7fb"), true)
+		for x in range(0, int(size.x), 40):
+			draw_line(Vector2(x, 0), Vector2(x, size.y), Color("#e5ebf2"), 1.0)
+		for y in range(0, int(size.y), 40):
+			draw_line(Vector2(0, y), Vector2(size.x, y), Color("#e5ebf2"), 1.0)
+		var cx := size.x * 0.5
+		var top := size.y * 0.14
+		var sf := min(size.x / 420.0, size.y / 560.0)
+		var skin := Color("#e5a878")
+		var cloth := Color("#2878b8")
+		var dark := Color("#23384d")
+		var side := view_name == "Perfil"
+		var back := view_name == "Espalda"
+		var head := Vector2(cx, top + 58 * sf)
+		draw_circle(head, (38.0 if side or back else 52.0) * sf, skin)
+		if not back:
+			draw_circle(head + Vector2(-10 if not side else 6, -2) * sf, 3.5 * sf, dark)
+			if not side:
+				draw_circle(head + Vector2(10, -2) * sf, 3.5 * sf, dark)
+		var shoulder_y := top + 132 * sf
+		var hip_y := top + 300 * sf
+		var span := (25.0 if side else 42.0) * sf
+		draw_colored_polygon(PackedVector2Array([Vector2(cx-span,shoulder_y),Vector2(cx+span,shoulder_y),Vector2(cx+31*sf,hip_y),Vector2(cx-31*sf,hip_y)]), cloth)
+		for sign in [-1.0, 1.0]:
+			var shoulder := Vector2(cx + sign * span * 0.8, shoulder_y)
+			var elbow := shoulder + Vector2(sign * 25 * sf, 75 * sf)
+			var wrist := elbow + Vector2(sign * 8 * sf, 65 * sf)
+			draw_line(shoulder, elbow, skin, 10 * sf)
+			draw_line(elbow, wrist, skin, 8 * sf)
+			var hip := Vector2(cx + sign * 19 * sf, hip_y)
+			var knee := hip + Vector2(sign * 8 * sf, 82 * sf)
+			var ankle := knee + Vector2(-sign * 4 * sf, 76 * sf)
+			draw_line(hip, knee, dark, 13 * sf)
+			draw_line(knee, ankle, dark, 11 * sf)
+		draw_string(ThemeDB.fallback_font, Vector2(16, size.y-18), view_name.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#42566b"))
 
 func _ready() -> void:
-	_build_interface()
-	frames = [[]]
-	_load_frame(0)
-	play_timer = Timer.new()
-	play_timer.wait_time = 0.12
-	play_timer.timeout.connect(_on_play_tick)
-	add_child(play_timer)
-	_update_timeline()
+	ai = CHARACTER_AI.new()
+	ai.name = "CharacterAI"
+	add_child(ai)
+	_build_shell()
+	_show_wizard()
 
-
-func _build_interface() -> void:
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var root := VBoxContainer.new()
-	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", 8)
-	add_child(root)
-
+func _build_shell() -> void:
+	root_ui = VBoxContainer.new()
+	root_ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root_ui.add_theme_constant_override("separation", 0)
+	add_child(root_ui)
 	var header := HBoxContainer.new()
-	header.custom_minimum_size.y = 54
-	header.add_theme_constant_override("separation", 10)
-	root.add_child(header)
-
-	var title := Label.new()
-	title.text = "  ANIMATION STUDIO MANAGER"
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title.add_theme_font_size_override("font_size", 20)
-	title.add_theme_color_override("font_color", Color("#17324d"))
-	header.add_child(title)
-
-	_add_button(header, "Nuevo fotograma", _on_add_frame)
-	_add_button(header, "Reproducir", _on_play)
-	_add_button(header, "Guardar", _on_save)
-	_add_button(header, "Abrir", _on_open)
-
-	var separator := HSeparator.new()
-	root.add_child(separator)
-
-	var workspace := HBoxContainer.new()
-	workspace.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	workspace.add_theme_constant_override("separation", 8)
-	root.add_child(workspace)
-
-	var left_panel := PanelContainer.new()
-	left_panel.custom_minimum_size.x = 190
-	workspace.add_child(left_panel)
-	var left_box := VBoxContainer.new()
-	left_box.add_theme_constant_override("separation", 8)
-	left_panel.add_child(left_box)
-	var tools_title := Label.new()
-	tools_title.text = "HERRAMIENTAS"
-	tools_title.add_theme_color_override("font_color", Color("#25618a"))
-	left_box.add_child(tools_title)
-	_add_button(left_box, "Lápiz", func(): _set_status("Lápiz activo: dibuja con el botón izquierdo."))
-	_add_button(left_box, "Deshacer trazo", _on_undo)
-	_add_button(left_box, "Limpiar lienzo", _on_clear)
-	left_box.add_child(HSeparator.new())
-	var layers_title := Label.new()
-	layers_title.text = "CAPAS"
-	layers_title.add_theme_color_override("font_color", Color("#25618a"))
-	left_box.add_child(layers_title)
-	layer_list = VBoxContainer.new()
-	left_box.add_child(layer_list)
-	var layer_item := Label.new()
-	layer_item.text = "  ◉ Capa 1"
-	layer_list.add_child(layer_item)
-	var layer_note := Label.new()
-	layer_note.text = "Capas múltiples: próxima etapa"
-	layer_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	layer_note.add_theme_font_size_override("font_size", 11)
-	layer_note.add_theme_color_override("font_color", Color("#788796"))
-	left_box.add_child(layer_note)
-
-	var center := VBoxContainer.new()
-	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	center.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	workspace.add_child(center)
-	var canvas_header := HBoxContainer.new()
-	center.add_child(canvas_header)
-	var canvas_title := Label.new()
-	canvas_title.text = "LIENZO"
-	canvas_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	canvas_title.add_theme_color_override("font_color", Color("#25618a"))
-	canvas_header.add_child(canvas_title)
-	frame_label = Label.new()
-	canvas_header.add_child(frame_label)
-
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	center.add_child(scroll)
-	canvas = DrawingCanvas.new()
-	scroll.add_child(canvas)
-
-	var timeline_panel := PanelContainer.new()
-	timeline_panel.custom_minimum_size.y = 132
-	root.add_child(timeline_panel)
-	var timeline_box := VBoxContainer.new()
-	timeline_panel.add_child(timeline_box)
-	var timeline_header := HBoxContainer.new()
-	timeline_box.add_child(timeline_header)
-	var timeline_title := Label.new()
-	timeline_title.text = "LÍNEA DE TIEMPO"
-	timeline_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	timeline_title.add_theme_color_override("font_color", Color("#25618a"))
-	timeline_header.add_child(timeline_title)
-	_add_button(timeline_header, "＋ Fotograma", _on_add_frame)
-	var timeline_scroll := ScrollContainer.new()
-	timeline_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	timeline_box.add_child(timeline_scroll)
-	var timeline_row := HBoxContainer.new()
-	timeline_row.name = "FrameButtons"
-	timeline_scroll.add_child(timeline_row)
-
+	header.custom_minimum_size.y = 58
+	root_ui.add_child(header)
+	var brand := Label.new()
+	brand.text = "  ANIMATION STUDIO MANAGER"
+	brand.add_theme_font_size_override("font_size", 20)
+	brand.add_theme_color_override("font_color", Color("#17324d"))
+	brand.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(brand)
+	_add_button(header, "Nuevo proyecto", _show_wizard)
+	_add_button(header, "Guardar proyecto", _save_project)
+	_add_button(header, "Estudio de personajes", _show_character_lab)
+	root_ui.add_child(HSeparator.new())
+	content = Control.new()
+	content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	root_ui.add_child(content)
 	status_label = Label.new()
-	status_label.text = "Listo. Dibuja en el lienzo para comenzar."
-	status_label.custom_minimum_size.y = 24
-	status_label.add_theme_color_override("font_color", Color("#607080"))
-	root.add_child(status_label)
+	status_label.text = "Bienvenido. Crea un proyecto para comenzar."
+	status_label.custom_minimum_size.y = 28
+	status_label.add_theme_color_override("font_color", Color("#536779"))
+	root_ui.add_child(status_label)
 
+func _clear_content() -> void:
+	for child in content.get_children():
+		child.queue_free()
 
-func _add_button(parent: Node, text_value: String, callback: Callable) -> void:
+func _add_button(parent: Node, label_text: String, callback: Callable) -> Button:
 	var button := Button.new()
-	button.text = text_value
-	button.custom_minimum_size.y = 34
+	button.text = label_text
+	button.custom_minimum_size.y = 36
 	button.pressed.connect(callback)
 	parent.add_child(button)
+	return button
 
+func _add_heading(parent: Node, heading: String, subheading := "") -> void:
+	var box := VBoxContainer.new()
+	parent.add_child(box)
+	var title := Label.new()
+	title.text = heading
+	title.add_theme_font_size_override("font_size", 25)
+	title.add_theme_color_override("font_color", Color("#17324d"))
+	box.add_child(title)
+	if subheading != "":
+		var detail := Label.new()
+		detail.text = subheading
+		detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		detail.add_theme_color_override("font_color", Color("#61758a"))
+		box.add_child(detail)
 
-func _set_status(message: String) -> void:
-	if is_instance_valid(status_label):
-		status_label.text = message
+func _add_option(parent: Node, label_text: String, options: Array, selected := 0) -> OptionButton:
+	var row := HBoxContainer.new()
+	parent.add_child(row)
+	var label := Label.new()
+	label.text = label_text
+	label.custom_minimum_size.x = 170
+	row.add_child(label)
+	var picker := OptionButton.new()
+	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for item in options:
+		picker.add_item(str(item))
+	picker.select(selected)
+	row.add_child(picker)
+	return picker
 
+func _show_wizard() -> void:
+	_clear_content()
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	content.add_child(scroll)
+	var page := VBoxContainer.new()
+	page.custom_minimum_size = Vector2(680, 0)
+	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	page.add_theme_constant_override("separation", 12)
+	scroll.add_child(page)
+	_add_heading(page, "Crear un nuevo proyecto", "Configura tu película o serie antes de abrir el lienzo.")
+	var name_row := HBoxContainer.new()
+	page.add_child(name_row)
+	var name_label := Label.new()
+	name_label.text = "Nombre del proyecto"
+	name_label.custom_minimum_size.x = 170
+	name_row.add_child(name_label)
+	wizard_name = LineEdit.new()
+	wizard_name.text = str(project_data.get("name", "Mi animación"))
+	wizard_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_row.add_child(wizard_name)
+	wizard_width = _add_option(page, "Ancho", ["1280","1920","2560","3840"], 1)
+	wizard_height = _add_option(page, "Alto", ["720","1080","1440","2160"], 1)
+	wizard_fps = _add_option(page, "Fotogramas por segundo", ["24","25","30","50","60"], 4)
+	wizard_orientation = _add_option(page, "Orientación", ["Horizontal","Vertical","Cuadrada"], 0)
+	wizard_mode = _add_option(page, "Espacio de trabajo", ["2D","2.5D","3D","Híbrido"], 0)
+	wizard_background = _add_option(page, "Fondo inicial", ["Vacío","Biblioteca","Importar imagen","Preparar con IA"], 0)
+	var note := Label.new()
+	note.text = "Recomendado: 1920 × 1080 · 60 FPS. El modo elegido filtrará los recursos y herramientas disponibles."
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.add_theme_color_override("font_color", Color("#2878b8"))
+	page.add_child(note)
+	_add_button(page, "Crear proyecto y abrir estudio", _create_project)
 
-func _sync_current_frame() -> void:
-	if frames.is_empty():
-		frames.append(canvas.to_data())
-	else:
-		frames[current_frame] = canvas.to_data()
-
-
-func _load_frame(index: int) -> void:
-	if index < 0 or index >= frames.size():
-		return
-	current_frame = index
-	canvas.from_data(frames[current_frame])
-	if is_instance_valid(frame_label):
-		frame_label.text = "Fotograma %d / %d" % [current_frame + 1, frames.size()]
-	_update_timeline()
-
-
-func _update_timeline() -> void:
-	if not is_instance_valid(frame_label):
-		return
-	frame_label.text = "Fotograma %d / %d" % [current_frame + 1, frames.size()]
-	var row := get_node_or_null("VBoxContainer/PanelContainer/VBoxContainer/ScrollContainer/FrameButtons")
-	if row == null:
-		row = _find_frame_button_row(self)
-	if row == null:
-		return
-	for child in row.get_children():
-		child.queue_free()
-	for i in range(frames.size()):
-		var frame_button := Button.new()
-		frame_button.text = str(i + 1)
-		frame_button.custom_minimum_size = Vector2(54, 42)
-		frame_button.modulate = Color("#cce8ff") if i == current_frame else Color.WHITE
-		frame_button.pressed.connect(_select_frame.bind(i))
-		row.add_child(frame_button)
-
-
-func _find_frame_button_row(node: Node) -> Node:
-	if node.name == "FrameButtons":
-		return node
-	for child in node.get_children():
-		var found := _find_frame_button_row(child)
-		if found != null:
-			return found
-	return null
-
-
-func _select_frame(index: int) -> void:
-	_sync_current_frame()
-	_load_frame(index)
-
-
-func _on_add_frame() -> void:
-	_sync_current_frame()
-	frames.append([])
-	_load_frame(frames.size() - 1)
-	_set_status("Nuevo fotograma creado.")
-
-
-func _on_undo() -> void:
-	canvas.undo()
-	_sync_current_frame()
-
-
-func _on_clear() -> void:
-	canvas.clear_canvas()
-	_sync_current_frame()
-	_set_status("Lienzo limpiado.")
-
-
-func _on_play() -> void:
-	if frames.size() < 2:
-		_set_status("Agrega al menos dos fotogramas para reproducir.")
-		return
-	_sync_current_frame()
-	is_playing = not is_playing
-	if is_playing:
-		play_timer.start()
-		_set_status("Reproduciendo animación…")
-	else:
-		play_timer.stop()
-		_set_status("Reproducción pausada.")
-
-
-func _on_play_tick() -> void:
-	if frames.is_empty():
-		return
-	_load_frame((current_frame + 1) % frames.size())
-
-
-func _on_save() -> void:
-	_sync_current_frame()
-	var project_data := {
-		"format": "AnimationStudioManager",
-		"version": 1,
-		"fps": 8,
-		"frames": frames
+func _create_project() -> void:
+	var widths := [1280,1920,2560,3840]
+	var heights := [720,1080,1440,2160]
+	var fps_values := [24,25,30,50,60]
+	project_data = {
+		"schema_version": 1,
+		"name": wizard_name.text.strip_edges() if wizard_name.text.strip_edges() != "" else "Mi animación",
+		"width": widths[wizard_width.selected],
+		"height": heights[wizard_height.selected],
+		"fps": fps_values[wizard_fps.selected],
+		"orientation": wizard_orientation.get_item_text(wizard_orientation.selected),
+		"visual_mode": wizard_mode.get_item_text(wizard_mode.selected),
+		"background_mode": wizard_background.get_item_text(wizard_background.selected),
+		"scenes": [], "characters": [], "assets": []
 	}
-	var file := FileAccess.open("user://animation_studio_project.json", FileAccess.WRITE)
+	_save_project()
+	_show_workspace()
+	_set_status("Proyecto creado: %d × %d a %d FPS · %s" % [project_data.width,project_data.height,project_data.fps,project_data.visual_mode])
+
+func _show_workspace() -> void:
+	_clear_content()
+	var layout := HBoxContainer.new()
+	layout.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	content.add_child(layout)
+	var nav := VBoxContainer.new()
+	nav.custom_minimum_size.x = 190
+	nav.add_theme_constant_override("separation", 5)
+	layout.add_child(nav)
+	for section in ["Escenas","Personajes","Fondos","Elementos","Decoraciones","Tiempo y clima","Animación","Audio y doblaje","Exportar"]:
+		_add_button(nav, section, _open_section.bind(section))
+	var main_panel := VBoxContainer.new()
+	main_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_panel.add_theme_constant_override("separation", 12)
+	layout.add_child(main_panel)
+	_add_heading(main_panel, str(project_data.name), "%d × %d · %d FPS · %s" % [project_data.width,project_data.height,project_data.fps,project_data.visual_mode])
+	var card := PanelContainer.new()
+	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	main_panel.add_child(card)
+	var instruction := Label.new()
+	instruction.text = "ESCENARIO DE TRABAJO\n\nArrastra aquí personajes, fondos, elementos y decoraciones.\nSelecciona un recurso para abrir su inspector y definir acciones."
+	instruction.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	instruction.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	instruction.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	instruction.add_theme_font_size_override("font_size", 19)
+	card.add_child(instruction)
+	_add_button(main_panel, "Abrir asistente de personajes", _show_character_lab)
+
+func _open_section(section: String) -> void:
+	if section == "Personajes":
+		_show_character_lab()
+		return
+	_clear_content()
+	var page := VBoxContainer.new()
+	page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	page.add_theme_constant_override("separation", 10)
+	content.add_child(page)
+	_add_heading(page, section, "Panel de trabajo del proyecto: " + str(project_data.name))
+	var info := Label.new()
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	match section:
+		"Fondos": info.text = "Biblioteca e importación de fondos. Próximo módulo: segmentación asistida, planos de profundidad, máscaras y parallax."
+		"Elementos": info.text = "Biblioteca de objetos del mundo, puntos de anclaje, colisiones y acciones."
+		"Decoraciones": info.text = "Vegetación, partículas, viento, agua, nubes, polvo y detalles ambientales."
+		"Tiempo y clima": info.text = "Amanecer, mañana, mediodía, tarde, atardecer o noche; hora exacta, lluvia, nieve, viento y niebla."
+		"Animación": info.text = "Línea de tiempo por pistas, keyframes, rutas, curvas y cámara."
+		"Audio y doblaje": info.text = "Estudio de grabación por escenas: cuenta atrás 3-2-1, subtítulos guía, tomas y pistas sincronizadas."
+		"Exportar": info.text = "Exportación final con resolución, FPS, vídeo, audio y subtítulos."
+		_: info.text = "Organiza escenas, capítulos, duración y transiciones."
+	page.add_child(info)
+	_add_button(page, "Volver al escenario", _show_workspace)
+	_set_status(section + " · interfaz inicial; funciones avanzadas pendientes.")
+
+func _show_character_lab() -> void:
+	_clear_content()
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	content.add_child(scroll)
+	var page := VBoxContainer.new()
+	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	page.add_theme_constant_override("separation", 10)
+	scroll.add_child(page)
+	_add_heading(page, "Estudio de personajes", "Diseña una ficha, prepara vistas y crea una propuesta de esqueleto editable.")
+	var columns := HBoxContainer.new()
+	page.add_child(columns)
+	var form := VBoxContainer.new()
+	form.custom_minimum_size.x = 350
+	form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	columns.add_child(form)
+	var name_row := HBoxContainer.new()
+	form.add_child(name_row)
+	var name_label := Label.new()
+	name_label.text = "Nombre"
+	name_label.custom_minimum_size.x = 100
+	name_row.add_child(name_label)
+	character_name = LineEdit.new()
+	character_name.placeholder_text = "Ej. Lía"
+	character_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_row.add_child(character_name)
+	form.add_child(Label.new())
+	var desc_label := Label.new()
+	desc_label.text = "Describe el personaje"
+	form.add_child(desc_label)
+	character_description = TextEdit.new()
+	character_description.custom_minimum_size.y = 110
+	character_description.placeholder_text = "Personalidad, ropa, colores, proporciones, accesorios..."
+	form.add_child(character_description)
+	character_style = _add_option(form, "Estilo", ["Cartoon 3D","2D ilustrado","Anime original","Realista estilizado"], 0)
+	character_mode = _add_option(form, "Tipo de rig", ["2D esquelético","2.5D por planos","3D esqueleto","Híbrido"], 0)
+	character_view = _add_option(form, "Vista previa", ["Frente","Perfil","Espalda","Tres cuartos"], 0)
+	character_view.item_selected.connect(_on_character_view_changed)
+	_add_button(form, "Crear diseño base + esqueleto", _generate_character)
+	_add_button(form, "Preparar prompt para IA", _request_ai_character)
+	var right := VBoxContainer.new()
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.custom_minimum_size.x = 420
+	columns.add_child(right)
+	character_preview = CharacterPreview.new()
+	character_preview.custom_minimum_size = Vector2(420,430)
+	character_preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.add_child(character_preview)
+	character_output = RichTextLabel.new()
+	character_output.fit_content = true
+	character_output.custom_minimum_size.y = 75
+	character_output.text = "Vista esquemática de referencia. El arte final se importa o se genera con un proveedor conectado."
+	right.add_child(character_output)
+	page.add_child(Label.new())
+	var rig_title := Label.new()
+	rig_title.text = "ESQUELETO PROPUESTO"
+	rig_title.add_theme_color_override("font_color", Color("#2878b8"))
+	page.add_child(rig_title)
+	skeleton_output = RichTextLabel.new()
+	skeleton_output.fit_content = true
+	skeleton_output.custom_minimum_size.y = 110
+	skeleton_output.text = "Genera un personaje para ver huesos, articulaciones y pivotes sugeridos."
+	page.add_child(skeleton_output)
+	_add_button(page, "Volver al escenario", _show_workspace)
+
+func _on_character_view_changed(index: int) -> void:
+	if is_instance_valid(character_preview):
+		character_preview.view_name = character_view.get_item_text(index)
+		character_preview.queue_redraw()
+
+func _generate_character() -> void:
+	var label := character_name.text.strip_edges()
+	if label == "":
+		label = "Personaje nuevo"
+	generated_character = ai.build_character_blueprint(label, character_description.text.strip_edges(), character_mode.get_item_text(character_mode.selected))
+	character_preview.character_label = label
+	character_preview.rig_data = generated_character.rig
+	character_preview.queue_redraw()
+	character_output.text = "Ficha creada: %s\nEstilo: %s\nVistas de referencia: frente, perfil, espalda y tres cuartos. El dibujo visible es una guía esquemática, no cuatro ilustraciones finales." % [label,character_style.get_item_text(character_style.selected)]
+	skeleton_output.text = ai.format_rig_summary(generated_character.rig)
+	if not project_data.has("characters"):
+		project_data["characters"] = []
+	project_data["characters"].append(generated_character)
+	_save_project()
+	_set_status("Ficha y esqueleto procedural creados y guardados. Revisa articulaciones antes de animar.")
+
+func _request_ai_character() -> void:
+	if character_description.text.strip_edges() == "":
+		_set_status("Escribe una descripción antes de preparar el prompt.")
+		return
+	var prompt := ai.build_character_prompt(character_name.text, character_description.text, character_style.get_item_text(character_style.selected), character_mode.get_item_text(character_mode.selected))
+	DisplayServer.clipboard_set(prompt)
+	character_output.text = "Prompt de producción copiado. La generación externa aún no está conectada; no se ha creado una imagen."
+	_set_status("Prompt copiado. Configura un proveedor de IA para generar imágenes reales.")
+
+func _save_project() -> void:
+	var file := FileAccess.open("user://animation_studio_manager_project.json", FileAccess.WRITE)
 	if file == null:
 		_set_status("No se pudo guardar el proyecto.")
 		return
 	file.store_string(JSON.stringify(project_data, "\t"))
 	file.close()
-	_set_status("Proyecto guardado en user://animation_studio_project.json")
+	_set_status("Proyecto guardado localmente.")
 
-
-func _on_open() -> void:
-	var path := "user://animation_studio_project.json"
-	if not FileAccess.file_exists(path):
-		_set_status("Todavía no existe un proyecto guardado.")
-		return
-	var file := FileAccess.open(path, FileAccess.READ)
-	if file == null:
-		_set_status("No se pudo abrir el archivo.")
-		return
-	var parsed = JSON.parse_string(file.get_as_text())
-	file.close()
-	if typeof(parsed) != TYPE_DICTIONARY or not parsed.has("frames"):
-		_set_status("El archivo de proyecto no tiene un formato válido.")
-		return
-	frames = parsed["frames"]
-	if frames.is_empty():
-		frames = [[]]
-	_load_frame(0)
-	_set_status("Proyecto cargado correctamente.")
+func _set_status(message: String) -> void:
+	if is_instance_valid(status_label):
+		status_label.text = message
