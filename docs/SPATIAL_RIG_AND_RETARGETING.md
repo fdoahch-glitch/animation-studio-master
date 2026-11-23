@@ -38,3 +38,10 @@ El retargeter convierte bibliotecas de keyframes de animación 3D, traduce nombr
 ## Transiciones suaves entre clips 3D
 
 El animador espacial admite fundido cruzado de pose al cambiar entre ciclos y clips, con duración configurable (por defecto 0,18 s). La interpolación combina rotaciones por hueso y evita saltos bruscos entre animaciones. Prueba de interpolación: `tests/test_spatial_retargeting.gd`.
+
+
+## Horneado 3D y conservación de animaciones importadas — refuerzo de etapa 5
+
+Los ciclos procedurales humanoides y cuadrúpedos se hornean en una biblioteca `procedural` de `AnimationPlayer`. La biblioteca se mantiene separada de las bibliotecas importadas: regenerar los clips procedurales reemplaza únicamente la biblioteca `procedural`, sin eliminar clips originales del modelo. La prueba de integración verifica ocho ciclos del cuadrúpedo, incluyendo locomoción y rugido, y confirma que una animación original permanece disponible tras el horneado.
+
+La prueba automatizada también conserva la exportación glTF del rig de referencia. La validación headless no sustituye la inspección visual con modelos GLB externos y sus propios esqueletos/pesos.

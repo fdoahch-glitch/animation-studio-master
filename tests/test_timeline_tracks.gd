@@ -44,6 +44,21 @@ func _initialize() -> void:
 	timeline.insert_property_keyframe(stepped, 0.0, 0.0, "step")
 	timeline.insert_property_keyframe(stepped, 1.0, 90.0)
 	assert(is_equal_approx(float(timeline.sample_track(stepped, 0.5)), 0.0))
+	var ease_out_track := timeline.create_track("track_ease_out", "Ease out", "object_1", "x")
+	timeline.insert_property_keyframe(ease_out_track, 0.0, 0.0, "ease_out")
+	timeline.insert_property_keyframe(ease_out_track, 2.0, 100.0)
+	assert(is_equal_approx(float(timeline.sample_track(ease_out_track, 1.0)), 75.0), "ease_out debe acelerar al inicio y desacelerar al final")
+	var ease_in_out_track := timeline.create_track("track_ease_in_out", "Ease in out", "object_1", "x")
+	timeline.insert_property_keyframe(ease_in_out_track, 0.0, 0.0, "ease_in_out")
+	timeline.insert_property_keyframe(ease_in_out_track, 2.0, 100.0)
+	assert(is_equal_approx(float(timeline.sample_track(ease_in_out_track, 1.0)), 50.0), "ease_in_out debe ser simétrico")
+	assert(timeline.sample_track(track, NAN) == null, "El muestreo debe rechazar tiempos no finitos")
+	var duplicate_time_track := timeline.create_track("duplicate_time", "Duplicados", "object_1", "x")
+	duplicate_time_track["keyframes"] = [
+		{"time": 0.0, "value": 0.0, "easing": "linear"},
+		{"time": 0.0, "value": 5.0, "easing": "linear"}
+	]
+	assert(not timeline.validate_track(duplicate_time_track).ok, "La validación debe rechazar tiempos de keyframe duplicados")
 	assert(timeline.validate_track(track).ok)
 	assert(not timeline.validate_track({"id":"bad","target_id":"","keyframes":[]}).ok)
 	var replaced := timeline.insert_property_keyframe(track, 2.0, 200.0)
