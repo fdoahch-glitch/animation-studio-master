@@ -7,6 +7,8 @@
 - Los archivos se copian a `user://animation_studio_assets/<categoría>/`; el proyecto conserva ID, nombre, archivo original, extensión, tamaño, etiquetas, modo visual, compatibilidad y ruta administrada.
 - Búsqueda local por nombre, archivo y etiquetas.
 - La biblioteca valida extensión/categoría, compatibilidad con el modo del proyecto y protege la eliminación para que solo afecte rutas dentro de su carpeta administrada.
+- La ficha de biblioteca muestra una vista previa de las imágenes importadas, junto con nombre, archivo, tamaño, etiquetas y modos compatibles.
+- Los modelos GLB/glTF muestran su información de catálogo y se pueden añadir a escenas como instancias vinculadas por ID; la vista previa 3D interactiva aún está pendiente.
 - Desde la ficha de biblioteca se puede añadir el recurso seleccionado a la escena como instancia vinculada por ID.
 
 La importación de glTF con dependencias externas no las empaqueta automáticamente; conserva las dependencias junto al modelo original o usa GLB autocontenido.
@@ -17,9 +19,10 @@ La importación de glTF con dependencias externas no las empaqueta automáticame
 - Keyframes ordenados por tiempo; al guardar en el mismo instante se reemplaza la clave anterior.
 - Curvas: lineal, ease-in, ease-out, ease-in-out y step.
 - Muestreo interpolado para previsualizar el valor en el playhead.
+- Al seleccionar un fotograma se actualiza el valor interpolado en el inspector de keyframes; se puede añadir/actualizar o eliminar la clave del fotograma actual.
 - Los tracks se almacenan en `scene_animation_tracks`, separados por ID de escena.
 - El timeline de dirección complementa el timeline de poses 2D/3D ya existente; no lo reemplaza.
 
 ## Límites actuales
 
-La biblioteca importa y administra archivos, pero la previsualización de modelos 3D y la extracción automática de miniaturas aún requieren validación visual. El timeline nuevo anima propiedades numéricas de instancias; rutas de movimiento, cámara multicapa y mezcla de pistas quedan para ampliación posterior.
+La biblioteca muestra imágenes importadas en una vista previa 2D. La previsualización 3D interactiva de modelos GLB/glTF y la extracción automática de miniaturas 3D aún requieren implementación y validación visual. El timeline nuevo anima propiedades numéricas de instancias; rutas de movimiento, cámara multicapa y mezcla de pistas quedan para ampliación posterior.
