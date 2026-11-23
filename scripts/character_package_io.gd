@@ -26,7 +26,7 @@ func build_package(character: Dictionary, rig_type: String, joint_angles: Dictio
 		"spatial_animation_clips": _clean_spatial_clips(spatial_clips),
 		"image_import": _portable_image_metadata(image_data),
 		"assets": _collect_image_assets(image_data, model_path),
-		"asset_note": "Las imágenes y modelos 3D se incluyen dentro del paquete cuando caben en el límite de tamaño."
+		"asset_note": "Las imágenes y modelos GLB autocontenidos se incluyen si caben en el límite. Los archivos glTF externos requieren conservar sus archivos acompañantes."
 	}
 
 func encode_package(package_data: Dictionary) -> String:
@@ -170,7 +170,7 @@ func _clean_poses(value: Array) -> Array:
 
 
 func _model_asset_key(image_data: Dictionary, model_path: String) -> String:
-	if model_path == "":
+	if model_path == "" or model_path.get_extension().to_lower() != "glb":
 		return ""
 	var index := 0
 	if str(image_data.get("source", "")) != "":
@@ -194,7 +194,7 @@ func _collect_image_assets(image_data: Dictionary, model_path: String = "") -> D
 	for part in image_data.get("parts", []):
 		if part is Dictionary and str(part.get("path", "")) != "":
 			candidates.append(str(part.get("path", "")))
-	if model_path != "":
+	if model_path != "" and model_path.get_extension().to_lower() == "glb":
 		candidates.append(model_path)
 	var total_bytes := 0
 	for index in range(candidates.size()):
