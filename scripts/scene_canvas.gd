@@ -57,7 +57,7 @@ func set_environment_data(value: Dictionary) -> void:
 	environment_data = value.duplicate(true)
 	var weather := str(environment_data.get("weather", "clear"))
 	var intensity := clampf(float(environment_data.get("weather_intensity", 0.0)), 0.0, 1.0)
-	set_process(weather != "clear" and intensity > 0.001)
+	set_process(bool(environment_data.get("particles_enabled", true)) and weather != "clear" and intensity > 0.001)
 	queue_redraw()
 
 func _process(delta: float) -> void:
@@ -105,6 +105,8 @@ func _draw_environment_ambient(frame: Rect2) -> void:
 		draw_rect(frame, Color(1.0, 0.94, 0.78, (ambient - 1.0) * 0.10), true)
 
 func _draw_environment_weather(frame: Rect2) -> void:
+	if not bool(environment_data.get("particles_enabled", true)):
+		return
 	var weather := str(environment_data.get("weather", "clear"))
 	var intensity := clampf(float(environment_data.get("weather_intensity", 0.0)), 0.0, 1.0)
 	if intensity <= 0.001:
