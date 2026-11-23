@@ -53,6 +53,13 @@ func _run_tests() -> void:
 		quit(1)
 		return
 
+	var ik_joint: Vector2 = ik.joint
+	var ik_end: Vector2 = ik.end
+	if not is_equal_approx(ik_joint.distance_to(Vector2.ZERO), 55.0) or not is_equal_approx(ik_end.distance_to(ik_joint), 45.0):
+		push_error("El solver IK no respeta las longitudes de los dos segmentos.")
+		quit(1)
+		return
+
 	var image := Image.create(128, 256, false, Image.FORMAT_RGBA8)
 	image.fill(Color.WHITE)
 	for y in range(25, 245):
