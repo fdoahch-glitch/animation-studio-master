@@ -236,7 +236,7 @@ func _copy_gltf_dependencies(source_path: String, destination_path: String, fold
 	var output := FileAccess.open(destination_path, FileAccess.WRITE)
 	if output == null:
 		return _rollback_gltf_dependencies(copied_paths, dependency_folder, "No se pudo actualizar el documento GLTF importado.")
-	output.store_string(JSON.stringify(parsed, "\\t"))
+	output.store_string(JSON.stringify(parsed))
 	output.close()
 	return {"ok": true, "paths": copied_paths, "bytes": total_bytes}
 
