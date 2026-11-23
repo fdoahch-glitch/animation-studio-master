@@ -17,6 +17,8 @@ const RESOURCE_LIBRARY = preload("res://scripts/resource_library.gd")
 const ANIMATION_RETARGETER = preload("res://scripts/animation_retargeter.gd")
 const ENVIRONMENT_DIRECTOR = preload("res://scripts/environment_director.gd")
 const DIALOGUE_STUDIO = preload("res://scripts/dialogue_studio.gd")
+const PROJECT_BUNDLE_IO = preload("res://scripts/project_bundle_io.gd")
+const PERFORMANCE_AUDITOR = preload("res://scripts/performance_auditor.gd")
 const DEFAULT_PROJECT := {"name":"Mi primera animación","width":1920,"height":1080,"fps":60,"orientation":"Horizontal","visual_mode":"2D","background_mode":"Vacío"}
 
 var project_data: Dictionary = DEFAULT_PROJECT.duplicate(true)
@@ -58,6 +60,10 @@ var joint_editor_syncing := false
 var timeline_model
 var package_io
 var project_io
+var project_bundle_io
+var performance_auditor
+var project_bundle_export_dialog: FileDialog
+var project_bundle_import_dialog: FileDialog
 var project_save_dialog: FileDialog
 var project_open_dialog: FileDialog
 var current_project_path := ""
@@ -192,6 +198,8 @@ func _ready() -> void:
 	package_io = CHARACTER_PACKAGE_IO.new()
 	resource_library = RESOURCE_LIBRARY.new()
 	project_io = PROJECT_DOCUMENT_IO.new()
+	project_bundle_io = PROJECT_BUNDLE_IO.new()
+	performance_auditor = PERFORMANCE_AUDITOR.new()
 	_build_shell()
 	project_save_dialog = FileDialog.new()
 	project_save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
@@ -206,6 +214,19 @@ func _ready() -> void:
 	project_open_dialog.filters = PackedStringArray(["*.amsproj, *.json ; Proyecto Animation Studio"])
 	project_open_dialog.file_selected.connect(_load_project_from_path)
 	add_child(project_open_dialog)
+	project_bundle_export_dialog = FileDialog.new()
+	project_bundle_export_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	project_bundle_export_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	project_bundle_export_dialog.filters = PackedStringArray(["*.asbundle ; Proyecto portable Animation Studio"])
+	project_bundle_export_dialog.current_file = "proyecto_animation_studio.asbundle"
+	project_bundle_export_dialog.file_selected.connect(_export_project_bundle)
+	add_child(project_bundle_export_dialog)
+	project_bundle_import_dialog = FileDialog.new()
+	project_bundle_import_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	project_bundle_import_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	project_bundle_import_dialog.filters = PackedStringArray(["*.asbundle ; Proyecto portable Animation Studio"])
+	project_bundle_import_dialog.file_selected.connect(_import_project_bundle)
+	add_child(project_bundle_import_dialog)
 	image_dialog = FileDialog.new()
 	image_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 	image_dialog.access = FileDialog.ACCESS_FILESYSTEM
@@ -425,6 +446,9 @@ func _open_section(section: String) -> void:
 	if section == "Audio y doblaje":
 		_show_dialogue_studio()
 		return
+	if section == "Exportar":
+		_show_export_workspace()
+		return
 	_clear_content()
 	var page := VBoxContainer.new()
 	page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -440,7 +464,7 @@ func _open_section(section: String) -> void:
 		"Tiempo y clima": info.text = "Amanecer, mañana, mediodía, tarde, atardecer o noche; hora exacta, lluvia, nieve, viento y niebla."
 		"Animación": info.text = "Línea de tiempo por pistas, keyframes, rutas, curvas y cámara."
 		"Audio y doblaje": info.text = "Estudio de grabación por escenas: cuenta atrás 3-2-1, subtítulos guía, tomas y pistas sincronizadas."
-		"Exportar": info.text = "Exportación final con resolución, FPS, vídeo, audio y subtítulos."
+		"Exportar": info.text = "Paquete portable del proyecto, informe de rendimiento y exportación de recursos."
 		_: info.text = "Organiza escenas, capítulos, duración y transiciones."
 	page.add_child(info)
 	_add_button(page, "Volver al escenario", _show_workspace)
@@ -2793,6 +2817,55 @@ func _load_project_from_path(path: String) -> void:
 	_show_workspace()
 	_set_status("Proyecto abierto: %s · %d escenas." % [str(project_data.get("name", "Proyecto")), project_data.get("scenes", []).size()])
 
+
+
+func _export_project_bundle(path: String) -> void:
+ var result=project_bundle_io.export_bundle(path,project_data)
+ if not result.ok:
+  _set_status(str(result.error))
+  return
+ _set_status("Proyecto portable exportado · %d recursos · %.1f MB." % [int(result.asset_count),float(result.bytes)/1048576.0])
+
+func _import_project_bundle(path: String) -> void:
+ var destination="user://restored_projects/"+str(Time.get_unix_time_from_system())
+ var result=project_bundle_io.import_bundle(path,destination)
+ if not result.ok:
+  _set_status(str(result.error))
+  return
+ var validation=project_io.validate_project(result.project)
+ if not validation.ok:
+  _set_status("El paquete se abrió, pero el documento no pasó validación: "+str(validation.error))
+  return
+ project_data=project_io.normalize_project(result.project)
+ current_project_path=""
+ _show_workspace()
+ _save_project()
+ _set_status("Proyecto portable importado · %d recursos restaurados." % int(result.asset_count))
+
+func _show_export_workspace() -> void:
+ _clear_content()
+ var page=VBoxContainer.new()
+ page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ page.add_theme_constant_override("separation",10)
+ content.add_child(page)
+ _add_heading(page,"Exportación y control de calidad","Empaqueta todo el proyecto con sus recursos y revisa sus presupuestos antes de distribuirlo.")
+ _add_button(page,"Exportar proyecto completo (.asbundle)",func(): project_bundle_export_dialog.current_file=str(project_data.get("name","proyecto")).validate_filename()+".asbundle"; project_bundle_export_dialog.popup_centered_ratio(0.82))
+ _add_button(page,"Importar proyecto portable (.asbundle)",func(): project_bundle_import_dialog.popup_centered_ratio(0.82))
+ _add_button(page,"Generar auditoría de rendimiento",_export_performance_audit)
+ _add_button(page,"Guardar proyecto editable (.amsproj)",_open_save_project_dialog)
+ _add_button(page,"Exportar paquete del personaje (.json)",_open_package_export_dialog)
+ _add_button(page,"Volver al escenario",_show_workspace)
+
+func _export_performance_audit() -> void:
+ var report=performance_auditor.audit_project(project_data)
+ var path="user://performance_audit_"+str(Time.get_unix_time_from_system())+".json"
+ var file=FileAccess.open(path,FileAccess.WRITE)
+ if file==null:
+  _set_status("No se pudo escribir el informe de rendimiento.")
+  return
+ file.store_string(JSON.stringify(report,"\\t"))
+ file.close()
+ _set_status("Auditoría guardada: %s · %d escenas · %d objetos · %d recursos · %d advertencias." % [path,int(report.summary.scene_count),int(report.summary.object_count),int(report.summary.resource_count),report.warnings.size()])
 
 func _ensure_environment() -> void:
  if active_environment.is_empty():
