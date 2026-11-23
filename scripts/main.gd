@@ -26,6 +26,7 @@ var animation_controls: GridContainer
 var pose_controls: GridContainer
 var animation_speed_slider: HSlider
 var motion_intensity_slider: HSlider
+var custom_pose_name_input: LineEdit
 var imported_character_data: Dictionary = {}
 var procedural_poses: Array = []
 var runtime_rig: Node2D
@@ -419,6 +420,10 @@ func _show_character_lab() -> void:
 	pose_controls = GridContainer.new()
 	pose_controls.columns = 3
 	right.add_child(pose_controls)
+	custom_pose_name_input = LineEdit.new()
+	custom_pose_name_input.placeholder_text = "Nombre para guardar tu pose"
+	right.add_child(custom_pose_name_input)
+	_add_button(right, "Guardar pose manual actual", _save_current_procedural_pose)
 	var joint_title := Label.new()
 	joint_title.text = "AJUSTE MANUAL DE ARTICULACIONES"
 	right.add_child(joint_title)
@@ -530,6 +535,8 @@ func _generate_procedural_pose_set() -> void:
 			child.queue_free()
 		for pose in procedural_poses:
 			_add_button(pose_controls, str(pose.get("name", "Pose")), _apply_generated_pose.bind(pose))
+		for pose in project_data.get("custom_procedural_poses", []):
+			_add_button(pose_controls, str(pose.get("name", "Pose propia")), _apply_generated_pose.bind(pose))
 	if is_instance_valid(animation_controls):
 		for child in animation_controls.get_children():
 			child.queue_free()
@@ -570,6 +577,28 @@ func _apply_generated_pose(pose: Dictionary) -> void:
 	var angles: Dictionary = pose.get("joint_angles", {})
 	var applied := rig_builder.apply_procedural_pose(runtime_rig, angles)
 	_set_status("Pose «%s» aplicada en %d articulaciones." % [str(pose.get("name", "Pose")), applied])
+
+func _save_current_procedural_pose() -> void:
+	if not is_instance_valid(runtime_rig):
+		_set_status("Primero crea o construye un rig 2D.")
+		return
+	var angles: Dictionary = rig_builder.capture_procedural_pose(runtime_rig)
+	if angles.is_empty():
+		_set_status("No se encontraron articulaciones para guardar.")
+		return
+	var pose_name := custom_pose_name_input.text.strip_edges() if is_instance_valid(custom_pose_name_input) else ""
+	if pose_name == "":
+		pose_name = "Pose personalizada %d" % (project_data.get("custom_procedural_poses", []).size() + 1)
+	var pose := {"name": pose_name, "joint_angles": angles, "custom": true}
+	if not project_data.has("custom_procedural_poses"):
+		project_data["custom_procedural_poses"] = []
+	project_data["custom_procedural_poses"].append(pose)
+	if is_instance_valid(pose_controls):
+		_add_button(pose_controls, pose_name, _apply_generated_pose.bind(pose))
+	if is_instance_valid(custom_pose_name_input):
+		custom_pose_name_input.clear()
+	_save_project()
+	_set_status("Pose «%s» guardada en tu biblioteca personalizada." % pose_name)
 
 func _generate_character() -> void:
 	var label := character_name.text.strip_edges()
