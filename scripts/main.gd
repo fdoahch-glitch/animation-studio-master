@@ -716,6 +716,7 @@ func _delete_selected_resource() -> void:
 
 func _show_director_timeline() -> void:
 	_clear_content()
+	director_selected_track = -1
 	if timeline_model == null:
 		timeline_model = ANIMATION_TIMELINE.new()
 	var page := VBoxContainer.new()
@@ -776,6 +777,8 @@ func _show_director_timeline() -> void:
 	page.add_child(director_playhead)
 	var footer := HBoxContainer.new()
 	page.add_child(footer)
+	if is_instance_valid(director_playback_timer):
+		director_playback_timer.queue_free()
 	director_playback_timer = Timer.new()
 	director_playback_timer.one_shot = false
 	director_playback_timer.wait_time = 1.0 / float(fps)
