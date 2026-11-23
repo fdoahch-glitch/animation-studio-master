@@ -815,6 +815,7 @@ func _generate_spatial_pose_set() -> void:
 		for clip in clips:
 			_add_button(animation_controls, str(clip.get("name", "Animación")).capitalize(), _play_rig_animation.bind(str(clip.get("name", ""))))
 	project_data["spatial_animation_clips"] = clips
+	project_data["spatial_procedural_poses"] = procedural_poses.duplicate(true)
 	project_data["spatial_pose_sets"] = project_data.get("spatial_pose_sets", [])
 	project_data["spatial_pose_sets"].append({
 		"character": str(generated_character.get("name", "Personaje 3D")),
@@ -1333,7 +1334,10 @@ func _export_character_package_to_path(path: String) -> void:
 		procedural_poses,
 		project_data.get("custom_procedural_poses", []),
 		project_data.get("animation_clips", []),
-		imported_character_data
+		imported_character_data,
+		project_data.get("spatial_procedural_poses", []),
+		project_data.get("spatial_animation_clips", []),
+		runtime_spatial_animator.capture_pose() if is_instance_valid(runtime_spatial_animator) else {}
 	)
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
@@ -1359,6 +1363,8 @@ func _import_character_package_from_path(path: String) -> void:
 	procedural_poses = package.get("procedural_poses", []).duplicate(true)
 	project_data["custom_procedural_poses"] = package.get("custom_poses", []).duplicate(true)
 	project_data["animation_clips"] = package.get("animation_clips", []).duplicate(true)
+	project_data["spatial_procedural_poses"] = package.get("spatial_poses", []).duplicate(true)
+	project_data["spatial_animation_clips"] = package.get("spatial_animation_clips", []).duplicate(true)
 	project_data["imported_character_package"] = {
 		"rig_type": str(package.get("rig", {}).get("type", "")),
 		"joint_angles_degrees": package.get("rig", {}).get("joint_angles_degrees", {}).duplicate(true)
@@ -1373,7 +1379,14 @@ func _import_character_package_from_path(path: String) -> void:
 			character_preview.character_label = str(generated_character.get("name", "Personaje"))
 			character_preview.rig_data = generated_character.get("rig", {})
 			character_preview.queue_redraw()
-		if is_instance_valid(rig_subviewport):
+		var imported_rig_type := str(project_data["imported_character_package"].get("rig_type", ""))
+		if imported_rig_type.begins_with("3D"):
+			character_mode.select(2)
+			_build_runtime_character()
+			if is_instance_valid(runtime_spatial_animator):
+				runtime_spatial_animator.apply_pose({"bone_rotations_degrees": package.get("rig", {}).get("bone_rotations_degrees", {})})
+		elif is_instance_valid(rig_subviewport):
+			character_mode.select(0)
 			if not imported_character_data.get("parts", []).is_empty():
 				_build_imported_segment_rig()
 				if is_instance_valid(runtime_rig):
