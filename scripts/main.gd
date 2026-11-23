@@ -783,7 +783,16 @@ func _append_imported_3d_animation_buttons() -> void:
 		var key := str(animation_name)
 		if key.to_upper() == "RESET":
 			continue
-		_add_button(animation_controls, key, _play_rig_animation.bind(key))
+		_add_button(animation_controls, "Original: " + key, _play_imported_3d_animation.bind(key))
+
+func _play_imported_3d_animation(animation_name: String) -> void:
+	if not is_instance_valid(runtime_imported_3d_animation_player) or not runtime_imported_3d_animation_player.has_animation(animation_name):
+		_set_status("La animación original ya no está disponible.")
+		return
+	if is_instance_valid(runtime_spatial_animator):
+		runtime_spatial_animator.stop_animation()
+	runtime_imported_3d_animation_player.play(animation_name)
+	_set_status("Reproduciendo animación original «%s»." % animation_name)
 
 func _find_skeleton_in_node(node: Node) -> Skeleton3D:
 	if node is Skeleton3D:
