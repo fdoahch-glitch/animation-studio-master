@@ -2,25 +2,25 @@ extends RefCounted
 class_name DialogueStudio
 
 func create_recording_countdown(seconds: int = 3) -> Dictionary:
-	var duration := clampi(seconds, 1, 10)
-	return {"active": true, "remaining": duration, "started": false, "cancelled": false}
+ var duration := clampi(seconds, 1, 10)
+ return {"active": true, "remaining": duration, "started": false, "cancelled": false}
 
 func advance_recording_countdown(state: Dictionary) -> Dictionary:
-	var result := state.duplicate(true)
-	if not bool(result.get("active", false)):
-		return result
-	result["remaining"] = maxi(0, int(result.get("remaining", 0)) - 1)
-	result["active"] = int(result["remaining"]) > 0
-	result["started"] = int(result["remaining"]) == 0
-	return result
+ var result := state.duplicate(true)
+ if not bool(result.get("active", false)):
+  return result
+ result["remaining"] = maxi(0, int(result.get("remaining", 0)) - 1)
+ result["active"] = int(result["remaining"]) > 0
+ result["started"] = int(result["remaining"]) == 0
+ return result
 
 func cancel_recording_countdown(state: Dictionary) -> Dictionary:
-	var result := state.duplicate(true)
-	result["active"] = false
-	result["remaining"] = 0
-	result["started"] = false
-	result["cancelled"] = true
-	return result
+ var result := state.duplicate(true)
+ result["active"] = false
+ result["remaining"] = 0
+ result["started"] = false
+ result["cancelled"] = true
+ return result
 
 func create_script(title := "Nuevo guion") -> Dictionary:
  return {"id":"script_%d" % Time.get_ticks_msec(),"title":title,"language":"es-CL","lines":[],"audio_tracks":[],"duration":0.0}
