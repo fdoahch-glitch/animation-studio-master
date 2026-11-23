@@ -153,3 +153,25 @@ func create_2_5d_plane(texture: Texture2D, plane_name: String, depth: float = 0.
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	plane.material_override = material
 	return plane
+
+
+func validate_skeleton(skeleton: Skeleton3D, archetype := "humanoid") -> Dictionary:
+	if not is_instance_valid(skeleton):
+		return {"ok":false,"error":"No hay un Skeleton3D para auditar."}
+	var required := ["Pelvis","Spine","Chest","Neck","Head","Shoulder_L","Elbow_L","Wrist_L","Shoulder_R","Elbow_R","Wrist_R","Hip_L","Knee_L","Ankle_L","Hip_R","Knee_R","Ankle_R"]
+	if archetype == "quadruped":
+		required = ["Pelvis","Spine","Chest","Neck","Head","Jaw","Tail_01","Tail_02","Tail_03","Tail_04","FrontHip_L","FrontKnee_L","FrontAnkle_L","FrontHip_R","FrontKnee_R","FrontAnkle_R","BackHip_L","BackKnee_L","BackAnkle_L","BackHip_R","BackKnee_R","BackAnkle_R"]
+	var found: Array[String] = []
+	var missing: Array[String] = []
+	for bone_name in required:
+		if skeleton.find_bone(bone_name) >= 0:
+			found.append(bone_name)
+		else:
+			missing.append(bone_name)
+	var hierarchy_errors: Array[String] = []
+	for index in range(skeleton.get_bone_count()):
+		var parent := skeleton.get_bone_parent(index)
+		if parent >= index:
+			hierarchy_errors.append(skeleton.get_bone_name(index) + ": parent index must precede child")
+	var coverage := float(found.size()) / maxf(1.0, float(required.size()))
+	return {"ok":missing.is_empty() and hierarchy_errors.is_empty(),"archetype":archetype,"bone_count":skeleton.get_bone_count(),"required_count":required.size(),"found":found,"missing":missing,"hierarchy_errors":hierarchy_errors,"coverage":coverage}
