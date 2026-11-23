@@ -400,6 +400,17 @@ func _make_pivot_animation(pose_data: Dictionary, duration: float, looping: bool
 		animation.track_insert_key(track, duration, float(values[2]))
 	return animation
 
+func capture_procedural_pose(rig: Node2D) -> Dictionary:
+	var captured: Dictionary = {}
+	var joint_keys := ["head", "torso", "shoulder_left", "elbow_left", "shoulder_right", "elbow_right", "hip_left", "knee_left", "hip_right", "knee_right"]
+	for key in joint_keys:
+		var pivot := rig.find_child("Pivot_" + key, true, false) as Node2D
+		if pivot == null:
+			pivot = rig.get_node_or_null(NodePath(_bone_path(key))) as Node2D
+		if pivot != null:
+			captured[key] = rad_to_deg(pivot.rotation)
+	return captured
+
 func apply_procedural_pose(rig: Node2D, joint_angles_degrees: Dictionary) -> int:
 	var applied := 0
 	for joint_name in joint_angles_degrees.keys():
