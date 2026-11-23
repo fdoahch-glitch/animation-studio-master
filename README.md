@@ -18,7 +18,7 @@ Estudio visual de animación por escenas, desarrollado con Godot 4.x y orientado
 - Vista previa real del rig dentro de un SubViewport y controles para probar cada ciclo.
 - Selector de vistas de referencia: frente, perfil, espalda y tres cuartos.
 - Seis ciclos de animación 2D base y controles de ajuste manual de articulaciones.
-- Control de velocidad de reproducción entre 0,25× y 2,5× e intensidad de movimiento ajustable.
+- Control de velocidad de reproducción entre 0,25× y 2,5× e intensidad de movimiento ajustable y guardado de poses manuales personalizadas.
 
 ## Animación procedural integrada
 
