@@ -24,6 +24,7 @@ var drag_clip_id := ""
 var drag_mode := "move"
 var drag_origin := 0.0
 var drag_original_end := 0.0
+var drag_min_start := 0.0
 var drag_offset := 0.0
 var drag_preview_start := 0.0
 var drag_preview_end := 0.0
@@ -117,6 +118,7 @@ func _gui_input(event: InputEvent) -> void:
 				drag_clip_id = str(clip.get("id", ""))
 				drag_origin = float(clip.get("start", 0.0))
 				drag_original_end = drag_origin + float(clip.get("duration", 0.1))
+				drag_min_start = maxf(0.0, drag_origin - float(clip.get("source_in", 0.0)))
 				drag_preview_start = drag_origin
 				drag_preview_end = drag_original_end
 				var local_time := _x_time(event.position.x)
@@ -150,10 +152,10 @@ func _gui_input(event: InputEvent) -> void:
 			drag_preview_start = maxf(0.0, pointer_time - drag_offset)
 			drag_changed = absf(drag_preview_start - drag_origin) >= 0.02
 		elif drag_mode == "left":
-			drag_preview_start = clampf(pointer_time, 0.0, drag_original_end - 0.04)
+			drag_preview_start = clampf(pointer_time, drag_min_start, drag_original_end - 0.04)
 			drag_changed = absf(drag_preview_start - drag_origin) >= 0.02
 		else:
-			drag_preview_end = maxf(drag_origin + 0.04, pointer_time)
+			drag_preview_end = clampf(pointer_time, drag_origin + 0.04, drag_original_end)
 			drag_changed = absf(drag_preview_end - drag_original_end) >= 0.02
 		queue_redraw()
 		accept_event()

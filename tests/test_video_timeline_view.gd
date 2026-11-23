@@ -48,7 +48,7 @@ func _initialize() -> void:
 	trim_press.position = Vector2(150.0 + clip_end * 48.0 - 1.0, 49.0)
 	view._gui_input(trim_press)
 	var trim_motion := InputEventMouseMotion.new()
-	trim_motion.position = Vector2(150.0 + (clip_end + 2.0) * 48.0, 49.0)
+	trim_motion.position = Vector2(150.0 + (clip_end - 2.0) * 48.0, 49.0)
 	trim_motion.button_mask = MOUSE_BUTTON_MASK_LEFT
 	view._gui_input(trim_motion)
 	var trim_release := InputEventMouseButton.new()
@@ -57,7 +57,7 @@ func _initialize() -> void:
 	trim_release.position = trim_motion.position
 	view._gui_input(trim_release)
 	assert(trims.size() == 1 and trims[0].track == 0, "Arrastrar el borde derecho debe emitir un recorte")
-	assert(is_equal_approx(float(trims[0].start), clip_start) and is_equal_approx(float(trims[0].end), clip_end + 2.0), "El recorte derecho debe conservar el inicio y ampliar el final")
+	assert(is_equal_approx(float(trims[0].start), clip_start) and is_equal_approx(float(trims[0].end), clip_end - 2.0), "El recorte derecho debe conservar el inicio y ampliar el final")
 	view.queue_free()
 	print("VIDEO_TIMELINE_VIEW_TESTS_OK")
 	quit(0)
