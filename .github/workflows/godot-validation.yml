@@ -84,6 +84,12 @@ jobs:
         continue-on-error: true
         run: godot --headless --path . --script res://tests/test_resource_scene_integration.gd
 
+      - name: Test skinned GLB skeleton import
+        id: glb_skeleton_import
+        timeout-minutes: 3
+        continue-on-error: true
+        run: godot --headless --path . --script res://tests/test_glb_skeleton_import.gd
+
       - name: Test audiovisual multipiste timeline
         id: video_timeline
         timeout-minutes: 3
@@ -145,6 +151,7 @@ jobs:
           RESOURCE_LIBRARY: ${{ steps.resource_library.outcome }}
           RESOURCE_MODEL_PREVIEW: ${{ steps.resource_model_preview.outcome }}
           RESOURCE_SCENE_INTEGRATION: ${{ steps.resource_scene_integration.outcome }}
+          GLB_SKELETON_IMPORT: ${{ steps.glb_skeleton_import.outcome }}
           TIMELINE_TRACKS: ${{ steps.timeline_tracks.outcome }}
           VIDEO_TIMELINE: ${{ steps.video_timeline.outcome }}
           VIDEO_TIMELINE_VIEW: ${{ steps.video_timeline_view.outcome }}
@@ -155,7 +162,7 @@ jobs:
           PERFORMANCE_AUDITOR: ${{ steps.performance_auditor.outcome }}
         run: |
           failed=0
-          for check in PARSE LAUNCH CHARACTER_RIG CHARACTER_IMAGE_PROCESSOR SCENE_COMPOSITION PROJECT_DOCUMENT SCENE_CANVAS RESOURCE_LIBRARY RESOURCE_MODEL_PREVIEW RESOURCE_SCENE_INTEGRATION TIMELINE_TRACKS VIDEO_TIMELINE VIDEO_TIMELINE_VIEW SPATIAL_RETARGETING ENVIRONMENT_DIRECTOR DIALOGUE_STUDIO PROJECT_BUNDLE PERFORMANCE_AUDITOR; do
+          for check in PARSE LAUNCH CHARACTER_RIG CHARACTER_IMAGE_PROCESSOR SCENE_COMPOSITION PROJECT_DOCUMENT SCENE_CANVAS RESOURCE_LIBRARY RESOURCE_MODEL_PREVIEW RESOURCE_SCENE_INTEGRATION GLB_SKELETON_IMPORT TIMELINE_TRACKS VIDEO_TIMELINE VIDEO_TIMELINE_VIEW SPATIAL_RETARGETING ENVIRONMENT_DIRECTOR DIALOGUE_STUDIO PROJECT_BUNDLE PERFORMANCE_AUDITOR; do
             value="${!check}"
             echo "${check}: ${value}"
             if [ "${value}" != "success" ]; then failed=1; fi
