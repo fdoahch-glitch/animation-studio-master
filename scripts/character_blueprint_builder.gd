@@ -1,7 +1,7 @@
 extends RefCounted
 class_name CharacterBlueprintBuilder
 
-## Plantillas procedurales y preparación de prompts. La generación visual requiere un proveedor externo configurado.
+## Constructor local de fichas y plantillas estructurales de personajes. No genera imágenes.
 
 func build_character_blueprint(character_name: String, description: String, rig_type: String) -> Dictionary:
 	return {
