@@ -23,6 +23,7 @@ var imported_preview: TextureRect
 var image_result_output: RichTextLabel
 var build_segmented_button: Button
 var animation_controls: GridContainer
+var pose_controls: GridContainer
 var imported_character_data: Dictionary = {}
 var ai_generated_poses: Array = []
 var runtime_rig: Node2D
@@ -374,6 +375,12 @@ func _show_character_lab() -> void:
 	right.add_child(animation_controls)
 	for animation_name in ["idle","walk","run","jump","talk","wave"]:
 		_add_button(animation_controls, animation_name.capitalize(), _play_rig_animation.bind(animation_name))
+	var pose_title := Label.new()
+	pose_title.text = "BIBLIOTECA DE POSES PROCEDURALES"
+	right.add_child(pose_title)
+	pose_controls = GridContainer.new()
+	pose_controls.columns = 3
+	right.add_child(pose_controls)
 	var joint_title := Label.new()
 	joint_title.text = "AJUSTE MANUAL DE ARTICULACIONES"
 	right.add_child(joint_title)
@@ -470,9 +477,14 @@ func _generate_procedural_pose_set() -> void:
 	var added := 0
 	var applied := 0
 	if is_instance_valid(runtime_rig):
-		added = rig_builder.add_ai_animation_set(runtime_rig, clips)
+		added = rig_builder.add_procedural_animation_set(runtime_rig, clips)
 		if not ai_generated_poses.is_empty():
 			applied = rig_builder.apply_procedural_pose(runtime_rig, ai_generated_poses[0].get("joint_angles", {}))
+	if is_instance_valid(pose_controls):
+		for child in pose_controls.get_children():
+			child.queue_free()
+		for pose in ai_generated_poses:
+			_add_button(pose_controls, str(pose.get("name", "Pose")), _apply_generated_pose.bind(pose))
 	if is_instance_valid(animation_controls):
 		for child in animation_controls.get_children():
 			child.queue_free()
@@ -497,6 +509,15 @@ func _generate_procedural_pose_set() -> void:
 	if is_instance_valid(image_result_output):
 		image_result_output.text = "\n".join(lines)
 	_set_status("Generador procedural: %d poses y %d animaciones guardadas." % [ai_generated_poses.size(), clips.size()])
+
+func _apply_generated_pose(pose: Dictionary) -> void:
+	if not is_instance_valid(runtime_rig):
+		_set_status("Primero crea el esqueleto del personaje.")
+		return
+	rig_builder.stop_animation(runtime_rig)
+	var angles: Dictionary = pose.get("joint_angles", {})
+	var applied := rig_builder.apply_procedural_pose(runtime_rig, angles)
+	_set_status("Pose «%s» aplicada en %d articulaciones." % [str(pose.get("name", "Pose")), applied])
 
 func _generate_character() -> void:
 	var label := character_name.text.strip_edges()
