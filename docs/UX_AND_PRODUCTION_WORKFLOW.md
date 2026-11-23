@@ -19,6 +19,8 @@ El asistente inicial configura nombre, resolución, FPS, orientación y modo vis
 7. **Exportación:** preparar el proyecto y acceder a los formatos que estén realmente implementados y validados.
 
 ## Mejoras de usabilidad aplicadas
+- Timeline visual con regla de fotogramas, pistas y keyframes identificables; selección del fotograma haciendo clic.
+- Entrada de tiempo basada en fotogramas enteros, convertida a segundos según los FPS del proyecto.
 
 - Panel de inicio por tareas, con descripciones breves y botones de acción directa.
 - Orden de producción claro, desde escenas y personajes hasta animación y exportación.
@@ -41,7 +43,6 @@ La exportación de Atrapacuentos está construida alrededor de WebCodecs/FFmpeg 
 
 ## Próximas prioridades técnicas
 
-- timeline visual por fotogramas, con escala de tiempo, pistas legibles y selección de fotograma;
 - exposición de dibujos y animación fotograma a fotograma;
 - curvas de interpolación editables y rutas de movimiento;
 - guardado automático y recuperación de proyectos;
