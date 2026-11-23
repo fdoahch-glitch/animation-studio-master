@@ -112,13 +112,15 @@ func _draw_environment_weather(frame: Rect2) -> void:
 	if intensity <= 0.001:
 		return
 	if weather == "fog":
-		draw_rect(frame, Color(0.78, 0.84, 0.9, intensity * 0.34), true)
+		var fog_density := clampf(float(environment_data.get("fog_density", intensity)), 0.0, 1.0)
+		draw_rect(frame, Color(0.78, 0.84, 0.9, fog_density * 0.34), true)
 		return
 	var count := int(round(110.0 * intensity))
 	for index in range(count):
 		var seed_x := float(index * 83 % 997) / 997.0
 		var seed_y := float(index * 137 % 991) / 991.0
-		var x := frame.position.x + fposmod(seed_x * frame.size.x + weather_elapsed * (220.0 if weather == "rain" else 28.0), maxf(1.0, frame.size.x))
+		var wind_strength := clampf(float(environment_data.get("wind_strength", intensity)), 0.0, 1.0)
+		var x := frame.position.x + fposmod(seed_x * frame.size.x + weather_elapsed * (220.0 if weather == "rain" else 28.0 * maxf(0.1, wind_strength)), maxf(1.0, frame.size.x))
 		var y := frame.position.y + fposmod(seed_y * frame.size.y + weather_elapsed * (640.0 if weather == "rain" else 46.0), maxf(1.0, frame.size.y))
 		match weather:
 			"rain":
@@ -128,7 +130,7 @@ func _draw_environment_weather(frame: Rect2) -> void:
 			"dust":
 				draw_circle(Vector2(x, y), 1.0 + seed_y * 2.0, Color(0.79, 0.66, 0.44, 0.30))
 			"wind":
-				draw_line(Vector2(x, y), Vector2(x + 24.0 + seed_y * 28.0, y - 1.0), Color(0.88, 0.93, 0.98, 0.28), 1.0)
+				draw_line(Vector2(x, y), Vector2(x + 12.0 + wind_strength * 48.0 + seed_y * 18.0, y - 1.0), Color(0.88, 0.93, 0.98, 0.18 + wind_strength * 0.18), 1.0)
 
 func _canvas_scale() -> float:
 	return minf(size.x / scene_width, size.y / scene_height) * zoom
