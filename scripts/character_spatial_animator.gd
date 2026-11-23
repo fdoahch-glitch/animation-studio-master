@@ -46,7 +46,7 @@ func generate_pose_library(intensity: float = 1.0) -> Array:
 		["Puñetazo", {"Shoulder_R":[0,0,-78],"Elbow_R":[0,0,18],"Chest":[0,-12,0]}],
 		["Equilibrio", {"Shoulder_L":[0,0,70],"Shoulder_R":[0,0,-70],"Hip_L":[0,0,-12],"Hip_R":[0,0,32]}],
 		["Sigilo", {"Chest":[12,0,0],"Hip_L":[0,0,14],"Hip_R":[0,0,-14],"Knee_L":[0,0,-35],"Knee_R":[0,0,35]}],
-		["Conversación", {"Head":[-5,0,0],"Shoulder_L":[0,0,12],"Shoulder_R":[0,0,-24],"Elbow_R":[0,0,32]}]
+		["Conversación", {"Head":[-5,0,0],"Jaw":[22,0,0],"Shoulder_L":[0,0,12],"Shoulder_R":[0,0,-24],"Elbow_R":[0,0,32]}]
 	]
 	var result: Array = []
 	for definition in definitions:
@@ -419,7 +419,7 @@ func _generate_quadruped_pose_library(factor: float) -> Array:
 		["Caminar", {"FrontHip_L":[0,0,22],"FrontHip_R":[0,0,-22],"BackHip_L":[0,0,-22],"BackHip_R":[0,0,22]}],
 		["Correr", {"FrontHip_L":[0,0,38],"FrontHip_R":[0,0,-38],"BackHip_L":[0,0,-38],"BackHip_R":[0,0,38],"FrontKnee_L":[0,0,28],"BackKnee_R":[0,0,28]}],
 		["Salto", {"FrontHip_L":[0,0,35],"FrontHip_R":[0,0,35],"BackHip_L":[0,0,-30],"BackHip_R":[0,0,-30],"FrontKnee_L":[0,0,-35],"FrontKnee_R":[0,0,-35]}],
-		["Rugido", {"Neck":[0,0,-25],"Head":[0,0,-18],"Chest":[0,0,-8]}],
+		["Rugido", {"Neck":[0,0,-25],"Head":[0,0,-18],"Jaw":[0,0,32],"Chest":[0,0,-8]}],
 		["Cola izquierda", {"Tail_01":[0,0,14],"Tail_02":[0,0,22],"Tail_03":[0,0,28],"Tail_04":[0,0,32]}],
 		["Cola derecha", {"Tail_01":[0,0,-14],"Tail_02":[0,0,-22],"Tail_03":[0,0,-28],"Tail_04":[0,0,-32]}],
 		["Pisotón", {"BackHip_L":[0,0,28],"BackKnee_L":[0,0,-42],"BackAnkle_L":[0,0,15]}],
@@ -475,7 +475,7 @@ func _sample_quadruped_cycle(name: String, time: float, factor: float) -> Dictio
 			var jump_height := sin(clampf(time / 1.25,0.0,1.0) * PI)
 			pose = {"FrontHip_L":Vector3(0,0,38.0 * jump_height),"FrontHip_R":Vector3(0,0,38.0 * jump_height),"FrontKnee_L":Vector3(0,0,-32.0 * jump_height),"FrontKnee_R":Vector3(0,0,-32.0 * jump_height),"BackHip_L":Vector3(0,0,-28.0 * jump_height),"BackHip_R":Vector3(0,0,-28.0 * jump_height),"BackKnee_L":Vector3(0,0,35.0 * jump_height),"BackKnee_R":Vector3(0,0,35.0 * jump_height),"Tail_01":Vector3(0,0,16.0 * jump_height),"Tail_02":Vector3(0,0,20.0 * jump_height)}
 		"roar":
-			pose = {"Neck":Vector3(0,0,-25.0 + 3.0 * swing_a),"Head":Vector3(0,0,-18.0 + 5.0 * swing_b),"Chest":Vector3(0,0,-8.0),"Tail_01":Vector3(0,0,8.0 * swing_a),"Tail_02":Vector3(0,0,12.0 * swing_b)}
+			pose = {"Neck":Vector3(0,0,-25.0 + 3.0 * swing_a),"Head":Vector3(0,0,-18.0 + 5.0 * swing_b),"Jaw":Vector3(0,0,28.0 * maxf(0.0,sin(phase * 1.5))),"Chest":Vector3(0,0,-8.0),"Tail_01":Vector3(0,0,8.0 * swing_a),"Tail_02":Vector3(0,0,12.0 * swing_b)}
 		"tail_sway":
 			pose = {"Tail_01":Vector3(0,0,16.0 * swing_a),"Tail_02":Vector3(0,0,22.0 * sin(phase - 0.35)),"Tail_03":Vector3(0,0,28.0 * sin(phase - 0.7)),"Tail_04":Vector3(0,0,32.0 * sin(phase - 1.0))}
 		"stomp":
@@ -503,6 +503,7 @@ func _canonical_bone_name(actual_name: String) -> String:
 		"Chest":["chest","spine1","spine2","upperchest"],
 		"Neck":["neck"],
 		"Head":["head"],
+		"Jaw":["jaw","jawbone","lowerjaw","mandible"],
 		"Shoulder_L":["shoulderleft","leftshoulder","leftarm","upperarmleft","leftupperarm"],
 		"Elbow_L":["elbowleft","leftelbow","leftforearm","forearmleft","leftlowerarm"],
 		"Wrist_L":["wristleft","leftwrist","lefthand","handleft"],
@@ -600,7 +601,7 @@ func _sample_cycle(name: String, time: float, factor: float) -> Dictionary:
 		"wave":
 			pose = {"Shoulder_R":Vector3(0,0,-72.0),"Elbow_R":Vector3(0,0,42.0 + 22.0 * wave),"Wrist_R":Vector3(0,0,18.0 * secondary),"Head":Vector3(0,0,5.0 * wave)}
 		"talk":
-			pose = {"Head":Vector3(4.0 * wave,0,3.0 * secondary),"Neck":Vector3(2.0 * secondary,0,0),"Shoulder_R":Vector3(0,0,-12.0 * maxf(0.0,wave)),"Elbow_R":Vector3(0,0,18.0 * maxf(0.0,wave))}
+			pose = {"Head":Vector3(4.0 * wave,0,3.0 * secondary),"Neck":Vector3(2.0 * secondary,0,0),"Jaw":Vector3(20.0 * maxf(0.0,sin(phase * 2.0)),0,0),"Shoulder_R":Vector3(0,0,-12.0 * maxf(0.0,wave)),"Elbow_R":Vector3(0,0,18.0 * maxf(0.0,wave))}
 		"dance":
 			pose = {"Shoulder_L":Vector3(0,0,65.0 * wave),"Shoulder_R":Vector3(0,0,-65.0 * opposite),"Hip_L":Vector3(0,0,24.0 * opposite),"Hip_R":Vector3(0,0,24.0 * wave),"Chest":Vector3(0,10.0 * wave,8.0 * secondary),"Head":Vector3(0,0,12.0 * secondary)}
 	return _scale_runtime_pose(pose, factor)
