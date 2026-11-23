@@ -204,6 +204,15 @@ func _run_tests() -> void:
 		push_error("El animador 3D no pudo capturar la pose resultante.")
 		quit(1)
 		return
+	if not spatial_animator.play_clip(spatial_clips[1], 1.0):
+		push_error("No se pudo reproducir un clip 3D generado desde fotogramas.")
+		quit(1)
+		return
+	spatial_animator._process(0.08)
+	if spatial_animator.capture_pose().is_empty():
+		push_error("El clip 3D no aplicó las rotaciones de sus fotogramas clave.")
+		quit(1)
+		return
 
 	print("PASS: rig 2D, animaciones base y procedurales, poses, IK, preparación de imagen, rig de sprites y Skeleton3D.")
 	quit(0)
