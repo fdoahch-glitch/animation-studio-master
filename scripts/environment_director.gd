@@ -64,12 +64,19 @@ func set_time_preset(environment: Dictionary, preset: String) -> Dictionary:
  return {"ok":true}
 
 func set_weather(environment: Dictionary, weather: String, intensity: float) -> Dictionary:
- if not WEATHER_TYPES.has(weather): return {"ok":false,"error":"Tipo de clima desconocido."}
- environment.weather=weather
- environment.weather_intensity=clampf(intensity,0.0,1.0)
- if weather=="fog": environment.fog_density=environment.weather_intensity*0.08
- if weather=="wind": environment.wind_strength=environment.weather_intensity
- return {"ok":true,"particle_profile":get_particle_profile(weather,environment.weather_intensity)}
+ if not WEATHER_TYPES.has(weather):
+  return {"ok":false,"error":"Tipo de clima no válido."}
+ var value := 0.0 if weather == "clear" else clampf(intensity, 0.0, 1.0)
+ environment["weather"] = weather
+ environment["weather_intensity"] = value
+ environment["wind_strength"] = 0.0
+ environment["fog_density"] = 0.0
+ if weather == "wind" or weather == "dust":
+  environment["wind_strength"] = value
+ if weather == "fog":
+  environment["fog_density"] = value
+ return {"ok":true,"weather":weather,"intensity":value}
+
 
 func get_particle_profile(weather: String, intensity: float) -> Dictionary:
  var amount=clampf(intensity,0.0,1.0)
