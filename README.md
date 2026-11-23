@@ -56,3 +56,19 @@ La compilación del ejecutable todavía no se ha ejecutado ni verificado en CI.
 - Diseño del sistema de personajes: docs/CHARACTER_SYSTEM_DESIGN.md
 - Rig en tiempo real: docs/RIG_RUNTIME.md
 - Generador procedural: scripts/character_procedural_animator.gd
+
+
+## Progreso verificable y supervisor de etapas
+
+El avance global se registra en `project_data/roadmap_10_etapas.json`. El plan está dividido en diez entregables y se ejecuta en pares consecutivos (1–2, 3–4, 5–6, 7–8 y 9–10), sin saltar una etapa incompleta.
+
+El workflow **Roadmap supervisor** comprueba que existan las diez etapas, que la numeración sea continua y que ninguna etapa posterior se active antes de cerrar la anterior. Una etapa solo puede marcarse como terminada cuando tiene pruebas, evidencia de aceptación y SHA de commit. Esta comprobación es determinista; no es un agente de IA autónomo y no programa cambios por sí sola.
+
+### Proyectos y escenas
+
+- Los proyectos pueden guardarse como archivos portables `.amsproj` o JSON y abrirse desde el explorador de archivos.
+- El formato está versionado y migra documentos antiguos al esquema actual.
+- El gestor de escenas permite crear, duplicar, eliminar y editar nombre, duración y notas; los cambios se guardan dentro del documento del proyecto.
+- La persistencia tiene pruebas headless en `tests/test_project_document.gd`.
+
+El editor de escenas todavía no equivale a un compositor visual completo: arrastrar/soltar recursos sobre el lienzo, inspector de objetos, cámara y transiciones siguen pendientes de implementación y validación.
