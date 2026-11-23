@@ -33,4 +33,4 @@ El PNG puede importarse como textura en Godot, Unity, Unreal, Three.js u otros m
 
 `examples/web/character_package_loader.js` carga el paquete, crea URLs temporales para las imágenes incrustadas y permite muestrear los ángulos de cualquier clip. La función `dispose()` revoca esas URLs cuando el personaje deja de utilizarse.
 
-El adaptador entrega datos y texturas; no crea automáticamente un esqueleto artístico ni hace skinning de una malla 3D. El proyecto destino debe mapear los nombres de articulación a su propio rig.
+El adaptador permite muestrear clips 2D (`sampleClip`) y 3D (`sampleSpatialClip`). Para 3D devuelve vectores de rotación `[X, Y, Z]` en grados. Entrega datos y texturas; no crea automáticamente un esqueleto artístico ni hace skinning de una malla 3D. El proyecto destino debe mapear los nombres de articulación o hueso a su propio rig.
