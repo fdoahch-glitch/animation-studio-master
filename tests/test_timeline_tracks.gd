@@ -1,0 +1,25 @@
+extends SceneTree
+
+const TIMELINE = preload("res://scripts/animation_timeline.gd")
+
+func _initialize() -> void:
+	var timeline = TIMELINE.new()
+	var track: Dictionary = timeline.create_track("track_x", "Posición X", "object_1", "x")
+	assert(not track.is_empty())
+	assert(timeline.insert_property_keyframe(track, 0.0, 0.0, "linear").ok)
+	assert(timeline.insert_property_keyframe(track, 2.0, 100.0, "linear").ok)
+	assert(is_equal_approx(float(timeline.sample_track(track, 1.0)), 50.0))
+	var eased := timeline.create_track("track_ease", "Escala", "object_1", "scale_x")
+	timeline.insert_property_keyframe(eased, 0.0, 0.0, "ease_in")
+	timeline.insert_property_keyframe(eased, 2.0, 100.0, "linear")
+	assert(is_equal_approx(float(timeline.sample_track(eased, 1.0)), 25.0))
+	var stepped := timeline.create_track("track_step", "Rotación", "object_1", "rotation")
+	timeline.insert_property_keyframe(stepped, 0.0, 0.0, "step")
+	timeline.insert_property_keyframe(stepped, 1.0, 90.0)
+	assert(is_equal_approx(float(timeline.sample_track(stepped, 0.5)), 0.0))
+	assert(timeline.validate_track(track).ok)
+	assert(not timeline.validate_track({"id":"bad","target_id":"","keyframes":[]}).ok)
+	var replaced := timeline.insert_property_keyframe(track, 2.0, 200.0)
+	assert(track.keyframes.size() == 2 and is_equal_approx(float(track.keyframes[-1].value),200.0))
+	print("TIMELINE_TRACK_TESTS_OK")
+	quit(0)
