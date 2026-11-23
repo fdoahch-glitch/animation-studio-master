@@ -40,6 +40,11 @@ func _initialize() -> void:
 	assert(library.search(records, "jungla").is_empty())
 	assert(library.search(records, "tree").size() == 1)
 	assert(library.search(records, "", "Fondos").size() == 1)
+	var tag_record := {"id":"tagged","name":"Bosque","category":"background","path":"user://animation_studio_assets/background/tagged.webp","extension":"webp","tags":[]}
+	var tag_result: Dictionary = library.update_tags(tag_record, ["Jungla", " bosque ", "JUNGLA", ""])
+	assert(tag_result.ok and tag_result.tags.size() == 2, "Las etiquetas deben normalizarse, deduplicarse y omitir valores vacíos")
+	assert(tag_record.tags == ["jungla", "bosque"], "Las etiquetas normalizadas deben quedar en el recurso")
+	assert(not library.update_tags(tag_record, "texto").ok, "La actualización debe rechazar etiquetas que no sean una lista")
 	assert(library.is_compatible({"compatible_modes":["2D"]}, "2D"))
 	assert(not library.is_compatible({"compatible_modes":["3D"]}, "2D"))
 	var temp_image_path := "user://resource_library_thumbnail_source.png"

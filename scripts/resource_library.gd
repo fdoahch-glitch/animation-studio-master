@@ -142,6 +142,16 @@ func validate_resource(resource: Dictionary) -> Dictionary:
 		return {"ok": false, "error": "La extensión declarada no coincide con el archivo."}
 	return {"ok": true}
 
+func update_tags(resource: Dictionary, tags: Array) -> Dictionary:
+	if resource.is_empty() or not tags is Array:
+		return {"ok": false, "error": "Selecciona un recurso y proporciona una lista de etiquetas."}
+	var normalized := _clean_tags(tags)
+	resource["tags"] = normalized
+	var validation := validate_resource(resource)
+	if not bool(validation.get("ok", false)):
+		return validation
+	return {"ok": true, "tags": normalized}
+
 func is_compatible(resource: Dictionary, visual_mode: String) -> bool:
 	var modes_value: Variant = resource.get("compatible_modes", ["2D", "2.5D", "3D", "Híbrido"])
 	if not modes_value is Array:

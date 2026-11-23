@@ -33,3 +33,8 @@ La biblioteca muestra imágenes importadas en una vista previa 2D y carga modelo
 ## Miniaturas de biblioteca
 
 Al importar imágenes, la biblioteca genera una miniatura PNG de 160×120 con letterboxing y sin deformar la relación de aspecto. La lista muestra la miniatura junto al nombre y la extensión. La miniatura se almacena en la carpeta administrada y se elimina junto con el recurso. Prueba: `tests/test_resource_library.gd`.
+
+
+## Etiquetas editables
+
+La biblioteca permite editar etiquetas del recurso seleccionado, normalizarlas a minúsculas, eliminar duplicados y guardarlas en el documento del proyecto. El buscador filtra también por estas etiquetas. Prueba: `tests/test_resource_library.gd`.

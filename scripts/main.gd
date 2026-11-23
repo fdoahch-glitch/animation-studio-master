@@ -102,6 +102,7 @@ var resource_category := "character"
 var selected_resource_id := ""
 var resource_file_dialog: FileDialog
 var resource_search: LineEdit
+var resource_tags_input: LineEdit
 var director_track_list: ItemList
 var director_target_picker: OptionButton
 var director_property_picker: OptionButton
@@ -644,6 +645,13 @@ func _show_resource_library(category: String) -> void:
 	resource_preview_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	resource_preview_info.text = "Selecciona un recurso para ver su información."
 	details.add_child(resource_preview_info)
+	var tags_row := HBoxContainer.new()
+	details.add_child(tags_row)
+	resource_tags_input = LineEdit.new()
+	resource_tags_input.placeholder_text = "Etiquetas separadas por coma"
+	resource_tags_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tags_row.add_child(resource_tags_input)
+	_add_button(tags_row, "Guardar etiquetas", _save_selected_resource_tags)
 	_add_button(details, "Añadir recurso seleccionado a escena", _add_selected_resource_to_scene)
 	_add_button(details, "Eliminar recurso seleccionado", _delete_selected_resource)
 	_add_button(details, "Abrir estudio de personajes", _show_character_lab)
@@ -709,9 +717,35 @@ func _on_resource_selected(index: int) -> void:
 	selected_resource_id = str(resource_list.get_item_metadata(index))
 	for item in project_data.get("resources", []):
 		if str(item.get("id","")) == selected_resource_id:
+			if is_instance_valid(resource_tags_input):
+				resource_tags_input.text = ", ".join(PackedStringArray(item.get("tags", [])))
 			_show_resource_preview(item)
 			_set_status("%s · %s · %s · %d bytes · modos: %s" % [item.get("name",""), item.get("source_name",""), item.get("path",""), int(item.get("bytes",0)), ", ".join(PackedStringArray(item.get("compatible_modes",[])))])
 			return
+
+func _save_selected_resource_tags() -> void:
+	if selected_resource_id.is_empty() or not is_instance_valid(resource_tags_input):
+		_set_status("Selecciona un recurso antes de editar sus etiquetas.")
+		return
+	for index in range(project_data.get("resources", []).size()):
+		var resource: Dictionary = project_data["resources"][index]
+		if str(resource.get("id", "")) != selected_resource_id:
+			continue
+		var tags: Array = []
+		for raw_tag in resource_tags_input.text.split(","):
+			var tag := str(raw_tag).strip_edges()
+			if not tag.is_empty():
+				tags.append(tag)
+		var result: Dictionary = resource_library.update_tags(resource, tags)
+		if not bool(result.get("ok", false)):
+			_set_status(str(result.get("error", "No se pudieron guardar las etiquetas.")))
+			return
+		project_data["resources"][index] = resource
+		_save_project()
+		_refresh_resource_list()
+		_set_status("Etiquetas guardadas: %s." % ", ".join(PackedStringArray(result.get("tags", []))))
+		return
+	_set_status("No se encontró el recurso seleccionado.")
 
 func _show_resource_preview(resource: Dictionary) -> void:
 	if not is_instance_valid(resource_preview):
