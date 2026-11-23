@@ -4633,8 +4633,11 @@ func _register_dialogue_take() -> void:
 	dialog.access=FileDialog.ACCESS_FILESYSTEM
 	dialog.filters=PackedStringArray(["*.wav, *.ogg, *.mp3 ; Audio"])
 	dialog.file_selected.connect(func(path: String):
-		var duration=1.0
-		if path.get_extension().to_lower()=="wav":
+		var duration := 1.0
+		var imported_stream := _load_dialogue_audio_stream(path)
+		if imported_stream != null:
+			duration = maxf(0.1, imported_stream.get_length())
+		elif path.get_extension().to_lower() == "wav":
 			duration = _wav_duration_from_file(path)
 		var line_id=_get_selected_dialogue_line_id()
 		var result=dialogue_studio.add_take(active_script,line_id,path,duration,active_script.audio_tracks.size()+1,"Toma importada")
