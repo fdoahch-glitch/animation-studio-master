@@ -246,6 +246,10 @@ func solve_two_bone_ik(root_position: Vector3, target_position: Vector3, first_l
 func apply_two_bone_ik(chain_name: String, target_position: Vector3, pole_position: Vector3 = Vector3(0, 0, 1)) -> Dictionary:
 	if not is_instance_valid(skeleton):
 		return {"ok":false,"error":"No hay un Skeleton3D activo."}
+	playing = false
+	current_cycle = ""
+	active_clip.clear()
+	_stop_imported_animation()
 	var chains := {
 		"arm_left":["Shoulder_L","Elbow_L","Wrist_L"],
 		"arm_right":["Shoulder_R","Elbow_R","Wrist_R"],
