@@ -279,13 +279,14 @@ func apply_two_bone_ik(chain_name: String, target_position: Vector3, pole_positi
 	var root_rotation := root_delta * root_transform.basis.get_rotation_quaternion()
 	skeleton.set_bone_global_pose(root_index, Transform3D(Basis(root_rotation), root_position))
 	var middle_current_direction := rotated_end - rotated_middle
-	var middle_target_direction: Vector3 = solution["end"] - rotated_middle
+	var solved_end: Vector3 = solution["end"]
+	var middle_target_direction: Vector3 = solved_end - rotated_middle
 	if middle_current_direction.length_squared() > 0.0001 and middle_target_direction.length_squared() > 0.0001:
 		var middle_delta := Quaternion(middle_current_direction.normalized(), middle_target_direction.normalized())
 		var middle_rotation := middle_delta * root_delta * middle_transform.basis.get_rotation_quaternion()
 		skeleton.set_bone_global_pose(middle_index, Transform3D(Basis(middle_rotation), rotated_middle))
-	solution["actual_end"] = solution["end"]
-	solution["error_distance"] = (solution["end"] as Vector3).distance_to(target_position)
+	solution["actual_end"] = solved_end
+	solution["error_distance"] = solved_end.distance_to(target_position)
 	return solution
 
 func _get_bone_global_transform(bone_index: int) -> Transform3D:
