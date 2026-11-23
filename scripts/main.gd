@@ -1716,6 +1716,9 @@ func _show_character_lab() -> void:
 	page.add_theme_constant_override("separation", 10)
 	scroll.add_child(page)
 	_add_heading(page, "Estudio de personajes", "Diseña una ficha, prepara vistas y crea una propuesta de esqueleto editable.")
+	var retarget_settings: Dictionary = project_data.get("retarget_settings", {})
+	var stored_root_scale := _as_retarget_vector3(retarget_settings.get("root_motion_scale", [1.0,1.0,1.0]))
+	var stored_root_offset := _as_retarget_vector3(retarget_settings.get("root_motion_offset", [0.0,0.0,0.0]))
 	var columns := HBoxContainer.new()
 	page.add_child(columns)
 	var form := VBoxContainer.new()
@@ -1761,8 +1764,8 @@ func _show_character_lab() -> void:
 	_add_button(form, "Cargar huesos del modelo importado", _refresh_retarget_bone_picker)
 	retarget_bone_offset_inputs = _add_retarget_vector_control(form, "Offset bind pose · grados", Vector3.ZERO, -180.0, 180.0)
 	_add_button(form, "Guardar offset del hueso seleccionado", _save_retarget_bone_offset)
-	retarget_root_motion_scale_inputs = _add_retarget_vector_control(form, "Escala root motion", Vector3.ONE, 0.0, 10.0)
-	retarget_root_motion_offset_inputs = _add_retarget_vector_control(form, "Offset root motion", Vector3.ZERO, -100.0, 100.0)
+	retarget_root_motion_scale_inputs = _add_retarget_vector_control(form, "Escala root motion", stored_root_scale, 0.0, 10.0)
+	retarget_root_motion_offset_inputs = _add_retarget_vector_control(form, "Offset root motion", stored_root_offset, -100.0, 100.0)
 	retarget_contact_ik_toggle = CheckBox.new()
 	retarget_contact_ik_toggle.text = "Resolver contactos con IK durante clips"
 	retarget_contact_ik_toggle.button_pressed = bool(project_data.get("retarget_settings", {}).get("contact_ik_enabled", true))
@@ -2205,6 +2208,8 @@ func _audit_current_spatial_rig() -> void:
 	_set_status(summary)
 
 func _retarget_generated_animation_clips() -> void:
+	if not retarget_root_motion_scale_inputs.is_empty():
+		_save_retarget_settings()
 	var profiles: Array = project_data.get("retarget_profiles", [])
 	if profiles.is_empty():
 		_set_status("Crea primero un perfil de retargeting.")
@@ -2272,15 +2277,19 @@ func _create_retarget_profile() -> void:
 	var archetype := "quadruped" if spatial_rig_archetype.selected == 1 else "humanoid"
 	var target_root: Node3D = spatial_builder.build_quadruped_3d("RetargetTarget") if archetype == "quadruped" else spatial_builder.build_humanoid_3d("RetargetTarget")
 	var target := target_root.get_node_or_null("Skeleton3D") as Skeleton3D
+	if not retarget_root_motion_scale_inputs.is_empty():
+		_save_retarget_settings()
 	var retargeter = ANIMATION_RETARGETER.new()
 	var settings: Dictionary = project_data.get("retarget_settings", {})
+	var root_scale := _as_retarget_vector3(settings.get("root_motion_scale", [1.0,1.0,1.0]))
+	var root_offset := _as_retarget_vector3(settings.get("root_motion_offset", [0.0,0.0,0.0]))
 	var profile: Dictionary = retargeter.create_profile(
 		source,
 		target,
 		str(runtime_spatial_rig.name) + " → " + archetype,
 		settings.get("bind_pose_offsets", {}),
-		_retarget_vector_from_inputs(retarget_root_motion_scale_inputs, Vector3(settings.get("root_motion_scale", [1.0,1.0,1.0])[0], settings.get("root_motion_scale", [1.0,1.0,1.0])[1], settings.get("root_motion_scale", [1.0,1.0,1.0])[2])) if not retarget_root_motion_scale_inputs.is_empty() else Vector3.ONE,
-		_retarget_vector_from_inputs(retarget_root_motion_offset_inputs, Vector3.ZERO)
+		root_scale,
+		root_offset
 	)
 	target_root.free()
 	if not bool(profile.get("ok",false)):
