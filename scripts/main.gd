@@ -24,6 +24,7 @@ var imported_source_path := ""
 var image_dialog: FileDialog
 var imported_preview: TextureRect
 var image_result_output: RichTextLabel
+var build_segmented_button: Button
 var imported_character_data: Dictionary = {}
 var runtime_rig: Node2D
 var rig_subviewport: SubViewport
@@ -327,6 +328,8 @@ func _show_character_lab() -> void:
 	character_view = _add_option(form, "Vista previa", ["Frente","Perfil","Espalda","Tres cuartos"], 0)
 	character_view.item_selected.connect(_on_character_view_changed)
 	_add_button(form, "Importar imagen y preparar piezas", _open_character_image_dialog)
+	build_segmented_button = _add_button(form, "Construir rig con las piezas recortadas", _build_imported_segment_rig)
+	build_segmented_button.disabled = true
 	var ai_provider_title := Label.new()
 	ai_provider_title.text = "IA EXTERNA (OPCIONAL)"
 	form.add_child(ai_provider_title)
@@ -446,6 +449,8 @@ func _on_character_image_selected(path: String) -> void:
 		return
 	imported_character_data = result
 	imported_source_path = path
+	if is_instance_valid(build_segmented_button):
+		build_segmented_button.disabled = false
 	var preview_image := Image.new()
 	var load_error := preview_image.load(str(result.get("processed_image", "")))
 	if load_error == OK:
@@ -500,6 +505,8 @@ func _on_ai_segmentation_completed(response: Dictionary) -> void:
 	lines.append("Los recortes se guardaron como archivos independientes. Revisa máscaras y pivotes antes de animar.")
 	image_result_output.text = "\n".join(lines)
 	imported_character_data["ai_segments"] = saved
+	if is_instance_valid(build_segmented_button):
+		build_segmented_button.disabled = saved.is_empty()
 	imported_character_data["ai_joints"] = validation.get("joints", {})
 	_save_project()
 	_set_status("Segmentación IA recibida y recortes guardados.")
@@ -565,6 +572,29 @@ func _build_runtime_character() -> void:
 		runtime_rig.position = Vector2(210, 145)
 		rig_subviewport.add_child(runtime_rig)
 		rig_builder.play_animation(runtime_rig, "idle")
+
+func _build_imported_segment_rig() -> void:
+	var parts: Array = imported_character_data.get("ai_segments", imported_character_data.get("parts", []))
+	if parts.is_empty():
+		_set_status("No hay piezas recortadas para construir el rig.")
+		return
+	var joints: Dictionary = imported_character_data.get("ai_joints", {})
+	var source_size := Vector2i(int(imported_character_data.get("width", 1)), int(imported_character_data.get("height", 1)))
+	if is_instance_valid(runtime_rig):
+		runtime_rig.queue_free()
+	if is_instance_valid(runtime_spatial_rig):
+		runtime_spatial_rig.queue_free()
+	rig_2d_container.visible = true
+	spatial_container.visible = false
+	runtime_rig = rig_builder.build_segmented_sprite_rig(parts, joints, source_size, Vector2(210, 245))
+	runtime_rig.position = Vector2(210, 145)
+	rig_subviewport.add_child(runtime_rig)
+	rig_builder.play_animation(runtime_rig, "idle")
+	if imported_character_data.has("ai_segments"):
+		character_output.text = "Rig construido con recortes y puntos articulares devueltos por el proveedor IA. Revisa las máscaras, pivotes y solapamientos; las piezas aún pueden requerir corrección."
+	else:
+		character_output.text = "Rig de prueba construido con regiones proporcionales. Son recortes aproximados, no segmentación semántica; utiliza un proveedor IA para mejorar brazos, piernas y articulaciones."
+	_set_status("Rig de imagen creado. Prueba las animaciones y corrige los pivotes.")
 
 func _add_joint_control(parent: Node, label_text: String, joint_path: String, minimum: float, maximum: float) -> void:
 	var row := HBoxContainer.new()
