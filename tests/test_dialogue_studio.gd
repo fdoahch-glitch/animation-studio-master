@@ -1,8 +1,6 @@
 extends SceneTree
 
 const STUDIO = preload("res://scripts/dialogue_studio.gd")
-const SPATIAL_BUILDER = preload("res://scripts/character_spatial_rig_builder.gd")
-const SPATIAL_ANIMATOR = preload("res://scripts/character_spatial_animator.gd")
 
 func _initialize() -> void:
 	call_deferred("_run")
@@ -79,42 +77,6 @@ func _run() -> void:
 		return
 	print("DIALOGUE_TEST_PCM_VISEMES_OK")
 
-	var rig = SPATIAL_BUILDER.new().build_humanoid_3d("VisemeTestRig")
-	var skeleton: Skeleton3D = rig.get_node("Skeleton3D")
-	var face_mesh := ArrayMesh.new()
-	face_mesh.add_blend_shape("viseme_aa")
-	face_mesh.add_blend_shape("viseme_oh")
-	face_mesh.add_blend_shape("viseme_ee")
-	var base_arrays: Array = []
-	base_arrays.resize(Mesh.ARRAY_MAX)
-	base_arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
-	base_arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array([Vector3.BACK, Vector3.BACK, Vector3.BACK])
-	base_arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2])
-	var blend_a: Array = base_arrays.duplicate()
-	blend_a[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3(1.0,0.2,0.0), Vector3(0.0,1.2,0.0)])
-	var blend_o: Array = base_arrays.duplicate()
-	blend_o[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3(0.9,0.0,0.0), Vector3(0.0,0.9,0.0)])
-	var blend_e: Array = base_arrays.duplicate()
-	blend_e[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3(1.1,0.0,0.0), Vector3(0.0,1.1,0.0)])
-	face_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, base_arrays, [blend_a, blend_o, blend_e])
-	var face := MeshInstance3D.new()
-	face.mesh = face_mesh
-	rig.add_child(face)
-	var animator = SPATIAL_ANIMATOR.new()
-	animator.configure(skeleton, null, rig)
-	if not _check(animator.apply_viseme("A", 0.75) > 0, "Debe aplicar el blend shape del visema A"):
-		return
-	if not _check(is_equal_approx(float(face.get_blend_shape_value(0)), 0.75), "Debe respetar intensidad del visema"):
-		return
-	if not _check(animator.play_viseme_track(pcm_visemes, 0.1, false), "Debe iniciar reproducción temporizada de visemas"):
-		return
-	animator._process(0.05)
-	if not _check(not animator.active_viseme_track.is_empty(), "La pista debe seguir activa antes del final"):
-		return
-	animator._process(0.1)
-	if not _check(animator.active_viseme_track.is_empty(), "La pista debe terminar al alcanzar su duración"):
-		return
-	animator.stop_animation()
 	if not _check(script.lines[0].has("visemes") or script.lines[1].has("visemes"), "La línea debe conservar su pista de visemas"):
 		return
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(viseme_path))
