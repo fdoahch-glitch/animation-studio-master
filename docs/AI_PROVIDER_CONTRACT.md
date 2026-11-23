@@ -73,9 +73,19 @@ La respuesta debe incluir `views`, un arreglo de objetos con `name` y `image_png
 
 Tarea: `character_pose_generation`.
 
-La respuesta debe incluir `poses`, un arreglo de objetos:
+La respuesta debe incluir `poses`, `animations` o ambos.
+
+Cada objeto de `poses`:
 - `name`: nombre de la pose/acción.
 - `joint_angles`: mapa de nombre de pivote a ángulo en grados.
+
+Cada objeto de `animations`:
+- `name`: nombre del ciclo.
+- `duration`: duración en segundos.
+- `loop`: true/false.
+- `keyframes`: arreglo con objetos que contienen `time` y `joint_angles` (por ejemplo, `{"time":0.0,"joint_angles":{"shoulder_left":-20}}`).
+
+Los clips se convierten a pistas de rotación en el AnimationPlayer y aparecen como botones de reproducción en el estudio. Las coordenadas angulares son grados.
 
 Pivotes soportados por el rig de sprites: `head`, `torso`, `pelvis`, `shoulder_left`, `elbow_left`, `wrist_left`, `shoulder_right`, `elbow_right`, `wrist_right`, `hip_left`, `knee_left`, `ankle_left`, `hip_right`, `knee_right`, `ankle_right`.
 
