@@ -109,7 +109,6 @@ jobs:
             build/AnimationStudioMaster.exe
             build/AnimationStudioMaster-Windows-x64.zip
             build/AnimationStudioMaster-Setup-x64.exe
-            build/AnimationStudioMaster-Setup-x64.exe
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
@@ -127,3 +126,4 @@ jobs:
           files: |
             build/AnimationStudioMaster.exe
             build/AnimationStudioMaster-Windows-x64.zip
+            build/AnimationStudioMaster-Setup-x64.exe
