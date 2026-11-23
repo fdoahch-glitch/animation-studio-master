@@ -269,7 +269,11 @@ func apply_two_bone_ik(chain_name: String, target_position: Vector3, pole_positi
 		"arm_left":["Shoulder_L","Elbow_L","Wrist_L"],
 		"arm_right":["Shoulder_R","Elbow_R","Wrist_R"],
 		"leg_left":["Hip_L","Knee_L","Ankle_L"],
-		"leg_right":["Hip_R","Knee_R","Ankle_R"]
+		"leg_right":["Hip_R","Knee_R","Ankle_R"],
+		"front_leg_left":["FrontHip_L","FrontKnee_L","FrontAnkle_L"],
+		"front_leg_right":["FrontHip_R","FrontKnee_R","FrontAnkle_R"],
+		"back_leg_left":["BackHip_L","BackKnee_L","BackAnkle_L"],
+		"back_leg_right":["BackHip_R","BackKnee_R","BackAnkle_R"]
 	}
 	if not chains.has(chain_name):
 		return {"ok":false,"error":"Cadena IK desconocida."}
@@ -510,7 +514,23 @@ func _canonical_bone_name(actual_name: String) -> String:
 		"Ankle_L":["ankleleft","leftankle","leftfoot","footleft"],
 		"Hip_R":["hipright","righthip","rightupleg","rightthigh","thighright","upperlegright"],
 		"Knee_R":["kneeright","rightknee","rightleg","rightcalf","calfright","lowerlegright"],
-		"Ankle_R":["ankleright","rightankle","rightfoot","footright"]
+		"Ankle_R":["ankleright","rightankle","rightfoot","footright"],
+		"FrontHip_L":["fronthipleft","leftfronthip","leftfrontleg","frontshoulderleft"],
+		"FrontKnee_L":["frontkneeleft","leftfrontknee","leftfrontlowerleg"],
+		"FrontAnkle_L":["frontankleleft","leftfrontfoot","frontfootleft"],
+		"FrontHip_R":["fronthipright","rightfronthip","rightfrontleg","frontshoulderright"],
+		"FrontKnee_R":["frontkneeright","rightfrontknee","rightfrontlowerleg"],
+		"FrontAnkle_R":["frontankleright","rightfrontfoot","frontfootright"],
+		"BackHip_L":["backhipleft","leftbackhip","leftbackleg","leftthighback"],
+		"BackKnee_L":["backkneeleft","leftbackknee","leftbacklowerleg"],
+		"BackAnkle_L":["backankleleft","leftbackfoot","backfootleft"],
+		"BackHip_R":["backhipright","rightbackhip","rightbackleg","rightthighback"],
+		"BackKnee_R":["backkneeright","rightbackknee","rightbacklowerleg"],
+		"BackAnkle_R":["backankleright","rightbackfoot","backfootright"],
+		"Tail_01":["tail1","tailbase","tailroot"],
+		"Tail_02":["tail2","tailmid1"],
+		"Tail_03":["tail3","tailmid2"],
+		"Tail_04":["tail4","tailtip"]
 	}
 	for canonical in aliases.keys():
 		if normalized in aliases[canonical]:
