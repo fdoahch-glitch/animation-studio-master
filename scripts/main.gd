@@ -684,7 +684,7 @@ func _director_create_track() -> void:
 		return
 	var target_id := str(director_target_picker.get_item_metadata(director_target_picker.selected))
 	var property := director_property_picker.get_item_text(director_property_picker.selected)
-	var track := timeline_model.create_track("track_%d_%d" % [Time.get_ticks_msec(),_director_tracks().size()], property + " · " + director_target_picker.get_item_text(director_target_picker.selected), target_id, property)
+	var track: Dictionary = timeline_model.create_track("track_%d_%d" % [Time.get_ticks_msec(),_director_tracks().size()], property + " · " + director_target_picker.get_item_text(director_target_picker.selected), target_id, property)
 	if track.is_empty():
 		return
 	_director_tracks().append(track)
@@ -1075,7 +1075,7 @@ func _refresh_scene_list() -> void:
 func _create_scene() -> void:
 	if not project_data.get("scenes", []) is Array:
 		project_data["scenes"] = []
-	var index := project_data["scenes"].size() + 1
+	var index: int = project_data["scenes"].size() + 1
 	var scene_id := "scene_%d_%d" % [int(Time.get_unix_time_from_system()), Time.get_ticks_msec() % 100000]
 	project_data["scenes"].append({"id": scene_id, "name": "Escena %d" % index, "duration_seconds": 10.0, "notes": "", "objects": [], "transitions": {}})
 	selected_scene_index = project_data["scenes"].size() - 1
@@ -1798,7 +1798,7 @@ func _apply_facial_expression(expression_name: String) -> void:
 	if not is_instance_valid(runtime_spatial_animator):
 		return
 	runtime_spatial_animator.stop_animation()
-	var changed := runtime_spatial_animator.apply_facial_expression(expression_name)
+	var changed: int = runtime_spatial_animator.apply_facial_expression(expression_name)
 	if changed > 0:
 		_set_status("Expresión «%s» aplicada a %d controles faciales." % [expression_name, changed])
 	else:
@@ -3014,8 +3014,7 @@ func _register_dialogue_take() -> void:
 	dialog.file_selected.connect(func(path: String):
 		var duration=1.0
 		if path.get_extension().to_lower()=="wav":
-			var audio=AudioStreamWAV.load_from_file(path)
-			if audio!=null: duration=audio.get_length()
+			duration = _wav_duration_from_file(path)
 		var line_id=str(active_script.lines[-1].id)
 		var result=dialogue_studio.add_take(active_script,line_id,path,duration,active_script.audio_tracks.size()+1,"Toma importada")
 		_save_dialogue_script()
@@ -3023,6 +3022,50 @@ func _register_dialogue_take() -> void:
 	)
 	add_child(dialog)
 	dialog.popup_centered_ratio(0.8)
+
+
+func _wav_duration_from_file(path: String) -> float:
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null or file.get_length() < 44:
+		if file != null:
+			file.close()
+		return 1.0
+	if file.get_buffer(4).get_string_from_ascii() != "RIFF":
+		file.close()
+		return 1.0
+	file.get_32()
+	if file.get_buffer(4).get_string_from_ascii() != "WAVE":
+		file.close()
+		return 1.0
+	var byte_rate := 0
+	var data_size := 0
+	while file.get_position() + 8 <= file.get_length():
+		var chunk_id := file.get_buffer(4).get_string_from_ascii()
+		var chunk_size: int = file.get_32()
+		var remaining := file.get_length() - file.get_position()
+		if chunk_size < 0 or chunk_size > remaining:
+			break
+		if chunk_id == "fmt ":
+			if chunk_size < 12:
+				break
+			var format_header := file.get_buffer(12)
+			if format_header.size() != 12:
+				break
+			byte_rate = int(format_header.decode_u32(8))
+			var extra_size := chunk_size - 12
+			if extra_size > 0:
+				file.seek(file.get_position() + extra_size)
+		elif chunk_id == "data":
+			data_size = chunk_size
+			break
+		else:
+			file.seek(file.get_position() + chunk_size)
+		if chunk_size % 2 == 1 and file.get_position() < file.get_length():
+			file.seek(file.get_position() + 1)
+	file.close()
+	if byte_rate <= 0 or data_size <= 0:
+		return 1.0
+	return float(data_size) / float(byte_rate)
 
 func _save_dialogue_script() -> void:
 	var result=dialogue_studio.validate_script(active_script)
