@@ -102,6 +102,9 @@ var director_value_input: SpinBox
 var director_easing_picker: OptionButton
 var director_playhead: HSlider
 var director_timeline_view
+var director_playback_timer: Timer
+var director_play_button: Button
+var director_playing := false
 var director_selected_track := -1
 var package_export_dialog: FileDialog
 var package_import_dialog: FileDialog
@@ -310,6 +313,7 @@ func _build_shell() -> void:
 	root_ui.add_child(status_label)
 
 func _clear_content() -> void:
+	_stop_director_playback()
 	for child in content.get_children():
 		child.queue_free()
 
@@ -772,11 +776,48 @@ func _show_director_timeline() -> void:
 	page.add_child(director_playhead)
 	var footer := HBoxContainer.new()
 	page.add_child(footer)
+	director_playback_timer = Timer.new()
+	director_playback_timer.one_shot = false
+	director_playback_timer.wait_time = 1.0 / float(fps)
+	director_playback_timer.timeout.connect(_advance_director_frame)
+	add_child(director_playback_timer)
+	director_play_button = _add_button(footer, "▶ Reproducir", _toggle_director_playback)
 	_add_button(footer, "Abrir editor de escenas", _show_scene_manager)
 	_add_button(footer, "Guardar timeline", _save_project)
 	_add_button(footer, "Volver", _show_workspace)
 	_refresh_director_tracks()
 	_refresh_director_timeline_view()
+
+func _toggle_director_playback() -> void:
+	if director_playing:
+		_stop_director_playback()
+		return
+	if not is_instance_valid(director_playhead):
+		return
+	if director_playhead.value >= director_playhead.max_value:
+		director_playhead.value = 0
+	director_playing = true
+	if is_instance_valid(director_play_button):
+		director_play_button.text = "Ⅱ Pausar"
+	if is_instance_valid(director_playback_timer):
+		director_playback_timer.wait_time = 1.0 / float(maxi(1, int(project_data.get("fps", 24))))
+		director_playback_timer.start()
+
+func _stop_director_playback() -> void:
+	director_playing = false
+	if is_instance_valid(director_playback_timer):
+		director_playback_timer.stop()
+	if is_instance_valid(director_play_button):
+		director_play_button.text = "▶ Reproducir"
+
+func _advance_director_frame() -> void:
+	if not is_instance_valid(director_playhead):
+		_stop_director_playback()
+		return
+	if director_playhead.value >= director_playhead.max_value:
+		_stop_director_playback()
+		return
+	director_playhead.value = minf(director_playhead.max_value, director_playhead.value + 1.0)
 
 func _refresh_director_timeline_view() -> void:
 	if not is_instance_valid(director_timeline_view):
