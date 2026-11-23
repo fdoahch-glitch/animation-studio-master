@@ -1638,7 +1638,13 @@ func _import_character_package_from_path(path: String) -> void:
 					rig_builder.apply_procedural_pose(runtime_rig, project_data["imported_character_package"]["joint_angles_degrees"])
 	_refresh_timeline_ui()
 	_save_project()
-	var texture_message := " Las imágenes y recortes se restauraron." if not imported_character_data.is_empty() else " Este paquete no contiene imágenes incrustadas."
+	var texture_message := ""
+	if not imported_character_data.get("parts", []).is_empty():
+		texture_message = " Las imágenes y recortes se restauraron."
+	elif imported_3d_model_path != "":
+		texture_message = " El modelo 3D y sus recursos se restauraron."
+	else:
+		texture_message = " Este paquete no contiene recursos gráficos incrustados."
 	_set_status("Paquete importado: ficha, poses y clips recuperados." + texture_message)
 
 func _save_project() -> void:
