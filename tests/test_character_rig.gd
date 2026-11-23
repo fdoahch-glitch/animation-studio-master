@@ -4,6 +4,7 @@ const RIG_BUILDER = preload("res://scripts/character_rig_builder.gd")
 const IMAGE_PROCESSOR = preload("res://scripts/character_image_processor.gd")
 const SPATIAL_BUILDER = preload("res://scripts/character_spatial_rig_builder.gd")
 const SPATIAL_ANIMATOR = preload("res://scripts/character_spatial_animator.gd")
+const PACKAGE_IO = preload("res://scripts/character_package_io.gd")
 const PROCEDURAL_ANIMATOR = preload("res://scripts/character_procedural_animator.gd")
 const IK_DRAG_OVERLAY = preload("res://scripts/ik_drag_overlay.gd")
 const ANIMATION_TIMELINE = preload("res://scripts/animation_timeline.gd")
@@ -241,6 +242,31 @@ func _run_tests() -> void:
 	var gltf_roundtrip_scene := gltf_importer.generate_scene(gltf_import_state)
 	if gltf_roundtrip_scene == null:
 		push_error("El ciclo glTF no pudo reconstruir la escena 3D.")
+		quit(1)
+		return
+
+	var package_io = PACKAGE_IO.new()
+	var package_3d: Dictionary = package_io.build_package(
+		{"name":"Heroe 3D CI"}, "3D_imported_skeleton", {}, [], [], [], {},
+		[{"name":"Saludo","bone_rotations_degrees":{"Head":[0.0,0.0,15.0]}}],
+		[{"name":"wave","duration":1.0,"loop":true,"keyframes":[
+			{"time":0.0,"bone_rotations_degrees":{"Head":[0.0,0.0,0.0]}},
+			{"time":1.0,"bone_rotations_degrees":{"Head":[0.0,0.0,30.0]}}
+		]}],
+		{"Head":[0.0,0.0,12.0]}
+	)
+	var package_3d_result: Dictionary = package_io.decode_package(package_io.encode_package(package_3d))
+	if not bool(package_3d_result.get("ok", false)):
+		push_error("No se pudo serializar e importar el paquete de animación 3D.")
+		quit(1)
+		return
+	var restored_3d: Dictionary = package_3d_result["package"]
+	if restored_3d.get("spatial_poses", []).size() != 1 or restored_3d.get("spatial_animation_clips", []).size() != 1:
+		push_error("El paquete no conservó poses o clips 3D.")
+		quit(1)
+		return
+	if not is_equal_approx(float(restored_3d.rig.bone_rotations_degrees.get("Head", [0.0,0.0,0.0])[2]), 12.0):
+		push_error("El paquete no conservó las rotaciones del esqueleto 3D.")
 		quit(1)
 		return
 
