@@ -104,6 +104,7 @@ var director_target_picker: OptionButton
 var director_property_picker: OptionButton
 var director_time_input: SpinBox
 var director_value_input: SpinBox
+var director_value_y_input: SpinBox
 var director_easing_picker: OptionButton
 var director_playhead: HSlider
 var director_timeline_view
@@ -809,8 +810,9 @@ func _show_director_timeline() -> void:
 		director_target_picker.set_item_metadata(director_target_picker.item_count-1, str(object.get("id","")))
 	controls.add_child(director_target_picker)
 	director_property_picker = OptionButton.new()
-	for property in ["x","y","scale_x","scale_y","rotation","depth"]:
+	for property in ["position","x","y","scale_x","scale_y","rotation","depth"]:
 		director_property_picker.add_item(property)
+	director_property_picker.item_selected.connect(_on_director_property_selected)
 	controls.add_child(director_property_picker)
 	_add_button(controls, "Crear pista", _director_create_track)
 	var edit := HBoxContainer.new()
@@ -825,8 +827,15 @@ func _show_director_timeline() -> void:
 	director_value_input.min_value = -100000.0
 	director_value_input.max_value = 100000.0
 	director_value_input.step = 0.1
-	director_value_input.prefix = "Valor "
+	director_value_input.prefix = "X / Valor "
 	edit.add_child(director_value_input)
+	director_value_y_input = SpinBox.new()
+	director_value_y_input.min_value = -100000.0
+	director_value_y_input.max_value = 100000.0
+	director_value_y_input.step = 0.1
+	director_value_y_input.prefix = "Y "
+	director_value_y_input.visible = false
+	edit.add_child(director_value_y_input)
 	director_easing_picker = OptionButton.new()
 	for easing in ["linear","ease_in","ease_out","ease_in_out","step"]:
 		director_easing_picker.add_item(easing)
@@ -916,8 +925,15 @@ func _on_director_timeline_frame_selected(frame: int) -> void:
 		var fps := maxi(1, int(project_data.get("fps", 24)))
 		var seconds := timeline_model.frame_to_seconds(frame, fps)
 		var sampled: Variant = timeline_model.sample_track(tracks[director_selected_track], seconds)
-		if sampled is int or sampled is float:
+		if sampled is Array and sampled.size() >= 2:
+			director_value_input.value = float(sampled[0])
+			director_value_y_input.value = float(sampled[1])
+		elif sampled is int or sampled is float:
 			director_value_input.value = float(sampled)
+
+func _on_director_property_selected(_index: int) -> void:
+	if is_instance_valid(director_value_y_input):
+		director_value_y_input.visible = director_property_picker.get_item_text(director_property_picker.selected) == "position"
 
 func _director_tracks() -> Array:
 	if not project_data.has("scene_animation_tracks"):
@@ -933,7 +949,8 @@ func _director_create_track() -> void:
 		return
 	var target_id := str(director_target_picker.get_item_metadata(director_target_picker.selected))
 	var property := director_property_picker.get_item_text(director_property_picker.selected)
-	var track: Dictionary = timeline_model.create_track("track_%d_%d" % [Time.get_ticks_msec(),_director_tracks().size()], property + " · " + director_target_picker.get_item_text(director_target_picker.selected), target_id, property)
+	var value_type := "vector2" if property == "position" else "number"
+	var track: Dictionary = timeline_model.create_track("track_%d_%d" % [Time.get_ticks_msec(),_director_tracks().size()], property + " · " + director_target_picker.get_item_text(director_target_picker.selected), target_id, property, value_type)
 	if track.is_empty():
 		return
 	_director_tracks().append(track)
@@ -953,10 +970,17 @@ func _on_director_track_selected(index: int) -> void:
 	director_selected_track = index
 	var tracks := _director_tracks()
 	if index >= 0 and index < tracks.size():
-		var frames: Array = tracks[index].get("keyframes",[])
-		if not frames.is_empty():
-			director_time_input.value = timeline_model.seconds_to_frame(float(frames[-1].get("time",0.0)), maxi(1, int(project_data.get("fps", 24))))
-			director_value_input.value = float(frames[-1].get("value",0.0))
+		var track: Dictionary = tracks[index]
+		director_value_y_input.visible = str(track.get("property", "")) == "position"
+		var frame := int(director_playhead.value) if is_instance_valid(director_playhead) else 0
+		director_time_input.value = frame
+		var fps := maxi(1, int(project_data.get("fps", 24)))
+		var sampled: Variant = timeline_model.sample_track(track, timeline_model.frame_to_seconds(frame, fps))
+		if sampled is Array and sampled.size() >= 2:
+			director_value_input.value = float(sampled[0])
+			director_value_y_input.value = float(sampled[1])
+		elif sampled is int or sampled is float:
+			director_value_input.value = float(sampled)
 		_refresh_director_tracks()
 		_refresh_director_timeline_view()
 
@@ -969,7 +993,10 @@ func _director_add_keyframe() -> void:
 	var easing := director_easing_picker.get_item_text(director_easing_picker.selected)
 	var fps := maxi(1, int(project_data.get("fps", 24)))
 	var key_time: float = timeline_model.frame_to_seconds(int(director_time_input.value), fps)
-	var result: Dictionary = timeline_model.insert_property_keyframe(track, key_time, director_value_input.value, easing)
+	var key_value: Variant = director_value_input.value
+	if str(track.get("property", "")) == "position":
+		key_value = [director_value_input.value, director_value_y_input.value]
+	var result: Dictionary = timeline_model.insert_property_keyframe(track, key_time, key_value, easing)
 	if not bool(result.get("ok",false)):
 		_set_status(str(result.get("error","No se pudo añadir el keyframe.")))
 		return
@@ -1008,6 +1035,8 @@ func _director_delete_track() -> void:
 
 func _on_director_playhead_changed(value: float) -> void:
 	var fps := maxi(1, int(project_data.get("fps", 24)))
+	if is_instance_valid(director_time_input):
+		director_time_input.value = int(value)
 	var seconds: float = timeline_model.frame_to_seconds(int(value), fps)
 	var scene := _active_scene()
 	var tracks := _director_tracks()
@@ -1020,10 +1049,15 @@ func _on_director_playhead_changed(value: float) -> void:
 			if str(object.get("id","")) != str(track.get("target_id","")):
 				continue
 			var transform: Dictionary = object.get("transform",{}).duplicate(true)
-			transform[str(track.get("property","x"))] = sampled
+			var property := str(track.get("property", "x"))
+			if property == "position" and sampled is Array and sampled.size() >= 2:
+				transform["x"] = sampled[0]
+				transform["y"] = sampled[1]
+			else:
+				transform[property] = sampled
 			object["transform"] = transform
 			scene["objects"][object_index] = object
-		project_data["scenes"][selected_scene_index] = scene
+	project_data["scenes"][selected_scene_index] = scene
 	if is_instance_valid(scene_canvas):
 		_refresh_scene_canvas()
 	_refresh_director_timeline_view()
