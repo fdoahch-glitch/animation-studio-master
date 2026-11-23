@@ -994,7 +994,7 @@ func _on_director_timeline_frame_selected(frame: int) -> void:
 	var tracks := _director_tracks()
 	if director_selected_track >= 0 and director_selected_track < tracks.size():
 		var fps := maxi(1, int(project_data.get("fps", 24)))
-		var seconds := timeline_model.frame_to_seconds(frame, fps)
+		var seconds: float = timeline_model.frame_to_seconds(frame, fps)
 		var sampled: Variant = timeline_model.sample_track(tracks[director_selected_track], seconds)
 		if sampled is Array and sampled.size() >= 2:
 			director_value_input.value = float(sampled[0])
@@ -1086,7 +1086,7 @@ func _director_delete_keyframe_at_frame() -> void:
 		_set_status("Selecciona una pista antes de eliminar un keyframe.")
 		return
 	var fps := maxi(1, int(project_data.get("fps", 24)))
-	var key_time := timeline_model.frame_to_seconds(int(director_time_input.value), fps)
+	var key_time: float = timeline_model.frame_to_seconds(int(director_time_input.value), fps)
 	var result: Dictionary = timeline_model.remove_property_keyframe(tracks[director_selected_track], key_time, 0.5 / float(fps))
 	if not bool(result.get("ok", false)):
 		_set_status(str(result.get("error", "No hay un keyframe en el fotograma seleccionado.")))
