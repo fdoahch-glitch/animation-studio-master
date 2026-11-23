@@ -743,6 +743,9 @@ func _on_scene_selected(index: int) -> void:
 	scene_name_input.text = str(scene.get("name", ""))
 	scene_duration_input.value = float(scene.get("duration_seconds", 10.0))
 	scene_notes_input.text = str(scene.get("notes", ""))
+	if is_instance_valid(scene_canvas):
+		selected_instance_id = ""
+		_refresh_scene_canvas()
 
 func _save_scene_properties() -> void:
 	var scenes: Array = project_data.get("scenes", [])
