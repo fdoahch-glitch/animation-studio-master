@@ -65,7 +65,7 @@ func _run() -> void:
 	var initial_rotation: float = preview.model_pivot.rotation.y
 	preview._rotate_from_pointer(Vector2(130, 100))
 	assert(not is_equal_approx(preview.model_pivot.rotation.y, initial_rotation), "El modelo debe girar al arrastrar el puntero")
-	var initial_zoom := preview.preview_camera.position.length()
+	var initial_zoom: float = preview.preview_camera.position.length()
 	preview._zoom_camera(0.88)
 	assert(preview.preview_camera.position.length() < initial_zoom, "El zoom debe acercar la cámara")
 	preview.stop_animation()
