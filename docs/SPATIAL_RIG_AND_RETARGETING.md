@@ -28,3 +28,8 @@ El retargeting implementado transfiere poses articulares mediante equivalencias 
 `tests/test_spatial_retargeting.gd` comprueba construcción y auditoría de esqueletos humanoide/cuadrúpedo, cantidad de poses y ciclos, reproducción procedural básica, creación/validación de perfiles y transferencia de rotaciones.
 
 La CI ejecuta esta prueba junto con las pruebas de proyecto, escenas, biblioteca y timeline. La validación headless no sustituye una prueba visual con modelos GLB reales de distintas procedencias.
+
+
+## Retargeting de clips completos
+
+El retargeter convierte bibliotecas de keyframes de animación 3D, traduce nombres de huesos mediante equivalencias canónicas, conserva duración/bucle/tiempos, permite escala y offset de rotación e informa huesos sin equivalencia. El estudio permite guardar los ciclos procedurales convertidos con el último perfil de retargeting. Prueba: `tests/test_spatial_retargeting.gd`.

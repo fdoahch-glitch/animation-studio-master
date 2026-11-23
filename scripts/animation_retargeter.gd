@@ -84,6 +84,52 @@ func retarget_pose(source_pose: Dictionary, mapping: Dictionary, rotation_scale 
   result[str(mapping[source_name])] = [rotation.x,rotation.y,rotation.z]
  return result
 
+func retarget_animation_clip(clip: Dictionary, profile: Dictionary, rotation_scale := Vector3.ONE, rotation_offset := Vector3.ZERO) -> Dictionary:
+ var profile_report := validate_profile(profile)
+ if not bool(profile_report.get("ok", false)):
+  return profile_report
+ var source_frames: Variant = clip.get("keyframes", [])
+ if not source_frames is Array or source_frames.is_empty():
+  return {"ok": false, "error": "El clip no contiene keyframes retargetables."}
+ var mapping: Dictionary = profile.get("mapping", {})
+ var canonical_mapping: Dictionary = {}
+ for source_name in mapping.keys():
+  var canonical := canonical_name(str(source_name))
+  if not canonical.is_empty() and not canonical_mapping.has(canonical):
+   canonical_mapping[canonical] = str(mapping[source_name])
+ var retargeted_frames: Array = []
+ var mapped_bones: Dictionary = {}
+ var unmapped_bones: Dictionary = {}
+ for source_frame in source_frames:
+  if not source_frame is Dictionary:
+   return {"ok": false, "error": "El clip contiene un keyframe inválido."}
+  var source_pose: Variant = source_frame.get("bone_rotations_degrees", {})
+  if not source_pose is Dictionary:
+   return {"ok": false, "error": "El keyframe no contiene un mapa de rotaciones."}
+  var target_pose: Dictionary = {}
+  for source_bone in source_pose.keys():
+   var target_bone := str(mapping.get(str(source_bone), canonical_mapping.get(canonical_name(str(source_bone)), "")))
+   if target_bone.is_empty():
+    unmapped_bones[str(source_bone)] = true
+    continue
+   var rotation := _as_vector3(source_pose[source_bone]) * rotation_scale + rotation_offset
+   target_pose[target_bone] = [snappedf(rotation.x, 0.001), snappedf(rotation.y, 0.001), snappedf(rotation.z, 0.001)]
+   mapped_bones[target_bone] = true
+  var target_frame := {"time": maxf(0.0, float(source_frame.get("time", 0.0))), "bone_rotations_degrees": target_pose}
+  if source_frame.has("easing"):
+   target_frame["easing"] = source_frame["easing"]
+  retargeted_frames.append(target_frame)
+ if mapped_bones.is_empty():
+  return {"ok": false, "error": "Ningún hueso del clip coincide con el perfil de retargeting."}
+ var result := clip.duplicate(true)
+ result["source_name"] = str(clip.get("name", "Animación"))
+ result["name"] = str(clip.get("name", "Animación")) + " · Retarget"
+ result["keyframes"] = retargeted_frames
+ result["retarget_profile"] = str(profile.get("name", "Retarget profile"))
+ result["mapped_bone_count"] = mapped_bones.size()
+ result["unmapped_bones"] = unmapped_bones.keys()
+ return {"ok": true, "clip": result, "mapped_bone_count": mapped_bones.size(), "unmapped_bones": unmapped_bones.keys()}
+
 func create_profile(source: Skeleton3D, target: Skeleton3D, label := "Retarget profile") -> Dictionary:
  var report := build_bone_map(source,target)
  if not report.get("ok",false):

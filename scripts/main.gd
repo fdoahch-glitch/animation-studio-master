@@ -1745,6 +1745,7 @@ func _show_character_lab() -> void:
 	_add_button(form, "Exportar modelo 3D (GLB)", _open_3d_model_export_dialog)
 	_add_button(form, "Auditar esqueleto 3D actual", _audit_current_spatial_rig)
 	_add_button(form, "Crear perfil de retargeting", _create_retarget_profile)
+	_add_button(form, "Retargetar ciclos procedurales al perfil", _retarget_generated_animation_clips)
 	build_segmented_button = _add_button(form, "Construir rig con las piezas recortadas", _build_imported_segment_rig)
 	build_segmented_button.disabled = true
 	_add_button(form, "Generar poses y animaciones procedurales", _generate_procedural_pose_set)
@@ -2179,6 +2180,39 @@ func _audit_current_spatial_rig() -> void:
 		summary += " · jerarquía: " + ", ".join(PackedStringArray(hierarchy))
 	if is_instance_valid(skeleton_output):
 		skeleton_output.text = summary
+	_set_status(summary)
+
+func _retarget_generated_animation_clips() -> void:
+	var profiles: Array = project_data.get("retarget_profiles", [])
+	if profiles.is_empty():
+		_set_status("Crea primero un perfil de retargeting.")
+		return
+	var clips: Array = project_data.get("spatial_animation_clips", [])
+	if clips.is_empty():
+		var pose_sets: Array = project_data.get("spatial_pose_sets", [])
+		if not pose_sets.is_empty():
+			clips = pose_sets[-1].get("animations", [])
+	if clips.is_empty():
+		_set_status("Genera primero una biblioteca de animaciones 3D procedurales.")
+		return
+	var retargeter = ANIMATION_RETARGETER.new()
+	var profile: Dictionary = profiles[-1]
+	var converted: Array = []
+	var skipped := 0
+	for clip in clips:
+		var result: Dictionary = retargeter.retarget_animation_clip(clip, profile)
+		if bool(result.get("ok", false)):
+			converted.append(result.clip)
+		else:
+			skipped += 1
+	if converted.is_empty():
+		_set_status("El perfil no encontró huesos compatibles con los clips generados.")
+		return
+	project_data["retargeted_animation_clips"] = converted
+	_save_project()
+	var summary := "Clips retargeteados: %d · omitidos: %d · perfil: %s" % [converted.size(), skipped, str(profile.get("name", "Perfil"))]
+	if is_instance_valid(skeleton_output):
+		skeleton_output.text = summary + "\nLos clips se guardaron con los nombres de hueso del destino y quedan listos para aplicarse a un rig compatible."
 	_set_status(summary)
 
 func _create_retarget_profile() -> void:

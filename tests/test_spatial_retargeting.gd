@@ -40,5 +40,22 @@ func _initialize() -> void:
  source_root.free()
  target_root.free()
  quadruped_root.free()
+ var clip := {
+  "name": "walk",
+  "duration": 1.0,
+  "loop": true,
+  "keyframes": [
+   {"time": 0.0, "bone_rotations_degrees": {"Pelvis": [0.0, 10.0, 0.0], "Spine": [0.0, 0.0, 20.0], "Head": [1.0, 2.0, 3.0]}},
+   {"time": 1.0, "bone_rotations_degrees": {"Pelvis": [0.0, 20.0, 0.0], "Spine": [0.0, 0.0, 30.0], "Head": [2.0, 3.0, 4.0]}}
+  ]
+ }
+ var clip_profile := {"name": "Humanoid target", "mapping": {"mixamorig:Hips": "Pelvis_Target", "mixamorig:Spine": "Spine_Target"}}
+ var converted := retargeter.retarget_animation_clip(clip, clip_profile, Vector3.ONE, Vector3(0.0, 5.0, 0.0))
+ assert(converted.ok and converted.mapped_bone_count == 2, "Debe convertir clips completos usando equivalencias canónicas")
+ assert(converted.clip.keyframes[0].bone_rotations_degrees.has("Pelvis_Target"), "Debe renombrar el hueso de origen al hueso destino")
+ assert(is_equal_approx(float(converted.clip.keyframes[0].bone_rotations_degrees.Pelvis_Target[1]), 15.0), "Debe conservar la escala y aplicar el offset de rotación")
+ assert(converted.unmapped_bones.has("Head"), "Debe informar huesos sin equivalencia")
+ assert(clip.keyframes[0].bone_rotations_degrees.has("Pelvis"), "El retargeting no debe modificar el clip original")
+ assert(not retargeter.retarget_animation_clip({"keyframes": []}, clip_profile).ok, "Debe rechazar clips vacíos")
  print("SPATIAL_RIG_AND_RETARGET_TESTS_OK")
  quit(0)
