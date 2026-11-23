@@ -25,6 +25,7 @@ var image_dialog: FileDialog
 var imported_preview: TextureRect
 var image_result_output: RichTextLabel
 var build_segmented_button: Button
+var animation_controls: GridContainer
 var imported_character_data: Dictionary = {}
 var ai_generated_poses: Array = []
 var runtime_rig: Node2D
@@ -391,7 +392,7 @@ func _show_character_lab() -> void:
 	rig_background.color = Color("#f4f7fb")
 	rig_background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	rig_subviewport.add_child(rig_background)
-	var animation_controls := GridContainer.new()
+	animation_controls = GridContainer.new()
 	animation_controls.columns = 3
 	right.add_child(animation_controls)
 	for animation_name in ["idle","walk","run","jump","talk","wave"]:
@@ -579,26 +580,30 @@ func _handle_ai_turnaround_result(response: Dictionary) -> void:
 
 func _handle_ai_pose_result(response: Dictionary) -> void:
 	ai_generated_poses = response.get("poses", [])
-	if ai_generated_poses.is_empty():
-		_set_status("El proveedor no devolvió poses.")
-		return
-	var first_pose: Dictionary = ai_generated_poses[0]
-	var angles: Dictionary = first_pose.get("joint_angles", {})
+	var clips: Array = response.get("animations", [])
 	var applied := 0
+	var added_clips := 0
 	if is_instance_valid(runtime_rig):
-		applied = rig_builder.apply_segment_pose(runtime_rig, angles)
+		added_clips = rig_builder.add_ai_animation_set(runtime_rig, clips)
+		if not ai_generated_poses.is_empty():
+			var first_pose: Dictionary = ai_generated_poses[0]
+			applied = rig_builder.apply_segment_pose(runtime_rig, first_pose.get("joint_angles", {}))
 	if not project_data.has("ai_pose_sets"):
 		project_data["ai_pose_sets"] = []
-	project_data["ai_pose_sets"].append({"character": character_name.text, "poses": ai_generated_poses})
+	project_data["ai_pose_sets"].append({"character": character_name.text, "poses": ai_generated_poses, "animations": clips})
 	_save_project()
-	var lines := PackedStringArray(["POSES RECIBIDAS: %d" % ai_generated_poses.size()])
+	var lines := PackedStringArray(["POSES RECIBIDAS: %d · CLIPS CREADOS: %d" % [ai_generated_poses.size(), added_clips]])
 	for pose in ai_generated_poses:
 		if pose is Dictionary:
 			lines.append("• %s" % str(pose.get("name", "Pose")))
+	for clip in clips:
+		if clip is Dictionary:
+			var clip_name := "ai_" + str(clip.get("name", "generated")).validate_filename().to_lower()
+			_add_button(animation_controls, str(clip.get("name", "Animación")), _play_rig_animation.bind(clip_name))
 	lines.append("Articulaciones aplicadas en la vista actual: %d" % applied)
-	lines.append("Los ángulos IA se interpretan en grados; revisa límites y deformaciones.")
+	lines.append("Los ángulos IA se interpretan en grados. Los clips usan keyframes de articulaciones.")
 	image_result_output.text = "\n".join(lines)
-	_set_status("Poses IA guardadas en el proyecto.")
+	_set_status("Poses y animaciones IA guardadas en el proyecto.")
 
 func _on_ai_segmentation_failed(message: String) -> void:
 	_set_status("IA: " + message)
