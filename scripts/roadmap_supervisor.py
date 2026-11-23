@@ -35,9 +35,10 @@ def main():
         if later_active:
             errors.append(f"Orden roto: etapas posteriores activas {later_active} mientras la {first_open['id']} no está done.")
     done_count = sum(1 for s in stages if s.get("status") == "done")
-    next_pair = [s for s in stages if s.get("status") != "done"][:2]
+    pair_start = ((first_open["id"] - 1) // 2) * 2 + 1 if first_open else 11
+    next_pair = [s for s in stages if pair_start <= s["id"] < pair_start + 2]
     print(f"Supervisor: {done_count}/10 etapas cerradas.")
-    print("Siguiente bloque: " + (" → ".join(f'{s["id"]}. {s["name"]}' for s in next_pair) if next_pair else "todas completadas"))
+    print("Bloque actual: " + (" → ".join(f'{s["id"]}. {s["name"]}' for s in next_pair) if next_pair else "todas completadas"))
     for s in stages:
         print(f'[{s["status"].upper():11}] {s["id"]:02d} {s["name"]}')
     if errors:
