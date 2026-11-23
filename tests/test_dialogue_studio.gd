@@ -56,11 +56,13 @@ func _run() -> void:
 	print("DIALOGUE_TEST_WAV_WRITE_OK")
 
 	var pcm := PackedByteArray()
-	for sample in [0,0,0,8000,8000,8000,24000,24000,24000]:
-		pcm.append(int(sample) & 255)
-		pcm.append((int(sample) >> 8) & 255)
+	for group in range(3):
+		var sample_value := 0 if group == 0 else (8000 if group == 1 else 24000)
+		for sample_index in range(1000):
+			pcm.append(sample_value & 255)
+			pcm.append((sample_value >> 8) & 255)
 	var viseme_wav := AudioStreamWAV.new()
-	viseme_wav.mix_rate = 90
+	viseme_wav.mix_rate = 30000
 	viseme_wav.stereo = false
 	viseme_wav.format = AudioStreamWAV.FORMAT_16_BITS
 	viseme_wav.data = pcm
