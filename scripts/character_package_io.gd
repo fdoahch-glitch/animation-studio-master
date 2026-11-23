@@ -6,7 +6,7 @@ const FORMAT_VERSION := 1
 const MAX_FILE_BYTES := 32 * 1024 * 1024
 const MAX_ASSET_BYTES := 20 * 1024 * 1024
 
-func build_package(character: Dictionary, rig_type: String, joint_angles: Dictionary, procedural_poses: Array, custom_poses: Array, clips: Array, image_data: Dictionary = {}) -> Dictionary:
+func build_package(character: Dictionary, rig_type: String, joint_angles: Dictionary, procedural_poses: Array, custom_poses: Array, clips: Array, image_data: Dictionary = {}, spatial_poses: Array = [], spatial_clips: Array = [], spatial_bone_rotations: Dictionary = {}) -> Dictionary:
 	return {
 		"format": FORMAT_ID,
 		"format_version": FORMAT_VERSION,
@@ -15,11 +15,14 @@ func build_package(character: Dictionary, rig_type: String, joint_angles: Dictio
 		"character": character.duplicate(true),
 		"rig": {
 			"type": rig_type,
-			"joint_angles_degrees": _clean_angles(joint_angles)
+			"joint_angles_degrees": _clean_angles(joint_angles),
+			"bone_rotations_degrees": _clean_bone_rotations(spatial_bone_rotations)
 		},
 		"procedural_poses": procedural_poses.duplicate(true),
 		"custom_poses": custom_poses.duplicate(true),
 		"animation_clips": clips.duplicate(true),
+		"spatial_poses": _clean_spatial_poses(spatial_poses),
+		"spatial_animation_clips": _clean_spatial_clips(spatial_clips),
 		"image_import": _portable_image_metadata(image_data),
 		"assets": _collect_image_assets(image_data),
 		"asset_note": "Las imágenes utilizadas por el rig se incluyen dentro del paquete cuando caben en el límite de tamaño."
@@ -47,10 +50,15 @@ func decode_package(json_text: String) -> Dictionary:
 	var poses: Variant = parsed.get("procedural_poses", [])
 	var custom: Variant = parsed.get("custom_poses", [])
 	var assets: Variant = parsed.get("assets", {})
-	if not clips is Array or not poses is Array or not custom is Array or not assets is Dictionary:
+	var spatial_poses: Variant = parsed.get("spatial_poses", [])
+	var spatial_clips: Variant = parsed.get("spatial_animation_clips", [])
+	if not clips is Array or not poses is Array or not custom is Array or not assets is Dictionary or not spatial_poses is Array or not spatial_clips is Array:
 		return {"ok": false, "error": "Las bibliotecas de poses o animaciones tienen un formato inválido."}
 	var normalized := parsed.duplicate(true)
 	normalized["rig"]["joint_angles_degrees"] = _clean_angles(rig.get("joint_angles_degrees", {}))
+	normalized["rig"]["bone_rotations_degrees"] = _clean_bone_rotations(rig.get("bone_rotations_degrees", {}))
+	normalized["spatial_poses"] = _clean_spatial_poses(spatial_poses)
+	normalized["spatial_animation_clips"] = _clean_spatial_clips(spatial_clips)
 	normalized["animation_clips"] = _clean_clips(clips)
 	normalized["procedural_poses"] = _clean_poses(poses)
 	normalized["custom_poses"] = _clean_poses(custom)
@@ -63,6 +71,55 @@ func decode_package(json_text: String) -> Dictionary:
 		if decoded_bytes.is_empty() or asset_total > MAX_ASSET_BYTES:
 			return {"ok": false, "error": "Los recursos gráficos están vacíos o superan el límite de 20 MB."}
 	return {"ok": true, "package": normalized}
+
+
+func _clean_bone_rotations(value: Variant) -> Dictionary:
+	var result := {}
+	if not value is Dictionary:
+		return result
+	for bone_name in value.keys():
+		var rotation_value: Variant = value[bone_name]
+		if rotation_value is Array and rotation_value.size() >= 3:
+			result[str(bone_name).left(64)] = [
+				clampf(float(rotation_value[0]), -180.0, 180.0),
+				clampf(float(rotation_value[1]), -180.0, 180.0),
+				clampf(float(rotation_value[2]), -180.0, 180.0)
+			]
+	return result
+
+func _clean_spatial_poses(value: Array) -> Array:
+	var result: Array = []
+	for item in value:
+		if item is Dictionary:
+			result.append({
+				"name": str(item.get("name", "Pose 3D")).left(80),
+				"bone_rotations_degrees": _clean_bone_rotations(item.get("bone_rotations_degrees", {})),
+				"custom": bool(item.get("custom", false))
+			})
+	return result
+
+func _clean_spatial_clips(value: Array) -> Array:
+	var result: Array = []
+	for item in value:
+		if not item is Dictionary:
+			continue
+		var duration := clampf(float(item.get("duration", 1.0)), 0.05, 120.0)
+		var frames: Array = []
+		var raw_frames: Variant = item.get("keyframes", [])
+		if raw_frames is Array:
+			for frame in raw_frames:
+				if frame is Dictionary:
+					frames.append({
+						"time": clampf(float(frame.get("time", 0.0)), 0.0, duration),
+						"bone_rotations_degrees": _clean_bone_rotations(frame.get("bone_rotations_degrees", {}))
+					})
+		result.append({
+			"name": str(item.get("name", "Animación 3D")).left(80),
+			"duration": duration,
+			"loop": bool(item.get("loop", true)),
+			"keyframes": frames
+		})
+	return result
 
 func _clean_angles(value: Variant) -> Dictionary:
 	var result := {}
