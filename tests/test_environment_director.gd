@@ -6,6 +6,8 @@ func _initialize():
  assert(director.validate_environment(env).ok)
  assert(director.set_time_preset(env,"sunset").ok)
  assert(is_equal_approx(float(env.hour),19.0))
+ assert(director.set_hour(env,7.5).ok)
+ assert(is_equal_approx(float(env.hour),7.5) and float(env.sun_energy) > 0.5, "Debe interpolar iluminación según la hora")
  assert(director.set_weather(env,"rain",0.7).ok)
  assert(director.get_particle_profile("rain",0.7).enabled)
  var added=director.add_background_layer(env,"bg_1",2.0,0.35)
