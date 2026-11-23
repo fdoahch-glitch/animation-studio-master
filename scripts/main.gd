@@ -2817,19 +2817,19 @@ func _show_environment_studio() -> void:
  hour.max_value=23.99
  hour.step=0.25
  hour.value=float(active_environment.get("hour",12.0))
- page.add_child(_labeled_control(page,"Hora del día",hour))
+ _labeled_control(page,"Hora del día",hour)
  hour.value_changed.connect(func(v): active_environment["hour"]=v; active_environment["sun_energy"]=clampf(1.0-absf(v-12.0)/15.0,0.12,1.15); _save_environment())
  var weather=OptionButton.new()
  var weather_names=["clear","rain","snow","wind","fog","dust"]
  for w in weather_names: weather.add_item({"clear":"Despejado","rain":"Lluvia","snow":"Nieve","wind":"Viento","fog":"Niebla","dust":"Polvo"}[w])
  weather.select(maxi(0,weather_names.find(str(active_environment.get("weather","clear")))))
- page.add_child(_labeled_control(page,"Clima",weather))
+ _labeled_control(page,"Clima",weather)
  var intensity=HSlider.new()
  intensity.min_value=0
  intensity.max_value=1
  intensity.step=0.01
  intensity.value=float(active_environment.get("weather_intensity",0.0))
- page.add_child(_labeled_control(page,"Intensidad",intensity))
+ _labeled_control(page,"Intensidad",intensity)
  _add_button(page,"Aplicar clima",func(): environment_director.set_weather(active_environment,weather_names[weather.selected],intensity.value); _save_environment(); _set_status("Perfil de clima aplicado: "+weather_names[weather.selected]))
  _add_button(page,"Añadir keyframe ambiental",func(): var result=environment_director.add_keyframe(active_environment,float(active_environment.hour)*60.0,{"sun_energy":float(active_environment.get("sun_energy",1.0)),"weather_intensity":float(active_environment.get("weather_intensity",0.0))}); _save_environment(); _set_status("Keyframe guardado." if result.ok else str(result.error)))
  _add_button(page,"Añadir capa parallax del fondo seleccionado",func(): var result=environment_director.add_background_layer(active_environment,selected_resource_id,float(active_environment.background_layers.size()),0.35); _save_environment(); _set_status("Capa añadida." if result.ok else str(result.error)))
