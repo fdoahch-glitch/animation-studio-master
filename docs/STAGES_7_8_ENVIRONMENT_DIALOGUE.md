@@ -18,3 +18,8 @@ Ambas etapas permanecen `partial`. La aceptación de etapas 2–6 no está cerra
 ## Grabación directa de voz
 
 El estudio de diálogos habilita la entrada de audio de Godot y crea un bus dedicado `MicRecord` con `AudioEffectRecord`. El botón de inicio reproduce una fuente `AudioStreamMicrophone`; detener guarda la toma como WAV en `user://animation_studio_recordings/` y la vincula a la última línea del guion como una toma numerada. La grabación requiere un micrófono disponible y permiso del sistema operativo. La captura física debe verificarse en Windows y en cada dispositivo Android de destino; CI solo valida el guardado y la lectura de WAV.
+
+
+## Cuenta regresiva de grabación
+
+El botón de grabación inicia una cuenta regresiva de tres segundos antes de activar la captura de micrófono. El contador se puede cancelar antes de iniciar; al cambiar de área de trabajo se detiene una cuenta regresiva pendiente para evitar iniciar una grabación fuera del estudio de diálogo. La captura WAV y su vinculación a la última línea de diálogo se mantienen.

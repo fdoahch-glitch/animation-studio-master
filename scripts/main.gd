@@ -173,6 +173,9 @@ var dialogue_line_list: ItemList
 var microphone_player: AudioStreamPlayer
 var microphone_record_effect: AudioEffectRecord
 var microphone_bus_name := "MicRecord"
+var microphone_countdown_timer: Timer
+var microphone_countdown_label: Label
+var microphone_countdown_remaining := 0
 
 class CharacterPreview:
 	extends Control
@@ -327,6 +330,9 @@ func _build_shell() -> void:
 	root_ui.add_child(status_label)
 
 func _clear_content() -> void:
+	if is_instance_valid(microphone_countdown_timer) and not microphone_countdown_timer.is_stopped():
+		microphone_countdown_timer.stop()
+		microphone_countdown_remaining = 0
 	_stop_director_playback()
 	for child in content.get_children():
 		child.queue_free()
@@ -3766,8 +3772,17 @@ func _show_dialogue_studio() -> void:
 	dialogue_line_list.custom_minimum_size.y=180
 	page.add_child(dialogue_line_list)
 	_refresh_dialogue_lines()
-	_add_button(page,"Iniciar grabación de micrófono",_start_microphone_recording)
-	_add_button(page,"Detener y registrar toma WAV",_stop_microphone_recording)
+	microphone_countdown_label = Label.new()
+	microphone_countdown_label.text = "Micrófono listo · cuenta regresiva de 3 segundos"
+	page.add_child(microphone_countdown_label)
+	if not is_instance_valid(microphone_countdown_timer):
+		microphone_countdown_timer = Timer.new()
+		microphone_countdown_timer.one_shot = false
+		microphone_countdown_timer.wait_time = 1.0
+		microphone_countdown_timer.timeout.connect(_on_microphone_countdown_tick)
+		add_child(microphone_countdown_timer)
+	_add_button(page,"Iniciar grabación · 3 s",_begin_microphone_recording_countdown)
+	_add_button(page,"Detener y registrar toma WAV",_stop_or_cancel_microphone_recording)
 	_add_button(page,"Registrar toma de audio importada",_register_dialogue_take)
 	_add_button(page,"Validar y guardar guion",_save_dialogue_script)
 	var note=Label.new()
@@ -3780,6 +3795,45 @@ func _refresh_dialogue_lines() -> void:
 	if not is_instance_valid(dialogue_line_list): return
 	dialogue_line_list.clear()
 	for line in active_script.get("lines",[]): dialogue_line_list.add_item("[%0.2f–%0.2f] %s: %s" % [float(line.start),float(line.end),str(line.speaker),str(line.text)])
+
+func _begin_microphone_recording_countdown() -> void:
+	if active_script.get("lines", []).is_empty():
+		_set_status("Crea primero una línea de diálogo para vincular la grabación.")
+		return
+	if is_instance_valid(microphone_record_effect) and microphone_record_effect.is_recording_active():
+		_set_status("La grabación de micrófono ya está activa.")
+		return
+	if not is_instance_valid(microphone_countdown_timer):
+		microphone_countdown_timer = Timer.new()
+		microphone_countdown_timer.one_shot = false
+		microphone_countdown_timer.wait_time = 1.0
+		microphone_countdown_timer.timeout.connect(_on_microphone_countdown_tick)
+		add_child(microphone_countdown_timer)
+	microphone_countdown_remaining = 3
+	if is_instance_valid(microphone_countdown_label):
+		microphone_countdown_label.text = "Preparando micrófono · %d" % microphone_countdown_remaining
+	microphone_countdown_timer.start()
+
+func _on_microphone_countdown_tick() -> void:
+	microphone_countdown_remaining -= 1
+	if microphone_countdown_remaining > 0:
+		if is_instance_valid(microphone_countdown_label):
+			microphone_countdown_label.text = "Preparando micrófono · %d" % microphone_countdown_remaining
+		return
+	microphone_countdown_timer.stop()
+	if is_instance_valid(microphone_countdown_label):
+		microphone_countdown_label.text = "Grabando micrófono · habla ahora"
+	_start_microphone_recording()
+
+func _stop_or_cancel_microphone_recording() -> void:
+	if is_instance_valid(microphone_countdown_timer) and not microphone_countdown_timer.is_stopped():
+		microphone_countdown_timer.stop()
+		microphone_countdown_remaining = 0
+		if is_instance_valid(microphone_countdown_label):
+			microphone_countdown_label.text = "Cuenta regresiva cancelada."
+		_set_status("Inicio de grabación cancelado.")
+		return
+	_stop_microphone_recording()
 
 func _start_microphone_recording() -> void:
 	if active_script.get("lines", []).is_empty():
@@ -3805,6 +3859,8 @@ func _start_microphone_recording() -> void:
 	microphone_player.bus = microphone_bus_name
 	add_child(microphone_player)
 	microphone_player.play()
+	if is_instance_valid(microphone_countdown_label):
+		microphone_countdown_label.text = "Grabando micrófono · captura en curso"
 	_set_status("Grabando micrófono… habla y pulsa Detener para guardar la toma WAV.")
 
 func _stop_microphone_recording() -> void:
@@ -3818,6 +3874,8 @@ func _stop_microphone_recording() -> void:
 		microphone_player.queue_free()
 		microphone_player = null
 	if recording == null or recording.data.is_empty():
+		if is_instance_valid(microphone_countdown_label):
+			microphone_countdown_label.text = "No se recibió audio · revisa el permiso del micrófono"
 		_set_status("La grabación está vacía. Revisa el permiso del micrófono y la entrada de audio del sistema.")
 		return
 	var folder := "user://animation_studio_recordings"
@@ -3849,6 +3907,8 @@ func _stop_microphone_recording() -> void:
 		_set_status("WAV guardado, pero no se pudo vincular a la línea: " + str(result.get("error", "")))
 		return
 	_save_dialogue_script()
+	if is_instance_valid(microphone_countdown_label):
+		microphone_countdown_label.text = "Toma %d guardada · %.2f segundos" % [take_number, duration]
 	_set_status("Toma %d guardada y vinculada · %.2f s · %s" % [take_number, duration, path])
 
 func _register_dialogue_take() -> void:
