@@ -4334,10 +4334,145 @@ func _refresh_dialogue_lines() -> void:
 	if selected_index >= 0:
 		dialogue_line_list.select(selected_index)
 
+func _refresh_dialogue_takes() -> void:
+	if not is_instance_valid(dialogue_take_list):
+		return
+	dialogue_take_list.clear()
+	var takes: Array = dialogue_studio.get_takes_for_line(active_script, selected_dialogue_line_id)
+	var selected_index := -1
+	for index in range(takes.size()):
+		var take: Dictionary = takes[index]
+		var muted_label := " · silenciada" if bool(take.get("muted", false)) else ""
+		dialogue_take_list.add_item("Toma %d · %.2f s · %.1f dB%s" % [int(take.get("take_number",index+1)),float(take.get("duration",0.0)),float(take.get("gain_db",0.0)),muted_label])
+		dialogue_take_list.set_item_metadata(index, str(take.get("id","")))
+		if str(take.get("id","")) == selected_dialogue_take_id:
+			selected_index = index
+	if selected_index < 0 and not takes.is_empty():
+		selected_index = 0
+		selected_dialogue_take_id = str(takes[0].get("id",""))
+	if selected_index >= 0:
+		dialogue_take_list.select(selected_index)
+		_on_dialogue_take_selected(selected_index)
+
+func _find_dialogue_take(take_id: String = "") -> Dictionary:
+	var wanted := take_id if not take_id.is_empty() else selected_dialogue_take_id
+	for take in active_script.get("audio_tracks", []):
+		if str(take.get("id","")) == wanted:
+			return take
+	return {}
+
+func _on_dialogue_take_selected(index: int) -> void:
+	if not is_instance_valid(dialogue_take_list) or index < 0 or index >= dialogue_take_list.item_count:
+		return
+	selected_dialogue_take_id = str(dialogue_take_list.get_item_metadata(index))
+	var take := _find_dialogue_take()
+	if take.is_empty():
+		return
+	dialogue_studio.select_take(active_script, str(take.get("line_id","")), selected_dialogue_take_id)
+	if is_instance_valid(dialogue_gain_slider): dialogue_gain_slider.value = float(take.get("gain_db",0.0))
+	if is_instance_valid(dialogue_offset_input): dialogue_offset_input.value = float(take.get("offset",0.0))
+	if is_instance_valid(dialogue_mute_toggle): dialogue_mute_toggle.button_pressed = bool(take.get("muted",false))
+	_set_status("Toma seleccionada: %d" % int(take.get("take_number",1)))
+
+func _save_dialogue_take_mix() -> void:
+	var take := _find_dialogue_take()
+	if take.is_empty():
+		_set_status("Selecciona una toma de audio.")
+		return
+	var result := dialogue_studio.update_take_mix(
+		active_script,
+		selected_dialogue_take_id,
+		dialogue_gain_slider.value if is_instance_valid(dialogue_gain_slider) else float(take.get("gain_db",0.0)),
+		dialogue_offset_input.value if is_instance_valid(dialogue_offset_input) else float(take.get("offset",0.0)),
+		dialogue_mute_toggle.button_pressed if is_instance_valid(dialogue_mute_toggle) else bool(take.get("muted",false))
+	)
+	if result.ok:
+		_save_dialogue_script()
+		_refresh_dialogue_takes()
+		_set_status("Mezcla de toma guardada.")
+
+func _load_dialogue_audio_stream(path: String) -> AudioStream:
+	match path.get_extension().to_lower():
+		"wav":
+			return AudioStreamWAV.load_from_file(path)
+		"ogg":
+			return AudioStreamOggVorbis.load_from_file(path)
+		"mp3":
+			return AudioStreamMP3.load_from_file(path)
+	return null
+
+func _play_dialogue_take() -> void:
+	var take := _find_dialogue_take()
+	if take.is_empty():
+		_set_status("Selecciona una toma de audio.")
+		return
+	var path := str(take.get("audio_path",""))
+	var stream := _load_dialogue_audio_stream(path)
+	if stream == null:
+		_set_status("No se pudo abrir el archivo de audio: " + path)
+		return
+	if not is_instance_valid(dialogue_audio_player):
+		dialogue_audio_player = AudioStreamPlayer.new()
+		add_child(dialogue_audio_player)
+	dialogue_audio_player.stop()
+	dialogue_audio_player.stream = stream
+	dialogue_audio_player.volume_db = -80.0 if bool(take.get("muted",false)) else clampf(float(take.get("gain_db",0.0)),-60.0,12.0)
+	dialogue_audio_player.play(clampf(float(take.get("offset",0.0)),0.0,float(take.get("duration",0.0))))
+	_set_status("Reproduciendo toma %d." % int(take.get("take_number",1)))
+
+func _stop_dialogue_take_playback() -> void:
+	if is_instance_valid(dialogue_audio_player):
+		dialogue_audio_player.stop()
+	_set_status("Reproducción de toma detenida.")
+
+func _generate_visemes_from_selected_take() -> void:
+	var take := _find_dialogue_take()
+	if take.is_empty():
+		_set_status("Selecciona una toma de audio.")
+		return
+	if str(take.get("audio_path","")).get_extension().to_lower() != "wav":
+		_set_status("La generación PCM de visemas requiere una toma WAV.")
+		return
+	var audio: AudioStreamWAV = AudioStreamWAV.load_from_file(str(take.get("audio_path","")))
+	if audio == null:
+		_set_status("No se pudo leer el WAV seleccionado.")
+		return
+	var visemes: Array = dialogue_studio.build_viseme_track_from_wav(audio, 0.0, 30.0)
+	if visemes.is_empty():
+		_set_status("El WAV no contiene muestras PCM compatibles.")
+		return
+	var result := dialogue_studio.attach_viseme_track(active_script, str(take.get("line_id","")), visemes)
+	if result.ok:
+		_save_dialogue_script()
+		_set_status("Visemas generados: %d cuadros · estimación por energía PCM." % int(result.get("viseme_count",0)))
+	else:
+		_set_status(str(result.error))
+
+func _preview_dialogue_visemes() -> void:
+	if not is_instance_valid(runtime_spatial_animator):
+		_set_status("Importa un personaje 3D con expresiones faciales para previsualizar visemas.")
+		return
+	for line in active_script.get("lines", []):
+		if str(line.get("id","")) != selected_dialogue_line_id:
+			continue
+		var visemes: Array = line.get("visemes", [])
+		if visemes.is_empty():
+			_set_status("Genera primero la pista de visemas para esta línea.")
+			return
+		var duration := maxf(0.05, float(line.get("end",0.0)) - float(line.get("start",0.0)))
+		if runtime_spatial_animator.play_viseme_track(visemes, duration, false):
+			_set_status("Previsualizando sincronización labial estimada.")
+		else:
+			_set_status("El rig actual no admite reproducción de visemas.")
+		return
+	_set_status("Selecciona una línea de diálogo.")
+
+
 func _on_dialogue_line_selected(index: int) -> void:
 	if not is_instance_valid(dialogue_line_list) or index < 0 or index >= dialogue_line_list.item_count:
 		return
 	selected_dialogue_line_id = str(dialogue_line_list.get_item_metadata(index))
+	_refresh_dialogue_takes()
 	_set_status("Línea seleccionada para grabación: " + selected_dialogue_line_id)
 
 func _get_selected_dialogue_line_id() -> String:
@@ -4460,7 +4595,9 @@ func _stop_microphone_recording() -> void:
 	if not bool(result.get("ok", false)):
 		_set_status("WAV guardado, pero no se pudo vincular a la línea: " + str(result.get("error", "")))
 		return
+	selected_dialogue_take_id = str(result.track.get("id",""))
 	_save_dialogue_script()
+	_refresh_dialogue_takes()
 	if is_instance_valid(microphone_countdown_label):
 		microphone_countdown_label.text = "Toma %d guardada · %.2f segundos" % [take_number, duration]
 	_set_status("Toma %d guardada y vinculada · %.2f s · %s" % [take_number, duration, path])
@@ -4479,7 +4616,9 @@ func _register_dialogue_take() -> void:
 			duration = _wav_duration_from_file(path)
 		var line_id=_get_selected_dialogue_line_id()
 		var result=dialogue_studio.add_take(active_script,line_id,path,duration,active_script.audio_tracks.size()+1,"Toma importada")
+		if result.ok: selected_dialogue_take_id = str(result.track.get("id",""))
 		_save_dialogue_script()
+		_refresh_dialogue_takes()
 		_set_status("Toma registrada." if result.ok else str(result.error))
 	)
 	add_child(dialog)
@@ -4536,6 +4675,8 @@ func _save_dialogue_script() -> void:
 		return
 	project_data["dialogue_scripts"]=[active_script.duplicate(true)]
 	_save_project()
+	_refresh_dialogue_lines()
+	_refresh_dialogue_takes()
 	_set_status("Guion guardado · %d líneas · %.2f s." % [result.line_count,result.duration])
 
 func _set_status(message: String) -> void:
