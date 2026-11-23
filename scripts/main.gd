@@ -9,6 +9,7 @@ const CHARACTER_SPATIAL_ANIMATOR = preload("res://scripts/character_spatial_anim
 const IK_DRAG_OVERLAY = preload("res://scripts/ik_drag_overlay.gd")
 const ANIMATION_TIMELINE = preload("res://scripts/animation_timeline.gd")
 const CHARACTER_PACKAGE_IO = preload("res://scripts/character_package_io.gd")
+const PROJECT_DOCUMENT_IO = preload("res://scripts/project_document_io.gd")
 const DEFAULT_PROJECT := {"name":"Mi primera animación","width":1920,"height":1080,"fps":60,"orientation":"Horizontal","visual_mode":"2D","background_mode":"Vacío"}
 
 var project_data: Dictionary = DEFAULT_PROJECT.duplicate(true)
@@ -49,6 +50,15 @@ var joint_redo_stack: Array[Dictionary] = []
 var joint_editor_syncing := false
 var timeline_model
 var package_io
+var project_io
+var project_save_dialog: FileDialog
+var project_open_dialog: FileDialog
+var current_project_path := ""
+var scene_list: ItemList
+var scene_name_input: LineEdit
+var scene_duration_input: SpinBox
+var scene_notes_input: TextEdit
+var selected_scene_index := -1
 var package_export_dialog: FileDialog
 var package_import_dialog: FileDialog
 var spritesheet_export_dialog: FileDialog
@@ -138,7 +148,21 @@ func _ready() -> void:
 	image_processor = CHARACTER_IMAGE_PROCESSOR.new()
 	procedural_animator = CHARACTER_PROCEDURAL_ANIMATOR.new()
 	package_io = CHARACTER_PACKAGE_IO.new()
+	project_io = PROJECT_DOCUMENT_IO.new()
 	_build_shell()
+	project_save_dialog = FileDialog.new()
+	project_save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	project_save_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	project_save_dialog.filters = PackedStringArray(["*.amsproj, *.json ; Proyecto Animation Studio"])
+	project_save_dialog.current_file = "mi_proyecto.amsproj"
+	project_save_dialog.file_selected.connect(_save_project_to_path)
+	add_child(project_save_dialog)
+	project_open_dialog = FileDialog.new()
+	project_open_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	project_open_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	project_open_dialog.filters = PackedStringArray(["*.amsproj, *.json ; Proyecto Animation Studio"])
+	project_open_dialog.file_selected.connect(_load_project_from_path)
+	add_child(project_open_dialog)
 	image_dialog = FileDialog.new()
 	image_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 	image_dialog.access = FileDialog.ACCESS_FILESYSTEM
@@ -195,7 +219,9 @@ func _build_shell() -> void:
 	brand.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(brand)
 	_add_button(header, "Nuevo proyecto", _show_wizard)
+	_add_button(header, "Abrir proyecto", _open_project_dialog)
 	_add_button(header, "Guardar proyecto", _save_project)
+	_add_button(header, "Guardar como", _open_save_project_dialog)
 	_add_button(header, "Estudio de personajes", _show_character_lab)
 	root_ui.add_child(HSeparator.new())
 	content = Control.new()
@@ -331,6 +357,9 @@ func _show_workspace() -> void:
 	_add_button(main_panel, "Abrir asistente de personajes", _show_character_lab)
 
 func _open_section(section: String) -> void:
+	if section == "Escenas":
+		_show_scene_manager()
+		return
 	if section == "Personajes":
 		_show_character_lab()
 		return
@@ -354,6 +383,144 @@ func _open_section(section: String) -> void:
 	page.add_child(info)
 	_add_button(page, "Volver al escenario", _show_workspace)
 	_set_status(section + " · interfaz inicial; funciones avanzadas pendientes.")
+
+func _show_scene_manager() -> void:
+	_clear_content()
+	var layout := HBoxContainer.new()
+	layout.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layout.add_theme_constant_override("separation", 14)
+	content.add_child(layout)
+	var left := VBoxContainer.new()
+	left.custom_minimum_size.x = 280
+	layout.add_child(left)
+	_add_heading(left, "Escenas", "Administra las escenas del proyecto y su orden.")
+	scene_list = ItemList.new()
+	scene_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scene_list.item_selected.connect(_on_scene_selected)
+	left.add_child(scene_list)
+	var scene_actions := GridContainer.new()
+	scene_actions.columns = 2
+	left.add_child(scene_actions)
+	_add_button(scene_actions, "Nueva escena", _create_scene)
+	_add_button(scene_actions, "Duplicar", _duplicate_scene)
+	_add_button(scene_actions, "Eliminar", _delete_scene)
+	var right := VBoxContainer.new()
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	layout.add_child(right)
+	_add_heading(right, "Inspector de escena", "Nombre, duración y notas de producción.")
+	var name_row := HBoxContainer.new()
+	right.add_child(name_row)
+	var name_label := Label.new()
+	name_label.text = "Nombre"
+	name_label.custom_minimum_size.x = 150
+	name_row.add_child(name_label)
+	scene_name_input = LineEdit.new()
+	scene_name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_row.add_child(scene_name_input)
+	var duration_row := HBoxContainer.new()
+	right.add_child(duration_row)
+	var duration_label := Label.new()
+	duration_label.text = "Duración (segundos)"
+	duration_label.custom_minimum_size.x = 150
+	duration_row.add_child(duration_label)
+	scene_duration_input = SpinBox.new()
+	scene_duration_input.min_value = 0.1
+	scene_duration_input.max_value = 86400.0
+	scene_duration_input.step = 0.5
+	duration_row.add_child(scene_duration_input)
+	var notes_label := Label.new()
+	notes_label.text = "Notas"
+	right.add_child(notes_label)
+	scene_notes_input = TextEdit.new()
+	scene_notes_input.custom_minimum_size.y = 180
+	scene_notes_input.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right.add_child(scene_notes_input)
+	_add_button(right, "Guardar cambios de escena", _save_scene_properties)
+	_add_button(right, "Volver al escenario", _show_workspace)
+	_refresh_scene_list()
+	_set_status("Gestor de escenas: crea, duplica, edita y elimina escenas.")
+
+func _refresh_scene_list() -> void:
+	if not is_instance_valid(scene_list):
+		return
+	scene_list.clear()
+	var scenes: Array = project_data.get("scenes", [])
+	for index in range(scenes.size()):
+		var scene: Dictionary = scenes[index]
+		scene_list.add_item("%02d · %s  (%.1f s)" % [index + 1, str(scene.get("name", "Escena")), float(scene.get("duration_seconds", 10.0))])
+	if not scenes.is_empty():
+		selected_scene_index = clampi(selected_scene_index, 0, scenes.size() - 1)
+		scene_list.select(selected_scene_index)
+		_on_scene_selected(selected_scene_index)
+	else:
+		selected_scene_index = -1
+		scene_name_input.text = ""
+		scene_duration_input.value = 10.0
+		scene_notes_input.text = ""
+
+func _create_scene() -> void:
+	if not project_data.get("scenes", []) is Array:
+		project_data["scenes"] = []
+	var index := project_data["scenes"].size() + 1
+	var scene_id := "scene_%d_%d" % [int(Time.get_unix_time_from_system()), Time.get_ticks_msec() % 100000]
+	project_data["scenes"].append({"id": scene_id, "name": "Escena %d" % index, "duration_seconds": 10.0, "notes": "", "objects": [], "transitions": {}})
+	selected_scene_index = project_data["scenes"].size() - 1
+	_refresh_scene_list()
+	_save_project()
+	_set_status("Escena creada.")
+
+func _duplicate_scene() -> void:
+	var scenes: Array = project_data.get("scenes", [])
+	if selected_scene_index < 0 or selected_scene_index >= scenes.size():
+		_set_status("Selecciona una escena para duplicar.")
+		return
+	var copy: Dictionary = scenes[selected_scene_index].duplicate(true)
+	copy["id"] = "scene_%d_%d" % [int(Time.get_unix_time_from_system()), Time.get_ticks_msec() % 100000]
+	copy["name"] = str(copy.get("name", "Escena")) + " (copia)"
+	scenes.insert(selected_scene_index + 1, copy)
+	project_data["scenes"] = scenes
+	selected_scene_index += 1
+	_refresh_scene_list()
+	_save_project()
+	_set_status("Escena duplicada.")
+
+func _delete_scene() -> void:
+	var scenes: Array = project_data.get("scenes", [])
+	if selected_scene_index < 0 or selected_scene_index >= scenes.size():
+		_set_status("Selecciona una escena para eliminar.")
+		return
+	scenes.remove_at(selected_scene_index)
+	project_data["scenes"] = scenes
+	selected_scene_index = mini(selected_scene_index, scenes.size() - 1)
+	_refresh_scene_list()
+	_save_project()
+	_set_status("Escena eliminada.")
+
+func _on_scene_selected(index: int) -> void:
+	var scenes: Array = project_data.get("scenes", [])
+	if index < 0 or index >= scenes.size():
+		return
+	selected_scene_index = index
+	var scene: Dictionary = scenes[index]
+	scene_name_input.text = str(scene.get("name", ""))
+	scene_duration_input.value = float(scene.get("duration_seconds", 10.0))
+	scene_notes_input.text = str(scene.get("notes", ""))
+
+func _save_scene_properties() -> void:
+	var scenes: Array = project_data.get("scenes", [])
+	if selected_scene_index < 0 or selected_scene_index >= scenes.size():
+		_set_status("Crea o selecciona una escena antes de guardar sus propiedades.")
+		return
+	var scene: Dictionary = scenes[selected_scene_index]
+	var cleaned_name := scene_name_input.text.strip_edges()
+	scene["name"] = cleaned_name if not cleaned_name.is_empty() else "Escena %d" % (selected_scene_index + 1)
+	scene["duration_seconds"] = scene_duration_input.value
+	scene["notes"] = scene_notes_input.text
+	scenes[selected_scene_index] = scene
+	project_data["scenes"] = scenes
+	_refresh_scene_list()
+	_save_project()
+	_set_status("Propiedades de escena guardadas.")
 
 func _show_character_lab() -> void:
 	_clear_content()
@@ -1933,13 +2100,41 @@ func _import_character_package_from_path(path: String) -> void:
 	_set_status("Paquete importado: ficha, poses y clips recuperados." + texture_message)
 
 func _save_project() -> void:
-	var file := FileAccess.open("user://animation_studio_manager_project.json", FileAccess.WRITE)
-	if file == null:
-		_set_status("No se pudo guardar el proyecto.")
+	var target := current_project_path if not current_project_path.is_empty() else "user://animation_studio_manager_project.amsproj"
+	var result: Dictionary = project_io.save_project(target, project_data)
+	if not bool(result.get("ok", false)):
+		_set_status(str(result.get("error", "No se pudo guardar el proyecto.")))
 		return
-	file.store_string(JSON.stringify(project_data, "\t"))
-	file.close()
-	_set_status("Proyecto guardado localmente.")
+	project_data = result.get("project", project_data)
+	_set_status("Proyecto guardado: " + target)
+
+func _open_save_project_dialog() -> void:
+	if is_instance_valid(project_save_dialog):
+		project_save_dialog.current_file = str(project_data.get("name", "mi_proyecto")).validate_filename() + ".amsproj"
+		project_save_dialog.popup_centered_ratio(0.82)
+
+func _open_project_dialog() -> void:
+	if is_instance_valid(project_open_dialog):
+		project_open_dialog.popup_centered_ratio(0.82)
+
+func _save_project_to_path(path: String) -> void:
+	var result: Dictionary = project_io.save_project(path, project_data)
+	if not bool(result.get("ok", false)):
+		_set_status(str(result.get("error", "No se pudo guardar el proyecto.")))
+		return
+	current_project_path = path
+	project_data = result.get("project", project_data)
+	_set_status("Proyecto portable guardado: " + path)
+
+func _load_project_from_path(path: String) -> void:
+	var result: Dictionary = project_io.load_project(path)
+	if not bool(result.get("ok", false)):
+		_set_status(str(result.get("error", "No se pudo abrir el proyecto.")))
+		return
+	project_data = result.get("project", {}).duplicate(true)
+	current_project_path = path
+	_show_workspace()
+	_set_status("Proyecto abierto: %s · %d escenas." % [str(project_data.get("name", "Proyecto")), project_data.get("scenes", []).size()])
 
 func _set_status(message: String) -> void:
 	if is_instance_valid(status_label):
