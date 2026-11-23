@@ -19,7 +19,8 @@ func create_environment(name := "Escenario") -> Dictionary:
 func add_background_layer(environment: Dictionary, resource_id: String, depth: float, parallax: float, opacity := 1.0) -> Dictionary:
  if resource_id.strip_edges().is_empty(): return {"ok":false,"error":"Selecciona un recurso de fondo."}
  var layer={"id":"layer_%d" % Time.get_ticks_msec(),"resource_id":resource_id,"depth":depth,"parallax":clampf(parallax,0.0,2.0),"opacity":clampf(opacity,0.0,1.0),"visible":true}
- environment.setdefault("background_layers",[]).append(layer)
+ if not environment.has("background_layers"): environment["background_layers"]=[]
+ environment["background_layers"].append(layer)
  environment.background_layers.sort_custom(func(a,b): return float(a.depth)<float(b.depth))
  return {"ok":true,"layer":layer}
 
