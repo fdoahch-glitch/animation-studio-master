@@ -180,7 +180,22 @@ func _bone_path(bone_name: String) -> String:
 		"Hip_L": "Pelvis/Hip_L",
 		"Knee_L": "Pelvis/Hip_L/Knee_L",
 		"Hip_R": "Pelvis/Hip_R",
-		"Knee_R": "Pelvis/Hip_R/Knee_R"
+		"Knee_R": "Pelvis/Hip_R/Knee_R",
+		"pelvis": "Pelvis",
+		"torso": "Pelvis/Spine/Chest",
+		"head": "Pelvis/Spine/Chest/Neck/Head",
+		"shoulder_left": "Pelvis/Spine/Chest/Shoulder_L",
+		"elbow_left": "Pelvis/Spine/Chest/Shoulder_L/Elbow_L",
+		"wrist_left": "Pelvis/Spine/Chest/Shoulder_L/Elbow_L",
+		"shoulder_right": "Pelvis/Spine/Chest/Shoulder_R",
+		"elbow_right": "Pelvis/Spine/Chest/Shoulder_R/Elbow_R",
+		"wrist_right": "Pelvis/Spine/Chest/Shoulder_R/Elbow_R",
+		"hip_left": "Pelvis/Hip_L",
+		"knee_left": "Pelvis/Hip_L/Knee_L",
+		"ankle_left": "Pelvis/Hip_L/Knee_L",
+		"hip_right": "Pelvis/Hip_R",
+		"knee_right": "Pelvis/Hip_R/Knee_R",
+		"ankle_right": "Pelvis/Hip_R/Knee_R"
 	}
 	return str(paths.get(bone_name, bone_name))
 
