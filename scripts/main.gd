@@ -2209,11 +2209,27 @@ func _retarget_generated_animation_clips() -> void:
 		_set_status("El perfil no encontró huesos compatibles con los clips generados.")
 		return
 	project_data["retargeted_animation_clips"] = converted
+	if is_instance_valid(animation_controls):
+		for child in animation_controls.get_children():
+			child.queue_free()
+		for clip in converted:
+			_add_button(animation_controls, "Retarget · " + str(clip.get("name", "Animación")), _play_retargeted_spatial_clip.bind(clip))
+		_append_imported_3d_animation_buttons()
+		_append_facial_expression_buttons()
 	_save_project()
 	var summary := "Clips retargeteados: %d · omitidos: %d · perfil: %s" % [converted.size(), skipped, str(profile.get("name", "Perfil"))]
 	if is_instance_valid(skeleton_output):
 		skeleton_output.text = summary + "\nLos clips se guardaron con los nombres de hueso del destino y quedan listos para aplicarse a un rig compatible."
 	_set_status(summary)
+
+func _play_retargeted_spatial_clip(clip: Dictionary) -> void:
+	if not is_instance_valid(runtime_spatial_animator):
+		_set_status("Importa un personaje 3D con Skeleton3D para reproducir el clip retargeteado.")
+		return
+	if runtime_spatial_animator.play_clip(clip):
+		_set_status("Reproduciendo clip retargeteado: " + str(clip.get("name", "Animación")))
+	else:
+		_set_status("El rig actual no contiene huesos compatibles con el clip retargeteado.")
 
 func _create_retarget_profile() -> void:
 	if not is_instance_valid(runtime_spatial_rig):
