@@ -47,9 +47,46 @@ func get_particle_profile(weather: String, intensity: float) -> Dictionary:
  result.enabled=amount>0.001
  return result
 
+func set_lighting(environment: Dictionary, sun_energy: float, ambient_energy: float, sun_color: Color, sky_color: Color) -> Dictionary:
+ environment["sun_energy"] = clampf(sun_energy, 0.0, 1.5)
+ environment["ambient_energy"] = clampf(ambient_energy, 0.0, 1.5)
+ environment["sun_color"] = [sun_color.r, sun_color.g, sun_color.b]
+ environment["sky_color"] = [sky_color.r, sky_color.g, sky_color.b]
+ return {"ok": true}
+
+func update_background_layer(environment: Dictionary, layer_id: String, values: Dictionary) -> Dictionary:
+ var layers: Array = environment.get("background_layers", [])
+ for index in range(layers.size()):
+  var layer: Dictionary = layers[index]
+  if str(layer.get("id", "")) != layer_id:
+   continue
+  if values.has("depth"): layer["depth"] = clampf(float(values.depth), -10000.0, 10000.0)
+  if values.has("parallax"): layer["parallax"] = clampf(float(values.parallax), 0.0, 2.0)
+  if values.has("opacity"): layer["opacity"] = clampf(float(values.opacity), 0.0, 1.0)
+  if values.has("visible"): layer["visible"] = bool(values.visible)
+  layers[index] = layer
+  layers.sort_custom(func(a, b): return float(a.get("depth", 0.0)) < float(b.get("depth", 0.0)))
+  environment["background_layers"] = layers
+  return {"ok": true, "layer": layer}
+ return {"ok": false, "error": "No se encontró la capa ambiental."}
+
+func remove_background_layer(environment: Dictionary, layer_id: String) -> Dictionary:
+ var layers: Array = environment.get("background_layers", [])
+ var before := layers.size()
+ layers = layers.filter(func(layer): return str(layer.get("id", "")) != layer_id)
+ environment["background_layers"] = layers
+ return {"ok": layers.size() < before, "error": "" if layers.size() < before else "No se encontró la capa ambiental."}
+
+func remove_keyframe(environment: Dictionary, time_seconds: float) -> Dictionary:
+ var frames: Array = environment.get("keyframes", [])
+ var before := frames.size()
+ frames = frames.filter(func(frame): return not is_equal_approx(float(frame.get("time", -1.0)), time_seconds))
+ environment["keyframes"] = frames
+ return {"ok": frames.size() < before, "error": "" if frames.size() < before else "No se encontró el keyframe."}
+
 func add_keyframe(environment: Dictionary, time_seconds: float, values: Dictionary) -> Dictionary:
  if time_seconds<0.0: return {"ok":false,"error":"El tiempo no puede ser negativo."}
- var allowed=["hour","sun_energy","ambient_energy","weather_intensity","wind_strength","fog_density"]
+ var allowed=["hour","sun_energy","ambient_energy","weather_intensity","wind_strength","fog_density","sun_color","sky_color"]
  var clean={}
  for key in values:
   if allowed.has(str(key)): clean[key]=values[key]
@@ -79,8 +116,21 @@ func sample_environment(environment: Dictionary, time_seconds: float) -> Diction
  var span=float(after.time)-float(before.time)
  var amount=0.0 if span<=0.0 else clampf((time_seconds-float(before.time))/span,0.0,1.0)
  for key in before.values:
-  if after.values.has(key):
-   result[key]=lerpf(float(before.values[key]),float(after.values[key]),amount)
+  if not after.values.has(key):
+   continue
+  var first: Variant = before.values[key]
+  var second: Variant = after.values[key]
+  if first is Array and second is Array and first.size() >= 3 and second.size() >= 3:
+   result[key] = [
+    lerpf(float(first[0]), float(second[0]), amount),
+    lerpf(float(first[1]), float(second[1]), amount),
+    lerpf(float(first[2]), float(second[2]), amount)
+   ]
+  elif first is int or first is float:
+   if second is int or second is float:
+    result[key] = lerpf(float(first), float(second), amount)
+  elif amount >= 0.5:
+   result[key] = second
  return result
 
 func validate_environment(environment: Dictionary) -> Dictionary:
