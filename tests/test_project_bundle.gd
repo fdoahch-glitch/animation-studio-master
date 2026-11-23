@@ -12,5 +12,7 @@ func _initialize():
  var imported=io.import_bundle(source,"user://bundle_roundtrip_restored")
  assert(imported.ok)
  assert(str(imported.project.name)=="Roundtrip")
+ var missing_export=io.export_bundle("user://bundle_missing_asset.asbundle",{"name":"Broken","resources":[{"id":"missing","path":"user://does_not_exist.png"}]})
+ assert(not missing_export.ok)
  print("PROJECT_BUNDLE_TESTS_OK")
  quit(0)
