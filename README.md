@@ -8,12 +8,14 @@ Estudio visual de animación por escenas, desarrollado con Godot 4.x y orientado
 - Modos 2D, 2.5D, 3D e Híbrido.
 - Secciones de Escenas, Personajes, Fondos, Elementos, Decoraciones, Tiempo y clima, Animación, Audio y doblaje y Exportar.
 - Estudio de personajes con ficha, estilo y tipo de rig.
-- Plantilla procedural de esqueleto humanoide con jerarquía de huesos y límites angulares iniciales.
+- Constructor de rig 2D editable en tiempo de ejecución: pivotes jerárquicos, segmentos visuales y articulaciones.
+- Animaciones base reproducibles desde el estudio: reposo, caminar, correr, saltar, hablar y saludar.
+- Vista previa real del rig dentro de un SubViewport y controles para probar cada ciclo.
 - Selector de vistas de referencia: frente, perfil, espalda y tres cuartos.
 - Generación de prompt para un proveedor de IA externo.
 
 ## Estado honesto de IA
-El núcleo actual no genera ilustraciones mediante un modelo de IA ni realiza rigging automático de imágenes o mallas. Prepara fichas, prompts, una vista esquemática y un esqueleto procedural base. Para generación real de imágenes, reconstrucción multivista y rigging asistido se debe configurar un proveedor/modelo de IA y desarrollar el adaptador correspondiente. No hay claves API incrustadas ni se envían datos por defecto.
+El módulo actual ya construye un rig 2D procedural editable con jerarquía de pivotes, segmentos visuales y seis ciclos de animación que se pueden reproducir en el estudio. Todavía no segmenta automáticamente una ilustración importada, no calcula pesos de deformación de sprites ni genera imágenes o modelos 3D mediante un modelo de IA. Esas capacidades requieren incorporar modelos de segmentación/generación y un adaptador de inferencia; el proyecto no incluye claves API ni envía imágenes a servicios externos por defecto. El rig actual es una base funcional para validar la estructura y el flujo de animación, no un sistema completo de producción.
 
 ## Abrir y ejecutar
 1. Instala Godot 4.x desde https://godotengine.org/download/.
