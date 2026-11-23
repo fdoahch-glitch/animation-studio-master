@@ -131,7 +131,8 @@ func _build_regions(bounds: Rect2i) -> Array[Dictionary]:
 	var h := bounds.size.y
 	var definitions := [
 		["head", "Cabeza", 0.28, 0.00, 0.44, 0.25],
-		["torso", "Torso", 0.22, 0.20, 0.56, 0.43],
+		["torso", "Torso", 0.22, 0.20, 0.56, 0.38],
+		["pelvis", "Pelvis", 0.28, 0.48, 0.44, 0.22],
 		["arm_left", "Brazo izquierdo (zona)", 0.00, 0.20, 0.34, 0.43],
 		["arm_right", "Brazo derecho (zona)", 0.66, 0.20, 0.34, 0.43],
 		["leg_left", "Pierna izquierda (zona)", 0.18, 0.55, 0.34, 0.45],
