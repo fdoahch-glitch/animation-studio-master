@@ -423,10 +423,10 @@ func _show_character_lab() -> void:
 	character_output.text = "Vista esquemática de referencia. El arte final se importa o se genera con un proveedor conectado."
 	right.add_child(character_output)
 	page.add_child(Label.new())
-	var rig_title := Label.new()
-	rig_title.text = "ESQUELETO PROPUESTO"
-	rig_title.add_theme_color_override("font_color", Color("#2878b8"))
-	page.add_child(rig_title)
+	var skeleton_title := Label.new()
+	skeleton_title.text = "ESQUELETO PROPUESTO"
+	skeleton_title.add_theme_color_override("font_color", Color("#2878b8"))
+	page.add_child(skeleton_title)
 	skeleton_output = RichTextLabel.new()
 	skeleton_output.fit_content = true
 	skeleton_output.custom_minimum_size.y = 110
