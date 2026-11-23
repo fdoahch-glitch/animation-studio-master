@@ -411,7 +411,7 @@ func bake_clips_to_animation_player(root: Node3D, clips: Array, player_name: Str
 
 
 func _is_quadruped() -> bool:
-	return is_instance_valid(skeleton) and skeleton.find_bone("Tail_01") >= 0
+	return is_instance_valid(skeleton) and _find_bone_index("Tail_01") >= 0
 
 func _generate_quadruped_pose_library(factor: float) -> Array:
 	var definitions := [
