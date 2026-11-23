@@ -56,6 +56,13 @@ func _initialize() -> void:
 		generated.free()
 		quit(1)
 		return
+	var preview = load("res://scripts/resource_model_preview.gd").new()
+	preview.model_pivot = Node3D.new()
+	preview.last_pointer = Vector2(100, 100)
+	var initial_rotation: float = float(preview.model_pivot.rotation.y)
+	preview._rotate_from_pointer(Vector2(130, 100))
+	assert(not is_equal_approx(preview.model_pivot.rotation.y, initial_rotation), "El modelo debe girar al arrastrar el puntero")
+	preview.model_pivot.free()
 	var imported_player := animation_players[0] as AnimationPlayer
 	if not imported_player.has_animation("Move"):
 		push_error("La escena GLB importada no conserva el clip Move.")

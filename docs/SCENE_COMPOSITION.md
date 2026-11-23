@@ -42,3 +42,8 @@ En el timeline de dirección, los diamantes de keyframe se pueden arrastrar hori
 ## Cámara animable
 
 Cada escena nueva incluye cámara 2D con posición, zoom y rotación. El director de animación permite crear pistas específicas de cámara y muestrearlas junto a las pistas de objetos. El lienzo transforma las coordenadas de dibujo y selección según la cámara, manteniendo separada la cámara de salida del zoom/paneo de edición. Pruebas: `tests/test_timeline_tracks.gd` y `tests/test_scene_canvas.gd`.
+
+
+## Biblioteca de recursos — etapa 3
+
+La biblioteca local administra cuatro categorías (personajes, fondos, elementos y decoraciones). Admite PNG/JPG/JPEG/WebP para imágenes y GLB/glTF para personajes, elementos y decoraciones. Cada importación conserva ID, nombre, archivo de origen, extensión, tamaño total, etiquetas, modo visual, compatibilidad, ruta administrada y, para imágenes, miniatura PNG. Los GLTF con buffers o imágenes externos copian y reescriben sus dependencias dentro de la biblioteca; el conjunto completo queda limitado a 256 MB. La vista previa 3D carga la escena, centra la cámara, permite girar con mouse o toque, zoom, inspección de esqueletos y reproducción de clips AnimationPlayer. El viewport solo se actualiza cuando está visible para evitar trabajo de GPU innecesario. La eliminación valida rutas administradas y la interfaz impide eliminar recursos vinculados a instancias de escenas.
