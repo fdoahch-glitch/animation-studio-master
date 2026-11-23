@@ -691,7 +691,6 @@ func _build_imported_segment_rig() -> void:
 	runtime_rig.position = Vector2(210, 145)
 	rig_subviewport.add_child(runtime_rig)
 	_attach_ik_overlay()
-	_attach_ik_overlay()
 	rig_builder.play_animation(runtime_rig, "idle")
 	character_output.text = "Rig construido con regiones proporcionales locales. Son recortes aproximados, no segmentación semántica; ajusta los pivotes y las piezas manualmente si es necesario."
 	_set_status("Rig de imagen creado. Prueba las animaciones y corrige los pivotes.")
