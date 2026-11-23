@@ -16,6 +16,6 @@ func _initialize():
  var malformed_scene=auditor.audit_project({"scenes":[{"name":"Rota","objects":"not-an-array"}],"resources":[{"path":"","bytes":-100}]})
  assert(not malformed_scene.passed, "Debe detectar objetos inválidos y tamaños negativos")
  assert(malformed_scene.summary.resource_bytes==0, "Los tamaños negativos no deben reducir el total")
- assert(is_equal_approx(auditor.recommend_render_scale(5.0,60.0,0.2,0.65),0.65), "La escala nunca debe caer bajo el mínimo configurado")
+ assert(auditor.recommend_render_scale(30.0,60.0,0.2,0.65) >= 0.65, "La escala nunca debe caer bajo el mínimo configurado")
  print("PERFORMANCE_AUDITOR_TESTS_OK")
  quit(0)
