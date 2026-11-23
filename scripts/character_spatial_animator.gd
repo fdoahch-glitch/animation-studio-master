@@ -221,6 +221,64 @@ func _reset_skeleton_pose() -> void:
 		skeleton.set_bone_pose_rotation(index, Quaternion.IDENTITY)
 
 
+
+func bake_clips_to_animation_player(root: Node3D, clips: Array, player_name: String = "ProceduralAnimationPlayer") -> int:
+	if not is_instance_valid(root) or not is_instance_valid(skeleton):
+		return 0
+	var animation_player := root.get_node_or_null(player_name) as AnimationPlayer
+	if animation_player == null:
+		animation_player = AnimationPlayer.new()
+		animation_player.name = player_name
+		root.add_child(animation_player)
+	animation_player.root_node = NodePath("..")
+	var library := AnimationLibrary.new()
+	var baked_count := 0
+	var skeleton_path := str(root.get_path_to(skeleton))
+	for clip in clips:
+		if not clip is Dictionary:
+			continue
+		var frames: Array = clip.get("keyframes", [])
+		if frames.is_empty():
+			continue
+		var animation := Animation.new()
+		animation.length = maxf(float(clip.get("duration", 1.0)), 0.05)
+		animation.loop_mode = Animation.LOOP_LINEAR if bool(clip.get("loop", true)) else Animation.LOOP_NONE
+		var bone_names: Dictionary = {}
+		for frame in frames:
+			if frame is Dictionary:
+				var rotations: Dictionary = frame.get("bone_rotations_degrees", {})
+				for bone_name in rotations.keys():
+					bone_names[str(bone_name)] = true
+		for bone_name in bone_names.keys():
+			var bone_index := _find_bone_index(str(bone_name))
+			if bone_index < 0:
+				continue
+			var actual_bone_name := skeleton.get_bone_name(bone_index)
+			var track_index := animation.add_track(Animation.TYPE_ROTATION_3D)
+			animation.track_set_path(track_index, NodePath(skeleton_path + ":" + actual_bone_name))
+			animation.track_set_interpolation_type(track_index, Animation.INTERPOLATION_LINEAR)
+			for frame in frames:
+				if not frame is Dictionary:
+					continue
+				var rotations: Dictionary = frame.get("bone_rotations_degrees", {})
+				if not rotations.has(bone_name):
+					continue
+				var euler := _as_vector3(rotations[bone_name]) * (PI / 180.0)
+				animation.rotation_track_insert_key(track_index, float(frame.get("time", 0.0)), Quaternion.from_euler(euler))
+		if animation.get_track_count() == 0:
+			continue
+		var animation_name := str(clip.get("name", "animation")).validate_filename().to_lower()
+		if animation_name == "":
+			animation_name = "animation_%d" % baked_count
+		library.add_animation(animation_name, animation)
+		baked_count += 1
+	if baked_count == 0:
+		return 0
+	if animation_player.has_animation_library("procedural"):
+		animation_player.remove_animation_library("procedural")
+	var add_error := animation_player.add_animation_library("procedural", library)
+	return baked_count if add_error == OK else 0
+
 func _stop_imported_animation() -> void:
 	if is_instance_valid(imported_animation_player):
 		imported_animation_player.stop()
