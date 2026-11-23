@@ -400,6 +400,20 @@ func _make_pivot_animation(pose_data: Dictionary, duration: float, looping: bool
 		animation.track_insert_key(track, duration, float(values[2]))
 	return animation
 
+func apply_procedural_pose(rig: Node2D, joint_angles_degrees: Dictionary) -> int:
+	var applied := 0
+	for joint_name in joint_angles_degrees.keys():
+		var key := str(joint_name)
+		var segmented := rig.find_child("Pivot_" + key, true, false) as Node2D
+		if segmented != null:
+			segmented.rotation = deg_to_rad(clampf(float(joint_angles_degrees[joint_name]), -180.0, 180.0))
+			applied += 1
+			continue
+		var path := _bone_path(key)
+		if set_joint_rotation(rig, NodePath(path), float(joint_angles_degrees[joint_name])):
+			applied += 1
+	return applied
+
 func apply_segment_pose(rig: Node2D, joint_angles_degrees: Dictionary) -> int:
 	var applied := 0
 	for joint_name in joint_angles_degrees.keys():
