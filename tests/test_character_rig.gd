@@ -273,29 +273,34 @@ func _run_tests() -> void:
 		quit(1)
 		return
 
+	print("RIG_TEST: antes de exportar glTF")
 	var gltf_exporter := GLTFDocument.new()
 	var gltf_export_state := GLTFState.new()
 	if gltf_exporter.append_from_scene(spatial_rig, gltf_export_state) != OK:
 		push_error("No se pudo preparar el rig 3D para exportación glTF.")
 		quit(1)
 		return
+	print("RIG_TEST: append_from_scene completado")
 	var glb_buffer: PackedByteArray = gltf_exporter.generate_buffer(gltf_export_state)
 	if glb_buffer.is_empty():
 		push_error("La exportación glTF no generó datos binarios.")
 		quit(1)
 		return
+	print("RIG_TEST: generate_buffer completado (%d bytes)" % glb_buffer.size())
 	var gltf_importer := GLTFDocument.new()
 	var gltf_import_state := GLTFState.new()
 	if gltf_importer.append_from_buffer(glb_buffer, "", gltf_import_state) != OK:
 		push_error("No se pudo reimportar el buffer GLB generado.")
 		quit(1)
 		return
+	print("RIG_TEST: append_from_buffer completado")
 	var gltf_roundtrip_scene := gltf_importer.generate_scene(gltf_import_state)
 	if gltf_roundtrip_scene == null:
 		push_error("El ciclo glTF no pudo reconstruir la escena 3D.")
 		quit(1)
 		return
 
+	print("RIG_TEST: generate_scene completado")
 	var package_io = PACKAGE_IO.new()
 	var package_3d: Dictionary = package_io.build_package(
 		{"name":"Heroe 3D CI"}, "3D_imported_skeleton", {}, [], [], [], {},
