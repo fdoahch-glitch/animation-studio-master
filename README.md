@@ -27,6 +27,17 @@ El programa incorpora preparación local de imágenes, rigs 2D por piezas, anima
 3. Importa la carpeta que contiene project.godot.
 4. Abre el proyecto y ejecuta con F6/F5.
 
+## Validar el proyecto y sus rigs
+
+Con Godot 4.3 o superior, ejecuta desde la carpeta del proyecto:
+
+```bash
+godot --headless --editor --path . --quit
+godot --headless --path . --script res://tests/test_character_rig.gd
+```
+
+GitHub Actions ejecuta estas comprobaciones en cada cambio de `main`.
+
 ## Exportar para Windows
 1. Instala las plantillas de exportación en Godot.
 2. Abre Proyecto > Exportar.
