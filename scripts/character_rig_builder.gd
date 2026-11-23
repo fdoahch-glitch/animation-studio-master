@@ -183,3 +183,33 @@ func _bone_path(bone_name: String) -> String:
 func _safe_name(value: String) -> String:
 	var result := value.strip_edges().replace(" ", "_")
 	return result if result != "" else "Personaje"
+
+func set_joint_rotation(rig: Node2D, joint_path: NodePath, degrees: float) -> bool:
+	var joint := rig.get_node_or_null(joint_path) as Node2D
+	if joint == null:
+		return false
+	var minimum := float(joint.get_meta("min_degrees", -150.0))
+	var maximum := float(joint.get_meta("max_degrees", 150.0))
+	joint.rotation = deg_to_rad(clampf(degrees, minimum, maximum))
+	return true
+
+func set_joint_limits(rig: Node2D, joint_path: NodePath, minimum_degrees: float, maximum_degrees: float) -> bool:
+	var joint := rig.get_node_or_null(joint_path) as Node2D
+	if joint == null or minimum_degrees >= maximum_degrees:
+		return false
+	joint.set_meta("min_degrees", minimum_degrees)
+	joint.set_meta("max_degrees", maximum_degrees)
+	return true
+
+func solve_two_bone_ik(root_position: Vector2, target_position: Vector2, upper_length: float, lower_length: float, bend_direction: float = 1.0) -> Dictionary:
+	var a := maxf(upper_length, 0.001)
+	var b := maxf(lower_length, 0.001)
+	var delta := target_position - root_position
+	var distance := clampf(delta.length(), absf(a - b) + 0.001, a + b - 0.001)
+	var direction := delta.normalized()
+	var along := (a * a - b * b + distance * distance) / (2.0 * distance)
+	var height := sqrt(maxf(a * a - along * along, 0.0))
+	var perpendicular := Vector2(-direction.y, direction.x) * signf(bend_direction)
+	var joint_position := root_position + direction * along + perpendicular * height
+	var clamped_target := root_position + direction * distance
+	return {"root": root_position, "joint": joint_position, "end": clamped_target, "reachable": is_equal_approx(distance, delta.length())}
