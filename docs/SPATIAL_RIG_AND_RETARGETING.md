@@ -45,3 +45,19 @@ El animador espacial admite fundido cruzado de pose al cambiar entre ciclos y cl
 Los ciclos procedurales humanoides y cuadrúpedos se hornean en una biblioteca `procedural` de `AnimationPlayer`. La biblioteca se mantiene separada de las bibliotecas importadas: regenerar los clips procedurales reemplaza únicamente la biblioteca `procedural`, sin eliminar clips originales del modelo. La prueba de integración verifica ocho ciclos del cuadrúpedo, incluyendo locomoción y rugido, y confirma que una animación original permanece disponible tras el horneado.
 
 La prueba automatizada también conserva la exportación glTF del rig de referencia. La validación headless no sustituye la inspección visual con modelos GLB externos y sus propios esqueletos/pesos.
+
+## Calibración avanzada de retargeting — etapa 6
+
+Los perfiles de retargeting ahora conservan offsets de bind pose por hueso, escala/desplazamiento de root motion y versión de esquema 2. La conversión de clips aplica esos valores por keyframe y transforma también objetivos de contacto IK.
+
+Durante la reproducción, el animador espacial aplica el root motion al nodo raíz del modelo, interpola los objetivos de contacto y ejecuta IK de dos huesos sin interrumpir el clip. El contacto puede desactivarse desde el Estudio de personajes.
+
+La interfaz permite seleccionar huesos del modelo importado, guardar offsets angulares por hueso, ajustar escala y desplazamiento del root motion y persistir la calibración en el documento del proyecto. Los perfiles y clips retargeteados sobreviven al guardado y reapertura del proyecto.
+
+La prueba ampliada tests/test_spatial_retargeting.gd verifica:
+- offset bind pose individual;
+- transformación de root motion y objetivos IK;
+- rechazo de offsets no finitos;
+- roundtrip de perfiles dentro del archivo de proyecto;
+- aplicación del desplazamiento al nodo raíz durante playback;
+- ejecución de IK de contacto sin detener la animación.
