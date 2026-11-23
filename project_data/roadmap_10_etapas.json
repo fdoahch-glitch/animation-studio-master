@@ -1,0 +1,168 @@
+{
+  "schema_version": 1,
+  "project": "Animation Studio Manager",
+  "branch": "main",
+  "policy": {
+    "execution_order": "strict_sequential_pairs",
+    "rule": "Complete and validate one stage before starting the next; work in pairs (1-2, 3-4, 5-6, 7-8, 9-10). Never skip an incomplete stage.",
+    "definition_of_done": [
+      "implemented_in_application",
+      "automated_tests_pass",
+      "manual_acceptance_evidence_recorded_when_visual_or_device_behavior_is_involved",
+      "documentation_updated",
+      "latest_github_actions_run_success"
+    ]
+  },
+  "stages": [
+    {
+      "id": 1,
+      "name": "Fundamentos y asistente de proyecto",
+      "status": "partial",
+      "scope": [
+        "asistente de nuevo proyecto",
+        "resolución, orientación, FPS y modo 2D/2.5D/3D/híbrido",
+        "estructura portable y recuperación"
+      ],
+      "acceptance": [],
+      "tests": [],
+      "commit": null,
+      "notes": "Hay configuración inicial y una escena principal; falta comprobar flujo completo de creación/guardado/recuperación."
+    },
+    {
+      "id": 2,
+      "name": "Editor de escenas y composición visual",
+      "status": "partial",
+      "scope": [
+        "escenas y capítulos",
+        "lienzo con selección y arrastrar/soltar",
+        "inspector contextual",
+        "cámara, capas, profundidad y transiciones"
+      ],
+      "acceptance": [],
+      "tests": [],
+      "commit": null,
+      "notes": "La interfaz contiene secciones; no se considera terminado sin validar edición real de escenas."
+    },
+    {
+      "id": 3,
+      "name": "Bibliotecas y gestión de recursos",
+      "status": "pending",
+      "scope": [
+        "bibliotecas de personajes, fondos, elementos y decoraciones",
+        "importación, clasificación, miniaturas y metadatos",
+        "instancias reutilizables y compatibilidad por modo"
+      ],
+      "acceptance": [],
+      "tests": [],
+      "commit": null,
+      "notes": ""
+    },
+    {
+      "id": 4,
+      "name": "Animación 2D y preparación anatómica",
+      "status": "partial",
+      "scope": [
+        "separación y corrección manual de partes",
+        "rig 2D y pivotes",
+        "IK y editor de articulaciones",
+        "timeline, keyframes, curvas y exportación de spritesheet"
+      ],
+      "acceptance": [],
+      "tests": [],
+      "commit": null,
+      "notes": "Motor procedural y herramientas 2D implementados; falta validación visual integral con recursos reales."
+    },
+    {
+      "id": 5,
+      "name": "Animación 3D y personajes cuadrúpedos",
+      "status": "partial",
+      "scope": [
+        "importación GLB/glTF y detección de esqueletos",
+        "rig humanoide y cuadrúpedo",
+        "IK 3D, mandíbula y expresiones faciales",
+        "timeline 3D y horneado de animaciones"
+      ],
+      "acceptance": [],
+      "tests": [],
+      "commit": null,
+      "notes": "Funciones y pruebas headless existentes; falta prueba visual con modelos externos reales."
+    },
+    {
+      "id": 6,
+      "name": "Retargeting y biblioteca de movimientos",
+      "status": "pending",
+      "scope": [
+        "perfiles de esqueletos y alias ampliados",
+        "mapa de correspondencia origen-destino",
+        "transferencia de poses y clips entre rigs compatibles",
+        "normalización de escala, ejes y rest pose",
+        "previsualización, corrección y guardado de retarget"
+      ],
+      "acceptance": [],
+      "tests": [],
+      "commit": null,
+      "notes": "Siguiente etapa técnica prevista."
+    },
+    {
+      "id": 7,
+      "name": "Escenarios, iluminación, tiempo y clima",
+      "status": "pending",
+      "scope": [
+        "fondos multicapa y parallax 2.5D",
+        "hora del día e iluminación",
+        "lluvia, nieve, viento, niebla y partículas",
+        "animación de cambios ambientales"
+      ],
+      "acceptance": [],
+      "tests": [],
+      "commit": null,
+      "notes": ""
+    },
+    {
+      "id": 8,
+      "name": "Guion, diálogos, audio y doblaje",
+      "status": "pending",
+      "scope": [
+        "guion y subtítulos temporizados",
+        "captura de micrófono con cuenta regresiva",
+        "tomas, retomas y pistas de audio",
+        "visemas y sincronización labial ajustable"
+      ],
+      "acceptance": [],
+      "tests": [],
+      "commit": null,
+      "notes": ""
+    },
+    {
+      "id": 9,
+      "name": "Proyecto portable, importación y exportación",
+      "status": "partial",
+      "scope": [
+        "formato de proyecto versionado",
+        "paquete portable de personajes y recursos",
+        "exportación de vídeo/audio/subtítulos",
+        "guardado incremental y recuperación ante fallos"
+      ],
+      "acceptance": [],
+      "tests": [],
+      "commit": null,
+      "notes": "Hay paquetes de personajes y exportaciones parciales; falta consolidar el proyecto completo y render final."
+    },
+    {
+      "id": 10,
+      "name": "Calidad, rendimiento y distribución Windows",
+      "status": "pending",
+      "scope": [
+        "pruebas automatizadas y aceptación funcional",
+        "perfilado y optimización de escenas grandes",
+        "exportación ejecutable Windows x64",
+        "instalador, configuración y guía de usuario",
+        "prueba limpia de instalación y ejecución"
+      ],
+      "acceptance": [],
+      "tests": [],
+      "commit": null,
+      "notes": "El ejecutable/instalador todavía no está certificado."
+    }
+  ]
+}
