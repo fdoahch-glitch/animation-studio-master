@@ -200,7 +200,13 @@ func _sample_cycle(name: String, time: float, factor: float) -> Dictionary:
 			pose = {"Head":Vector3(4.0 * wave,0,3.0 * secondary),"Neck":Vector3(2.0 * secondary,0,0),"Shoulder_R":Vector3(0,0,-12.0 * maxf(0.0,wave)),"Elbow_R":Vector3(0,0,18.0 * maxf(0.0,wave))}
 		"dance":
 			pose = {"Shoulder_L":Vector3(0,0,65.0 * wave),"Shoulder_R":Vector3(0,0,-65.0 * opposite),"Hip_L":Vector3(0,0,24.0 * opposite),"Hip_R":Vector3(0,0,24.0 * wave),"Chest":Vector3(0,10.0 * wave,8.0 * secondary),"Head":Vector3(0,0,12.0 * secondary)}
-	return _scale_pose(pose, factor)
+	return _scale_runtime_pose(pose, factor)
+
+func _scale_runtime_pose(pose: Dictionary, factor: float) -> Dictionary:
+	var result := {}
+	for bone_name in pose.keys():
+		result[str(bone_name)] = _as_vector3(pose[bone_name]) * factor
+	return result
 
 func _scale_pose(pose: Dictionary, factor: float) -> Dictionary:
 	var result := {}
