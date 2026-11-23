@@ -82,6 +82,7 @@ var character_name: LineEdit
 var character_description: TextEdit
 var character_style: OptionButton
 var character_mode: OptionButton
+var spatial_rig_archetype: OptionButton
 var character_view: OptionButton
 var character_preview
 var character_output: RichTextLabel
@@ -390,6 +391,7 @@ func _show_character_lab() -> void:
 	form.add_child(character_description)
 	character_style = _add_option(form, "Estilo", ["Cartoon 3D","2D ilustrado","Anime original","Realista estilizado"], 0)
 	character_mode = _add_option(form, "Tipo de rig", ["2D esquelético","2.5D por planos","3D esqueleto","Híbrido"], 0)
+	spatial_rig_archetype = _add_option(form, "Arquetipo de esqueleto 3D", ["Humanoide","Dinosaurio / cuadrúpedo"], 0)
 	character_view = _add_option(form, "Vista previa", ["Frente","Perfil","Espalda","Tres cuartos"], 0)
 	character_view.item_selected.connect(_on_character_view_changed)
 	_add_button(form, "Importar imagen y preparar piezas", _open_character_image_dialog)
@@ -517,7 +519,12 @@ func _show_character_lab() -> void:
 		["Hombro izquierdo", "shoulder_left"], ["Codo izquierdo", "elbow_left"], ["Muñeca izquierda", "wrist_left"],
 		["Hombro derecho", "shoulder_right"], ["Codo derecho", "elbow_right"], ["Muñeca derecha", "wrist_right"],
 		["Cadera izquierda", "hip_left"], ["Rodilla izquierda", "knee_left"], ["Tobillo izquierdo", "ankle_left"],
-		["Cadera derecha", "hip_right"], ["Rodilla derecha", "knee_right"], ["Tobillo derecho", "ankle_right"]
+		["Cadera derecha", "hip_right"], ["Rodilla derecha", "knee_right"], ["Tobillo derecho", "ankle_right"],
+		["Pata delantera izq.", "front_hip_left"], ["Rodilla delantera izq.", "front_knee_left"], ["Tobillo delantero izq.", "front_ankle_left"],
+		["Pata delantera der.", "front_hip_right"], ["Rodilla delantera der.", "front_knee_right"], ["Tobillo delantero der.", "front_ankle_right"],
+		["Pata trasera izq.", "back_hip_left"], ["Rodilla trasera izq.", "back_knee_left"], ["Tobillo trasero izq.", "back_ankle_left"],
+		["Pata trasera der.", "back_hip_right"], ["Rodilla trasera der.", "back_knee_right"], ["Tobillo trasero der.", "back_ankle_right"],
+		["Cola base", "tail_01"], ["Cola segmento 2", "tail_02"], ["Cola segmento 3", "tail_03"], ["Cola punta", "tail_04"]
 	]
 	for option in joint_options:
 		joint_picker.add_item(str(option[0]))
@@ -553,6 +560,14 @@ func _show_character_lab() -> void:
 	ik_chain_picker.set_item_metadata(2, "leg_left")
 	ik_chain_picker.add_item("Pierna derecha")
 	ik_chain_picker.set_item_metadata(3, "leg_right")
+	ik_chain_picker.add_item("Pata delantera izquierda")
+	ik_chain_picker.set_item_metadata(4, "front_leg_left")
+	ik_chain_picker.add_item("Pata delantera derecha")
+	ik_chain_picker.set_item_metadata(5, "front_leg_right")
+	ik_chain_picker.add_item("Pata trasera izquierda")
+	ik_chain_picker.set_item_metadata(6, "back_leg_left")
+	ik_chain_picker.add_item("Pata trasera derecha")
+	ik_chain_picker.set_item_metadata(7, "back_leg_right")
 	ik_chain_picker.select(1)
 	ik_chain_row.add_child(ik_chain_picker)
 	ik_target_x = _add_ik_target_axis(ik_chain_row, "X", 0.65)
@@ -1349,7 +1364,10 @@ func _build_runtime_character() -> void:
 	if selected_mode == "3D esqueleto":
 		rig_2d_container.visible = false
 		spatial_container.visible = true
-		runtime_spatial_rig = spatial_builder.build_humanoid_3d(label)
+		if is_instance_valid(spatial_rig_archetype) and spatial_rig_archetype.selected == 1:
+			runtime_spatial_rig = spatial_builder.build_quadruped_3d(label)
+		else:
+			runtime_spatial_rig = spatial_builder.build_humanoid_3d(label)
 		spatial_subviewport.add_child(runtime_spatial_rig)
 		var spatial_skeleton := runtime_spatial_rig.get_node_or_null("Skeleton3D") as Skeleton3D
 		runtime_spatial_animator = CHARACTER_SPATIAL_ANIMATOR.new()
@@ -1486,7 +1504,12 @@ func _spatial_bone_name(joint_key: String) -> String:
 		"shoulder_left":"Shoulder_L", "elbow_left":"Elbow_L", "wrist_left":"Wrist_L",
 		"shoulder_right":"Shoulder_R", "elbow_right":"Elbow_R", "wrist_right":"Wrist_R",
 		"hip_left":"Hip_L", "knee_left":"Knee_L", "ankle_left":"Ankle_L",
-		"hip_right":"Hip_R", "knee_right":"Knee_R", "ankle_right":"Ankle_R"
+		"hip_right":"Hip_R", "knee_right":"Knee_R", "ankle_right":"Ankle_R",
+		"front_hip_left":"FrontHip_L", "front_knee_left":"FrontKnee_L", "front_ankle_left":"FrontAnkle_L",
+		"front_hip_right":"FrontHip_R", "front_knee_right":"FrontKnee_R", "front_ankle_right":"FrontAnkle_R",
+		"back_hip_left":"BackHip_L", "back_knee_left":"BackKnee_L", "back_ankle_left":"BackAnkle_L",
+		"back_hip_right":"BackHip_R", "back_knee_right":"BackKnee_R", "back_ankle_right":"BackAnkle_R",
+		"tail_01":"Tail_01", "tail_02":"Tail_02", "tail_03":"Tail_03", "tail_04":"Tail_04"
 	}
 	return str(names.get(joint_key, ""))
 
@@ -1832,6 +1855,10 @@ func _import_character_package_from_path(path: String) -> void:
 		var imported_rig_type := str(project_data["imported_character_package"].get("rig_type", ""))
 		if imported_rig_type.begins_with("3D"):
 			character_mode.select(2)
+			if imported_rig_type.contains("quadruped"):
+				spatial_rig_archetype.select(1)
+			else:
+				spatial_rig_archetype.select(0)
 			procedural_poses = project_data["spatial_procedural_poses"].duplicate(true)
 			var restored_model_loaded := false
 			if imported_3d_model_path != "":
