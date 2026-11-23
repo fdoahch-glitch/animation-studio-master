@@ -95,6 +95,8 @@ var resource_list: ItemList
 var resource_preview: TextureRect
 var resource_preview_info: Label
 var resource_model_preview
+var resource_animation_controls: HBoxContainer
+var resource_animation_picker: OptionButton
 var resource_category := "character"
 var selected_resource_id := ""
 var resource_file_dialog: FileDialog
@@ -626,6 +628,14 @@ func _show_resource_library(category: String) -> void:
 	resource_model_preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	resource_model_preview.visible = false
 	details.add_child(resource_model_preview)
+	resource_animation_controls = HBoxContainer.new()
+	resource_animation_controls.visible = false
+	details.add_child(resource_animation_controls)
+	resource_animation_picker = OptionButton.new()
+	resource_animation_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	resource_animation_controls.add_child(resource_animation_picker)
+	_add_button(resource_animation_controls, "▶ Animar", _play_resource_animation)
+	_add_button(resource_animation_controls, "Detener", _stop_resource_animation)
 	resource_preview_info = Label.new()
 	resource_preview_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	resource_preview_info.text = "Selecciona un recurso para ver su información."
@@ -702,6 +712,7 @@ func _show_resource_preview(resource: Dictionary) -> void:
 	if extension in RESOURCE_LIBRARY.IMAGE_EXTENSIONS:
 		resource_preview.visible = true
 		resource_model_preview.visible = false
+		resource_animation_controls.visible = false
 		resource_model_preview.clear_model()
 		if not FileAccess.file_exists(path):
 			resource_preview_info.text = "No se encuentra el archivo de imagen importado."
@@ -727,13 +738,36 @@ func _show_resource_preview(resource: Dictionary) -> void:
 		if not bool(preview_result.get("ok", false)):
 			resource_preview_info.text = "No se pudo abrir la vista previa 3D: " + str(preview_result.get("error", "Error de importación."))
 			return
-		resource_preview_info.text = "%s\\nVista previa 3D · %s · %d bytes\\nArrastra horizontalmente para girar el modelo y usa la rueda para acercar o alejar." % [
+		resource_animation_picker.clear()
+		var animation_names: PackedStringArray = resource_model_preview.get_animation_names()
+		for animation_name in animation_names:
+			resource_animation_picker.add_item(animation_name)
+		resource_animation_controls.visible = not animation_names.is_empty()
+		if not animation_names.is_empty():
+			resource_animation_picker.select(0)
+		resource_preview_info.text = "%s\\nVista previa 3D · %s · %d bytes · %d animaciones\\nArrastra horizontalmente para girar el modelo y usa la rueda para acercar o alejar." % [
 			str(resource.get("name", "Modelo 3D")),
 			extension.to_upper(),
-			int(resource.get("bytes", 0))
+			int(resource.get("bytes", 0)),
+			animation_names.size()
 		]
 		return
+	resource_animation_controls.visible = false
 	resource_preview_info.text = "Formato sin vista previa disponible."
+
+func _play_resource_animation() -> void:
+	if not is_instance_valid(resource_animation_picker) or resource_animation_picker.selected < 0:
+		return
+	var animation_name := resource_animation_picker.get_item_text(resource_animation_picker.selected)
+	if resource_model_preview.play_animation(animation_name):
+		_set_status("Reproduciendo animación: " + animation_name)
+	else:
+		_set_status("No se pudo reproducir la animación seleccionada.")
+
+func _stop_resource_animation() -> void:
+	if is_instance_valid(resource_model_preview):
+		resource_model_preview.stop_animation()
+		_set_status("Vista previa 3D detenida.")
 
 func _add_selected_resource_to_scene() -> void:
 	if scene_model == null:

@@ -7,6 +7,7 @@ var preview_viewport: SubViewport
 var preview_world: Node3D
 var model_pivot: Node3D
 var preview_camera: Camera3D
+var animation_player: AnimationPlayer
 var is_dragging := false
 var last_pointer := Vector2.ZERO
 var loaded_path := ""
@@ -63,13 +64,34 @@ func load_model(path: String) -> Dictionary:
 	preview_world.add_child(model_pivot)
 	model_pivot.add_child(generated)
 	loaded_path = path
+	animation_player = null
+	var animation_players := generated.find_children("*", "AnimationPlayer", true, false)
+	if not animation_players.is_empty():
+		animation_player = animation_players[0] as AnimationPlayer
 	_fit_camera(generated)
-	return {"ok": true, "path": path, "node_count": generated.get_child_count()}
+	return {"ok": true, "path": path, "node_count": generated.get_child_count(), "animation_count": get_animation_names().size()}
 
 func has_model() -> bool:
 	return is_instance_valid(model_pivot) and not loaded_path.is_empty()
 
+func get_animation_names() -> PackedStringArray:
+	if not is_instance_valid(animation_player):
+		return PackedStringArray()
+	return animation_player.get_animation_list()
+
+func play_animation(animation_name: String) -> bool:
+	if not is_instance_valid(animation_player) or not animation_player.has_animation(animation_name):
+		return false
+	animation_player.play(animation_name)
+	return true
+
+func stop_animation() -> void:
+	if is_instance_valid(animation_player):
+		animation_player.stop()
+
 func clear_model() -> void:
+	stop_animation()
+	animation_player = null
 	if is_instance_valid(model_pivot):
 		preview_world.remove_child(model_pivot)
 		model_pivot.free()

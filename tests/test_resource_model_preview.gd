@@ -3,8 +3,21 @@ extends SceneTree
 func _initialize() -> void:
 	var source_root := Node3D.new()
 	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = "PreviewMesh"
 	mesh_instance.mesh = BoxMesh.new()
 	source_root.add_child(mesh_instance)
+	var player := AnimationPlayer.new()
+	player.name = "AnimationPlayer"
+	source_root.add_child(player)
+	var library := AnimationLibrary.new()
+	var clip := Animation.new()
+	clip.length = 1.0
+	var value_track := clip.add_track(Animation.TYPE_VALUE)
+	clip.track_set_path(value_track, NodePath("PreviewMesh:position"))
+	clip.track_insert_key(value_track, 0.0, Vector3.ZERO)
+	clip.track_insert_key(value_track, 1.0, Vector3.UP)
+	library.add_animation("Move", clip)
+	player.add_animation_library("", library)
 	var export_document := GLTFDocument.new()
 	var export_state := GLTFState.new()
 	var export_error := export_document.append_from_scene(source_root, export_state)
@@ -34,6 +47,18 @@ func _initialize() -> void:
 	var meshes := generated.find_children("*", "MeshInstance3D", true, false)
 	if meshes.is_empty():
 		push_error("La escena GLB importada no conserva su malla.")
+		generated.free()
+		quit(1)
+		return
+	var animation_players := generated.find_children("*", "AnimationPlayer", true, false)
+	if animation_players.is_empty():
+		push_error("La escena GLB importada no conserva su AnimationPlayer.")
+		generated.free()
+		quit(1)
+		return
+	var imported_player := animation_players[0] as AnimationPlayer
+	if not imported_player.has_animation("Move"):
+		push_error("La escena GLB importada no conserva el clip Move.")
 		generated.free()
 		quit(1)
 		return
