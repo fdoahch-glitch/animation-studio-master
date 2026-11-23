@@ -33,6 +33,11 @@ func _run_tests() -> void:
 		push_error("No se pudo aplicar una pose procedural al rig estándar.")
 		quit(1)
 		return
+	var captured_pose: Dictionary = builder.capture_procedural_pose(procedural_rig)
+	if captured_pose.is_empty() or not captured_pose.has("head"):
+		push_error("No se pudo capturar la pose manual del rig estándar.")
+		quit(1)
+		return
 	if builder.add_procedural_animation_set(procedural_rig, clips) < 18:
 		push_error("No se pudieron instalar los ciclos procedurales en el rig.")
 		quit(1)
