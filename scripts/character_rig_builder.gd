@@ -325,6 +325,10 @@ func _part_pivot_key(part_name: String) -> String:
 
 func _resolve_joint_point(joints: Dictionary, pivot_key: String, rect: Rect2) -> Vector2:
 	var aliases := [pivot_key, pivot_key.replace("_", ""), pivot_key.replace("_left", "_l").replace("_right", "_r")]
+	if pivot_key == "head":
+		aliases.append("neck")
+	if pivot_key == "torso":
+		aliases.append("spine")
 	for alias in aliases:
 		if joints.has(alias):
 			var value: Variant = joints[alias]
