@@ -91,6 +91,8 @@ var layer_list: ItemList
 var scene_canvas_guard := false
 var resource_library
 var resource_list: ItemList
+var resource_preview: TextureRect
+var resource_preview_info: Label
 var resource_category := "character"
 var selected_resource_id := ""
 var resource_file_dialog: FileDialog
@@ -606,7 +608,17 @@ func _show_resource_library(category: String) -> void:
 	var details := VBoxContainer.new()
 	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_child(details)
-	_add_heading(details, "Detalles del recurso", "Selecciona un elemento para revisar sus metadatos.")
+	_add_heading(details, "Vista previa del recurso", "Revisa imágenes importadas antes de incorporarlas a una escena.")
+	resource_preview = TextureRect.new()
+	resource_preview.custom_minimum_size = Vector2(260, 220)
+	resource_preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	resource_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	resource_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	details.add_child(resource_preview)
+	resource_preview_info = Label.new()
+	resource_preview_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	resource_preview_info.text = "Selecciona un recurso para ver su información."
+	details.add_child(resource_preview_info)
 	_add_button(details, "Añadir recurso seleccionado a escena", _add_selected_resource_to_scene)
 	_add_button(details, "Eliminar recurso seleccionado", _delete_selected_resource)
 	_add_button(details, "Abrir estudio de personajes", _show_character_lab)
@@ -666,8 +678,42 @@ func _on_resource_selected(index: int) -> void:
 	selected_resource_id = str(resource_list.get_item_metadata(index))
 	for item in project_data.get("resources", []):
 		if str(item.get("id","")) == selected_resource_id:
+			_show_resource_preview(item)
 			_set_status("%s · %s · %s · %d bytes · modos: %s" % [item.get("name",""), item.get("source_name",""), item.get("path",""), int(item.get("bytes",0)), ", ".join(PackedStringArray(item.get("compatible_modes",[])))])
 			return
+
+func _show_resource_preview(resource: Dictionary) -> void:
+	if not is_instance_valid(resource_preview):
+		return
+	resource_preview.texture = null
+	var extension := str(resource.get("extension", "")).to_lower()
+	var path := str(resource.get("path", ""))
+	if extension in RESOURCE_LIBRARY.IMAGE_EXTENSIONS:
+		if not FileAccess.file_exists(path):
+			resource_preview_info.text = "No se encuentra el archivo de imagen importado."
+			return
+		var source := Image.new()
+		var error := source.load(path)
+		if error != OK or source.is_empty():
+			resource_preview_info.text = "No se pudo generar la vista previa de esta imagen."
+			return
+		resource_preview.texture = ImageTexture.create_from_image(source)
+		resource_preview_info.text = "%s\n%s · %d bytes\nEtiquetas: %s\nCompatible con: %s" % [
+			str(resource.get("name", "Imagen")),
+			str(resource.get("source_name", path.get_file())),
+			int(resource.get("bytes", 0)),
+			", ".join(PackedStringArray(resource.get("tags", []))),
+			", ".join(PackedStringArray(resource.get("compatible_modes", [])))
+		]
+		return
+	if extension in RESOURCE_LIBRARY.MODEL_EXTENSIONS:
+		resource_preview_info.text = "%s\nModelo 3D %s · %d bytes\nEl archivo está catalogado y disponible para vincularlo a escenas. La previsualización 3D interactiva sigue en desarrollo." % [
+			str(resource.get("name", "Modelo 3D")),
+			extension.to_upper(),
+			int(resource.get("bytes", 0))
+		]
+		return
+	resource_preview_info.text = "Formato sin vista previa disponible."
 
 func _add_selected_resource_to_scene() -> void:
 	if scene_model == null:
