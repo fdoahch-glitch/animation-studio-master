@@ -158,6 +158,8 @@ func create_2_5d_plane(texture: Texture2D, plane_name: String, depth: float = 0.
 func validate_skeleton(skeleton: Skeleton3D, archetype := "humanoid") -> Dictionary:
 	if not is_instance_valid(skeleton):
 		return {"ok":false,"error":"No hay un Skeleton3D para auditar."}
+	if archetype != "humanoid" and archetype != "quadruped":
+		return {"ok":false,"error":"Arquetipo de esqueleto no admitido."}
 	var required := ["Pelvis","Spine","Chest","Neck","Head","Shoulder_L","Elbow_L","Wrist_L","Shoulder_R","Elbow_R","Wrist_R","Hip_L","Knee_L","Ankle_L","Hip_R","Knee_R","Ankle_R"]
 	if archetype == "quadruped":
 		required = ["Pelvis","Spine","Chest","Neck","Head","Jaw","Tail_01","Tail_02","Tail_03","Tail_04","FrontHip_L","FrontKnee_L","FrontAnkle_L","FrontHip_R","FrontKnee_R","FrontAnkle_R","BackHip_L","BackKnee_L","BackAnkle_L","BackHip_R","BackKnee_R","BackAnkle_R"]
@@ -171,7 +173,7 @@ func validate_skeleton(skeleton: Skeleton3D, archetype := "humanoid") -> Diction
 	var hierarchy_errors: Array[String] = []
 	for index in range(skeleton.get_bone_count()):
 		var parent := skeleton.get_bone_parent(index)
-		if parent >= index:
-			hierarchy_errors.append(skeleton.get_bone_name(index) + ": parent index must precede child")
+		if parent >= index or parent < -1:
+			hierarchy_errors.append(skeleton.get_bone_name(index) + ": parent index is outside the valid hierarchy order")
 	var coverage := float(found.size()) / maxf(1.0, float(required.size()))
 	return {"ok":missing.is_empty() and hierarchy_errors.is_empty(),"archetype":archetype,"bone_count":skeleton.get_bone_count(),"required_count":required.size(),"found":found,"missing":missing,"hierarchy_errors":hierarchy_errors,"coverage":coverage}

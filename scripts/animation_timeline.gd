@@ -22,6 +22,8 @@ func create_track(track_id: String, label: String, target_id: String, property: 
 func insert_property_keyframe(track: Dictionary, time: float, value: Variant, easing := "linear") -> Dictionary:
 	if track.is_empty() or not EASINGS.has(easing):
 		return {"ok":false, "error":"Pista o interpolación no válida."}
+	if not _is_finite_number(time) or time < 0.0 or not _is_finite_key_value(value):
+		return {"ok":false, "error":"El tiempo y el valor del fotograma deben ser válidos y finitos."}
 	var frames: Array = track.get("keyframes", []).duplicate(true)
 	var frame := {"time":maxf(0.0,time), "value":value, "easing":easing}
 	var replaced := false
@@ -69,9 +71,11 @@ func validate_track(track: Dictionary) -> Dictionary:
 		return {"ok":false,"error":"La pista necesita ID y destino."}
 	var previous := -1.0
 	for frame in track.get("keyframes", []):
+		if not frame is Dictionary:
+			return {"ok":false,"error":"La pista contiene un fotograma inválido."}
 		var at := float(frame.get("time",-1.0))
-		if at < 0.0 or at < previous:
-			return {"ok":false,"error":"Los fotogramas deben estar ordenados y no pueden tener tiempo negativo."}
+		if not _is_finite_number(at) or at < 0.0 or at < previous or not _is_finite_key_value(frame.get("value")):
+			return {"ok":false,"error":"Los fotogramas deben tener tiempos ordenados y valores finitos."}
 		if not EASINGS.has(str(frame.get("easing","linear"))):
 			return {"ok":false,"error":"Curva de interpolación no admitida."}
 		previous = at
@@ -139,3 +143,15 @@ func sample_pose(clip: Dictionary, time: float, pose_key: String = "joint_angles
 					pose[key] = lerpf(float(av),float(bv),amount)
 			return pose
 	return last.get(pose_key, {}).duplicate(true)
+
+func _is_finite_number(value: float) -> bool:
+	return not is_nan(value) and not is_inf(value)
+
+func _is_finite_key_value(value: Variant) -> bool:
+	if value is int or value is float:
+		return _is_finite_number(float(value))
+	if value is Array:
+		for component in value:
+			if not (component is int or component is float) or not _is_finite_number(float(component)):
+				return false
+	return true

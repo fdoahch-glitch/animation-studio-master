@@ -50,6 +50,14 @@ func _run_tests() -> void:
 		push_error("No se pudieron instalar los ciclos procedurales en el rig.")
 		quit(1)
 		return
+	var existing_animation_count := procedural_rig.get_node("AnimationPlayer").get_animation_library("base").get_animation_list().size()
+	var invalid_clips := [
+		{"name":"Tiempo inválido","duration":1.0,"keyframes":[{"time":INF,"joint_angles":{"head":20.0}}]},
+		{"name":"Ángulo inválido","duration":1.0,"keyframes":[{"time":0.0,"joint_angles":{"head":NAN}}]},
+		{"name":"Fuera de orden","duration":1.0,"keyframes":[{"time":0.8,"joint_angles":{"head":10.0}},{"time":0.2,"joint_angles":{"head":20.0}}]}
+	]
+	assert(builder.add_procedural_animation_set(procedural_rig, invalid_clips) == 0, "Debe rechazar clips procedurales corruptos")
+	assert(procedural_rig.get_node("AnimationPlayer").get_animation_library("base").get_animation_list().size() == existing_animation_count, "Los clips inválidos no deben modificar la biblioteca")
 	if not builder.play_animation(procedural_rig, "proc_caminar", 1.4):
 		push_error("No se pudo reproducir el ciclo procedural Caminar.")
 		quit(1)

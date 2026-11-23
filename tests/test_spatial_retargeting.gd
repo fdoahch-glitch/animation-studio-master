@@ -11,6 +11,7 @@ func _initialize() -> void:
  var target_root: Node3D = builder.build_humanoid_3d("Target")
  var source: Skeleton3D = source_root.get_node("Skeleton3D")
  assert(builder.validate_skeleton(source, "humanoid").ok)
+ assert(not builder.validate_skeleton(source, "bird").ok, "Debe rechazar arquetipos no admitidos")
  var target: Skeleton3D = target_root.get_node("Skeleton3D")
  var report: Dictionary = retargeter.build_bone_map(source,target)
  assert(report.ok)

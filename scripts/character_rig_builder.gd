@@ -471,21 +471,34 @@ func add_procedural_animation_set(rig: Node2D, clips: Array) -> int:
 	for clip in clips:
 		if not clip is Dictionary:
 			continue
-		var clip_name := "proc_" + str(clip.get("name", "generated")).validate_filename().to_lower()
-		var duration := clampf(float(clip.get("duration", 1.0)), 0.05, 60.0)
-		var keyframes: Array = clip.get("keyframes", [])
-		if keyframes.is_empty():
+		var raw_name := str(clip.get("name", "generated")).strip_edges()
+		var clip_name := "proc_" + raw_name.validate_filename().to_lower()
+		var duration := float(clip.get("duration", 1.0))
+		var keyframes_value: Variant = clip.get("keyframes", [])
+		if raw_name.is_empty() or clip_name == "proc_" or not _is_finite_number(duration) or duration < 0.05 or duration > 60.0 or not keyframes_value is Array or keyframes_value.is_empty():
 			continue
+		var keyframes: Array = keyframes_value
 		var animation := Animation.new()
 		animation.length = duration
 		animation.loop_mode = Animation.LOOP_LINEAR if bool(clip.get("loop", true)) else Animation.LOOP_NONE
 		var tracks: Dictionary = {}
+		var previous_time := -1.0
+		var clip_valid := true
 		for keyframe in keyframes:
 			if not keyframe is Dictionary:
-				continue
-			var time := clampf(float(keyframe.get("time", 0.0)), 0.0, duration)
-			var angles: Dictionary = keyframe.get("joint_angles", {})
+				clip_valid = false
+				break
+			var time := float(keyframe.get("time", -1.0))
+			var angles_value: Variant = keyframe.get("joint_angles", {})
+			if not _is_finite_number(time) or time < 0.0 or time > duration or time < previous_time or not angles_value is Dictionary:
+				clip_valid = false
+				break
+			previous_time = time
+			var angles: Dictionary = angles_value
 			for joint_name in angles.keys():
+				if not _is_finite_number(float(angles[joint_name])):
+					clip_valid = false
+					break
 				var key := str(joint_name)
 				if not tracks.has(key):
 					var pivot := rig.find_child("Pivot_" + key, true, false)
@@ -501,7 +514,7 @@ func add_procedural_animation_set(rig: Node2D, clips: Array) -> int:
 					animation.track_set_interpolation_type(track, Animation.INTERPOLATION_CUBIC)
 					tracks[key] = track
 				animation.track_insert_key(int(tracks[key]), time, deg_to_rad(clampf(float(angles[joint_name]), -180.0, 180.0)))
-		if animation.get_track_count() > 0:
+		if clip_valid and animation.get_track_count() > 0:
 			if library.has_animation(clip_name):
 				library.remove_animation(clip_name)
 			library.add_animation(clip_name, animation)
@@ -538,3 +551,6 @@ func set_pivot_offset(rig: Node2D, pivot_name: String, axis: String, value: floa
 	pivot.set_meta("user_offset", offset)
 	pivot.position = base + offset
 	return true
+
+func _is_finite_number(value: float) -> bool:
+	return not is_nan(value) and not is_inf(value)
