@@ -101,6 +101,38 @@ jobs:
             if ($remove.ExitCode -ne 0) { throw "Silent uninstall failed with exit code $($remove.ExitCode)" }
           }
 
+      - name: Generate checksums and build manifest
+        shell: pwsh
+        run: |
+          $artifactPaths = @(
+            "build/AnimationStudioMaster.exe",
+            "build/AnimationStudioMaster-Windows-x64.zip",
+            "build/AnimationStudioMaster-Setup-x64.exe"
+          )
+          $checksumLines = @()
+          $artifactRecords = @()
+          foreach ($path in $artifactPaths) {
+            if (-not (Test-Path $path)) { throw "Missing release artifact: $path" }
+            $file = Get-Item $path
+            $hash = (Get-FileHash -Algorithm SHA256 $path).Hash.ToLowerInvariant()
+            $checksumLines += "$hash  $($file.Name)"
+            $artifactRecords += @{
+              name = $file.Name
+              size_bytes = $file.Length
+              sha256 = $hash
+            }
+          }
+          $checksumLines | Set-Content -Path "build/SHA256SUMS.txt" -Encoding ascii
+          @{
+            product = "Animation Studio Master"
+            version = "Windows build $env:GITHUB_RUN_NUMBER"
+            platform = "Windows x64"
+            godot_version = "4.3.0"
+            commit = "$env:GITHUB_SHA"
+            run_id = "$env:GITHUB_RUN_ID"
+            artifacts = $artifactRecords
+          } | ConvertTo-Json -Depth 5 | Set-Content -Path "build/BUILD_INFO.json" -Encoding utf8
+
       - name: Upload Windows executable
         uses: actions/upload-artifact@v4
         with:
@@ -109,6 +141,10 @@ jobs:
             build/AnimationStudioMaster.exe
             build/AnimationStudioMaster-Windows-x64.zip
             build/AnimationStudioMaster-Setup-x64.exe
+            build/SHA256SUMS.txt
+            build/BUILD_INFO.json
+            build/SHA256SUMS.txt
+            build/BUILD_INFO.json
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
@@ -121,7 +157,7 @@ jobs:
           body: |
             Compilación automática de Windows x64 generada desde la rama main.
 
-            Descarga AnimationStudioMaster-Setup-x64.exe para instalar, AnimationStudioMaster-Windows-x64.zip para uso portable o AnimationStudioMaster.exe para ejecución directa. El instalador no está firmado digitalmente.
+            Descarga AnimationStudioMaster-Setup-x64.exe para instalar, AnimationStudioMaster-Windows-x64.zip para uso portable o AnimationStudioMaster.exe para ejecución directa. SHA256SUMS.txt y BUILD_INFO.json permiten verificar integridad y procedencia. El instalador no está firmado digitalmente.
           prerelease: true
           files: |
             build/AnimationStudioMaster.exe
