@@ -13,6 +13,7 @@ const PROJECT_DOCUMENT_IO = preload("res://scripts/project_document_io.gd")
 const SCENE_COMPOSITION_MODEL = preload("res://scripts/scene_composition_model.gd")
 const SCENE_CANVAS = preload("res://scripts/scene_canvas.gd")
 const SCENE_ASSET_BUTTON = preload("res://scripts/scene_asset_button.gd")
+const RESOURCE_LIBRARY = preload("res://scripts/resource_library.gd")
 const DEFAULT_PROJECT := {"name":"Mi primera animación","width":1920,"height":1080,"fps":60,"orientation":"Horizontal","visual_mode":"2D","background_mode":"Vacío"}
 
 var project_data: Dictionary = DEFAULT_PROJECT.duplicate(true)
@@ -76,6 +77,20 @@ var transition_picker: OptionButton
 var transition_duration: SpinBox
 var layer_list: ItemList
 var scene_canvas_guard := false
+var resource_library
+var resource_list: ItemList
+var resource_category := "character"
+var selected_resource_id := ""
+var resource_file_dialog: FileDialog
+var resource_search: LineEdit
+var director_track_list: ItemList
+var director_target_picker: OptionButton
+var director_property_picker: OptionButton
+var director_time_input: SpinBox
+var director_value_input: SpinBox
+var director_easing_picker: OptionButton
+var director_playhead: HSlider
+var director_selected_track := -1
 var package_export_dialog: FileDialog
 var package_import_dialog: FileDialog
 var spritesheet_export_dialog: FileDialog
@@ -165,6 +180,7 @@ func _ready() -> void:
 	image_processor = CHARACTER_IMAGE_PROCESSOR.new()
 	procedural_animator = CHARACTER_PROCEDURAL_ANIMATOR.new()
 	package_io = CHARACTER_PACKAGE_IO.new()
+	resource_library = RESOURCE_LIBRARY.new()
 	project_io = PROJECT_DOCUMENT_IO.new()
 	_build_shell()
 	project_save_dialog = FileDialog.new()
@@ -379,7 +395,19 @@ func _open_section(section: String) -> void:
 		_show_scene_manager()
 		return
 	if section == "Personajes":
-		_show_character_lab()
+		_show_resource_library("character")
+		return
+	if section == "Fondos":
+		_show_resource_library("background")
+		return
+	if section == "Elementos":
+		_show_resource_library("element")
+		return
+	if section == "Decoraciones":
+		_show_resource_library("decoration")
+		return
+	if section == "Animación":
+		_show_director_timeline()
 		return
 	_clear_content()
 	var page := VBoxContainer.new()
@@ -401,6 +429,287 @@ func _open_section(section: String) -> void:
 	page.add_child(info)
 	_add_button(page, "Volver al escenario", _show_workspace)
 	_set_status(section + " · interfaz inicial; funciones avanzadas pendientes.")
+
+
+func _resource_category_label(category: String) -> String:
+	return {"character":"Personajes","background":"Fondos","element":"Elementos","decoration":"Decoraciones"}.get(category, category)
+
+func _show_resource_library(category: String) -> void:
+	resource_category = category
+	_clear_content()
+	var page := VBoxContainer.new()
+	page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	page.add_theme_constant_override("separation", 8)
+	content.add_child(page)
+	_add_heading(page, "Biblioteca · " + _resource_category_label(category), "Importa archivos al almacenamiento local del proyecto. Las rutas y metadatos se guardan en el documento.")
+	var toolbar := HBoxContainer.new()
+	page.add_child(toolbar)
+	resource_search = LineEdit.new()
+	resource_search.placeholder_text = "Buscar por nombre o etiqueta…"
+	resource_search.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	resource_search.text_changed.connect(_refresh_resource_list)
+	toolbar.add_child(resource_search)
+	_add_button(toolbar, "Importar archivos", _open_resource_import_dialog)
+	_add_button(toolbar, "Volver", _show_workspace)
+	var body := HBoxContainer.new()
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	page.add_child(body)
+	resource_list = ItemList.new()
+	resource_list.custom_minimum_size.x = 280
+	resource_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	resource_list.item_selected.connect(_on_resource_selected)
+	body.add_child(resource_list)
+	var details := VBoxContainer.new()
+	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_child(details)
+	_add_heading(details, "Detalles del recurso", "Selecciona un elemento para revisar sus metadatos.")
+	_add_button(details, "Añadir recurso seleccionado a escena", _add_selected_resource_to_scene)
+	_add_button(details, "Eliminar recurso seleccionado", _delete_selected_resource)
+	_add_button(details, "Abrir estudio de personajes", _show_character_lab)
+	_refresh_resource_list()
+
+func _open_resource_import_dialog() -> void:
+	var dialog := FileDialog.new()
+	dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILES
+	dialog.access = FileDialog.ACCESS_FILESYSTEM
+	var filters := PackedStringArray()
+	if resource_category == "background":
+		filters = PackedStringArray(["*.png, *.jpg, *.jpeg, *.webp ; Imágenes de fondo"])
+	elif resource_category == "character":
+		filters = PackedStringArray(["*.png, *.jpg, *.jpeg, *.webp ; Imágenes de personaje", "*.glb, *.gltf ; Modelos 3D"])
+	else:
+		filters = PackedStringArray(["*.png, *.jpg, *.jpeg, *.webp ; Imágenes", "*.glb, *.gltf ; Modelos 3D"])
+	dialog.filters = filters
+	dialog.files_selected.connect(_on_resource_files_selected)
+	add_child(dialog)
+	dialog.popup_centered_ratio(0.82)
+
+func _on_resource_files_selected(paths: PackedStringArray) -> void:
+	if not project_data.has("resources"):
+		project_data["resources"] = []
+	var imported := 0
+	var failures: Array[String] = []
+	for path in paths:
+		var result: Dictionary = resource_library.import_file(path, resource_category, path.get_file().get_basename(), [], str(project_data.get("visual_mode","2D")))
+		if bool(result.get("ok", false)):
+			project_data["resources"].append(result.resource)
+			imported += 1
+		else:
+			failures.append(path.get_file() + ": " + str(result.get("error","Error")))
+	_save_project()
+	_refresh_resource_list()
+	var message := "%d recurso(s) importado(s)." % imported
+	if not failures.is_empty():
+		message += " Errores: " + " | ".join(failures)
+	_set_status(message)
+
+func _refresh_resource_list(_query := "") -> void:
+	if not is_instance_valid(resource_list):
+		return
+	resource_list.clear()
+	var query := resource_search.text if is_instance_valid(resource_search) else ""
+	var items: Array = resource_library.search(project_data.get("resources", []), query, resource_category)
+	for item in items:
+		var icon := "🖼" if str(item.get("mime_group","")) == "image" else "🧊"
+		resource_list.add_item("%s  %s  ·  %s" % [icon, str(item.get("name","Recurso")), str(item.get("extension","")).to_upper()])
+		resource_list.set_item_metadata(resource_list.item_count-1, str(item.get("id","")))
+	if items.is_empty():
+		_set_status("No hay recursos en esta categoría. Importa PNG, JPG, WebP o GLB/glTF según corresponda.")
+
+func _on_resource_selected(index: int) -> void:
+	if not is_instance_valid(resource_list) or index < 0:
+		return
+	selected_resource_id = str(resource_list.get_item_metadata(index))
+	for item in project_data.get("resources", []):
+		if str(item.get("id","")) == selected_resource_id:
+			_set_status("%s · %s · %s · %d bytes · modos: %s" % [item.get("name",""), item.get("source_name",""), item.get("path",""), int(item.get("bytes",0)), ", ".join(PackedStringArray(item.get("compatible_modes",[])))])
+			return
+
+func _add_selected_resource_to_scene() -> void:
+	var resource: Dictionary = _find_project_resource(selected_resource_id)
+	if resource.is_empty():
+		_set_status("Selecciona primero un recurso de la biblioteca.")
+		return
+	if not resource_library.is_compatible(resource, str(project_data.get("visual_mode","2D"))):
+		_set_status("Este recurso no es compatible con el modo visual del proyecto.")
+		return
+	if _active_scene().is_empty():
+		_create_scene()
+	var position := Vector2(float(project_data.get("width",1920))*0.5,float(project_data.get("height",1080))*0.5)
+	var instance: Dictionary = scene_model.create_instance(str(resource.id), str(resource.category), str(resource.name), position)
+	var added: Dictionary = scene_model.add_instance(_active_scene(), instance)
+	if not bool(added.get("ok",false)):
+		_set_status(str(added.get("error","No se pudo añadir el recurso.")))
+		return
+	project_data["scenes"][selected_scene_index] = _active_scene()
+	_save_project()
+	_show_scene_manager()
+	_set_status("Recurso «%s» añadido a la escena." % resource.name)
+
+func _find_project_resource(resource_id: String) -> Dictionary:
+	for item in project_data.get("resources", []):
+		if str(item.get("id","")) == resource_id:
+			return item.duplicate(true)
+	return {}
+
+func _delete_selected_resource() -> void:
+	var resource := _find_project_resource(selected_resource_id)
+	if resource.is_empty():
+		return
+	var result: Dictionary = resource_library.remove_resource(resource)
+	if not bool(result.get("ok",false)):
+		_set_status(str(result.get("error","No se pudo eliminar el recurso.")))
+		return
+	var resources: Array = project_data.get("resources", [])
+	for index in range(resources.size()-1,-1,-1):
+		if str(resources[index].get("id","")) == selected_resource_id:
+			resources.remove_at(index)
+	selected_resource_id = ""
+	_save_project()
+	_refresh_resource_list()
+	_set_status("Recurso eliminado de la biblioteca.")
+
+func _show_director_timeline() -> void:
+	_clear_content()
+	if timeline_model == null:
+		timeline_model = ANIMATION_TIMELINE.new()
+	var page := VBoxContainer.new()
+	page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	page.add_theme_constant_override("separation", 8)
+	content.add_child(page)
+	_add_heading(page, "Timeline · Dirección de escena", "Anima transformaciones de objetos de la escena mediante pistas y curvas; no requiere un rig de personaje.")
+	var controls := HBoxContainer.new()
+	page.add_child(controls)
+	director_target_picker = OptionButton.new()
+	director_target_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for object in _active_scene().get("objects", []):
+		director_target_picker.add_item(str(object.get("name","Objeto")))
+		director_target_picker.set_item_metadata(director_target_picker.item_count-1, str(object.get("id","")))
+	controls.add_child(director_target_picker)
+	director_property_picker = OptionButton.new()
+	for property in ["x","y","scale_x","scale_y","rotation","depth"]:
+		director_property_picker.add_item(property)
+	controls.add_child(director_property_picker)
+	_add_button(controls, "Crear pista", _director_create_track)
+	var edit := HBoxContainer.new()
+	page.add_child(edit)
+	director_time_input = SpinBox.new()
+	director_time_input.min_value = 0.0
+	director_time_input.max_value = 600.0
+	director_time_input.step = 0.01
+	director_time_input.prefix = "Tiempo "
+	edit.add_child(director_time_input)
+	director_value_input = SpinBox.new()
+	director_value_input.min_value = -100000.0
+	director_value_input.max_value = 100000.0
+	director_value_input.step = 0.1
+	director_value_input.prefix = "Valor "
+	edit.add_child(director_value_input)
+	director_easing_picker = OptionButton.new()
+	for easing in ["linear","ease_in","ease_out","ease_in_out","step"]:
+		director_easing_picker.add_item(easing)
+	edit.add_child(director_easing_picker)
+	_add_button(edit, "Añadir keyframe", _director_add_keyframe)
+	_add_button(edit, "Eliminar pista", _director_delete_track)
+	director_track_list = ItemList.new()
+	director_track_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	director_track_list.item_selected.connect(_on_director_track_selected)
+	page.add_child(director_track_list)
+	director_playhead = HSlider.new()
+	director_playhead.min_value = 0.0
+	director_playhead.max_value = 10.0
+	director_playhead.step = 0.01
+	director_playhead.value_changed.connect(_on_director_playhead_changed)
+	page.add_child(director_playhead)
+	var footer := HBoxContainer.new()
+	page.add_child(footer)
+	_add_button(footer, "Abrir editor de escenas", _show_scene_manager)
+	_add_button(footer, "Guardar timeline", _save_project)
+	_add_button(footer, "Volver", _show_workspace)
+	_refresh_director_tracks()
+
+func _director_tracks() -> Array:
+	if not project_data.has("scene_animation_tracks"):
+		project_data["scene_animation_tracks"] = {}
+	var scene_id := str(_active_scene().get("id","default"))
+	if not project_data["scene_animation_tracks"].has(scene_id):
+		project_data["scene_animation_tracks"][scene_id] = []
+	return project_data["scene_animation_tracks"][scene_id]
+
+func _director_create_track() -> void:
+	if not is_instance_valid(director_target_picker) or director_target_picker.selected < 0:
+		_set_status("Crea o selecciona un objeto en la escena antes de crear una pista.")
+		return
+	var target_id := str(director_target_picker.get_item_metadata(director_target_picker.selected))
+	var property := director_property_picker.get_item_text(director_property_picker.selected)
+	var track := timeline_model.create_track("track_%d_%d" % [Time.get_ticks_msec(),_director_tracks().size()], property + " · " + director_target_picker.get_item_text(director_target_picker.selected), target_id, property)
+	if track.is_empty():
+		return
+	_director_tracks().append(track)
+	_refresh_director_tracks()
+	_save_project()
+	_set_status("Pista de %s creada." % property)
+
+func _refresh_director_tracks() -> void:
+	if not is_instance_valid(director_track_list):
+		return
+	director_track_list.clear()
+	for track in _director_tracks():
+		director_track_list.add_item("%s · %d claves" % [str(track.get("name","Pista")), track.get("keyframes",[]).size()])
+
+func _on_director_track_selected(index: int) -> void:
+	director_selected_track = index
+	var tracks := _director_tracks()
+	if index >= 0 and index < tracks.size():
+		var frames: Array = tracks[index].get("keyframes",[])
+		if not frames.is_empty():
+			director_time_input.value = float(frames[-1].get("time",0.0))
+			director_value_input.value = float(frames[-1].get("value",0.0))
+		_refresh_director_tracks()
+
+func _director_add_keyframe() -> void:
+	var tracks := _director_tracks()
+	if director_selected_track < 0 or director_selected_track >= tracks.size():
+		_set_status("Selecciona una pista antes de añadir keyframes.")
+		return
+	var track: Dictionary = tracks[director_selected_track]
+	var easing := director_easing_picker.get_item_text(director_easing_picker.selected)
+	var result: Dictionary = timeline_model.insert_property_keyframe(track, director_time_input.value, director_value_input.value, easing)
+	if not bool(result.get("ok",false)):
+		_set_status(str(result.get("error","No se pudo añadir el keyframe.")))
+		return
+	tracks[director_selected_track] = track
+	_refresh_director_tracks()
+	_save_project()
+	_set_status("Keyframe guardado en %.2f s." % director_time_input.value)
+
+func _director_delete_track() -> void:
+	var tracks := _director_tracks()
+	if director_selected_track < 0 or director_selected_track >= tracks.size():
+		return
+	tracks.remove_at(director_selected_track)
+	director_selected_track = -1
+	_refresh_director_tracks()
+	_save_project()
+
+func _on_director_playhead_changed(value: float) -> void:
+	var scene := _active_scene()
+	var tracks := _director_tracks()
+	for track in tracks:
+		var sampled: Variant = timeline_model.sample_track(track, value)
+		if sampled == null:
+			continue
+		for object_index in range(scene.get("objects",[]).size()):
+			var object: Dictionary = scene["objects"][object_index]
+			if str(object.get("id","")) != str(track.get("target_id","")):
+				continue
+			var transform: Dictionary = object.get("transform",{}).duplicate(true)
+			transform[str(track.get("property","x"))] = sampled
+			object["transform"] = transform
+			scene["objects"][object_index] = object
+		project_data["scenes"][selected_scene_index] = scene
+	if is_instance_valid(scene_canvas):
+		_refresh_scene_canvas()
 
 func _show_scene_manager() -> void:
 	_clear_content()
