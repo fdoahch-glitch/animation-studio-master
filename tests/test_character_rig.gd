@@ -124,6 +124,24 @@ func _run_tests() -> void:
 		quit(1)
 		return
 
+	var timeline_clip := {
+		"name": "Timeline CI",
+		"duration": 1.0,
+		"loop": false,
+		"keyframes": [
+			{"time": 0.0, "joint_angles": {"head": 0.0, "elbow_left": 0.0}},
+			{"time": 1.0, "joint_angles": {"head": 35.0, "elbow_left": 55.0}}
+		]
+	}
+	if builder.add_procedural_animation_set(procedural_rig, [timeline_clip]) != 1:
+		push_error("No se pudo instalar el clip de la línea de tiempo en el AnimationPlayer.")
+		quit(1)
+		return
+	if not builder.play_animation(procedural_rig, "proc_timeline_ci"):
+		push_error("El clip de la línea de tiempo no se pudo reproducir con su nombre exportado.")
+		quit(1)
+		return
+
 	var ik: Dictionary = builder.solve_two_bone_ik(Vector2.ZERO, Vector2(80, 20), 55.0, 45.0)
 	if not ik.has("joint") or not ik.has("end"):
 		push_error("El solver IK no devolvió articulaciones.")
