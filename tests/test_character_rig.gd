@@ -95,6 +95,13 @@ func _run_tests() -> void:
 		push_error("El solver IK no respeta las longitudes de los dos segmentos.")
 		quit(1)
 		return
+	var zero_distance_ik: Dictionary = builder.solve_two_bone_ik(Vector2.ZERO, Vector2.ZERO, 55.0, 45.0)
+	var zero_joint: Vector2 = zero_distance_ik.get("joint", Vector2.ZERO)
+	var zero_end: Vector2 = zero_distance_ik.get("end", Vector2.ZERO)
+	if not is_finite(zero_joint.x) or not is_finite(zero_joint.y) or not is_finite(zero_end.x) or not is_finite(zero_end.y):
+		push_error("El solver IK no manejó de forma estable un objetivo coincidente con la raíz.")
+		quit(1)
+		return
 
 	var standard_overlay = IK_DRAG_OVERLAY.new()
 	root.add_child(standard_overlay)
@@ -108,6 +115,78 @@ func _run_tests() -> void:
 			push_error("Falta un punto IK arrastrable en el rig estándar: " + str(handle_name))
 			quit(1)
 			return
+
+	builder.stop_animation(procedural_rig)
+	for handle_name in standard_overlay.handle_specs.keys():
+		var chain: Dictionary = standard_overlay._get_chain_data(str(handle_name))
+		var chain_root: Node2D = chain.get("root") as Node2D
+		var upper_vector: Vector2 = chain.get("upper_vector", Vector2.ZERO)
+		var lower_vector: Vector2 = chain.get("lower_vector", Vector2.ZERO)
+		var target := chain_root.position + upper_vector + lower_vector
+		var drag_result: Dictionary = standard_overlay.apply_handle_target(str(handle_name), target)
+		var actual_end: Vector2 = drag_result.get("actual_end", Vector2.ZERO)
+		if not bool(drag_result.get("ok", false)) or actual_end.distance_to(target) > 0.1:
+			push_error("El arrastre IK estándar no alcanzó el objetivo de " + str(handle_name) + ": " + str(drag_result))
+			quit(1)
+			return
+
+	var standard_arm: Dictionary = standard_overlay._get_chain_data("Mano izquierda")
+	var standard_arm_root: Node2D = standard_arm.root
+	var standard_arm_joint: Node2D = standard_arm.joint
+	var standard_arm_target := standard_arm_root.position + Vector2(-30.0, 55.0)
+	if not builder.set_joint_limits(procedural_rig, NodePath("Pelvis/Spine/Chest/Shoulder_L/Elbow_L"), -2.0, 2.0):
+		push_error("No se pudieron configurar límites articulares para la prueba IK.")
+		quit(1)
+		return
+	var limited_arm: Dictionary = standard_overlay.apply_handle_target("Mano izquierda", standard_arm_target)
+	if not bool(limited_arm.get("ok", false)) or not bool(limited_arm.get("limit_clamped", false)) or not is_equal_approx(rad_to_deg(standard_arm_joint.rotation), -2.0):
+		push_error("El IK estándar no respetó el límite del codo: " + str(limited_arm))
+		quit(1)
+		return
+	builder.set_joint_limits(procedural_rig, NodePath("Pelvis/Spine/Chest/Shoulder_L/Elbow_L"), -10.0, 150.0)
+	if not builder.set_joint_limits(procedural_rig, NodePath("Pelvis/Spine/Chest/Shoulder_L"), -1.0, 1.0):
+		push_error("No se pudieron configurar límites para el hombro.")
+		quit(1)
+		return
+	var limited_shoulder: Dictionary = standard_overlay.apply_handle_target("Mano izquierda", standard_arm_root.position + Vector2(-40.0, 50.0))
+	if not bool(limited_shoulder.get("limit_clamped", false)) or absf(rad_to_deg(standard_arm_root.rotation)) > 1.001:
+		push_error("El IK estándar no respetó el límite del hombro: " + str(limited_shoulder))
+		quit(1)
+		return
+	builder.set_joint_limits(procedural_rig, NodePath("Pelvis/Spine/Chest/Shoulder_L"), -150.0, 150.0)
+
+	var standard_leg: Dictionary = standard_overlay._get_chain_data("Pie izquierdo")
+	var standard_leg_root: Node2D = standard_leg.root
+	var standard_leg_joint: Node2D = standard_leg.joint
+	if not builder.set_joint_limits(procedural_rig, NodePath("Pelvis/Hip_L/Knee_L"), -1.0, 1.0):
+		push_error("No se pudieron configurar límites para la rodilla.")
+		quit(1)
+		return
+	var limited_leg: Dictionary = standard_overlay.apply_handle_target("Pie izquierdo", standard_leg_root.position + Vector2(8.0, 70.0))
+	if not bool(limited_leg.get("limit_clamped", false)) or not is_equal_approx(rad_to_deg(standard_leg_joint.rotation), -1.0):
+		push_error("El IK estándar no respetó el límite de la rodilla: " + str(limited_leg))
+		quit(1)
+		return
+	builder.set_joint_limits(procedural_rig, NodePath("Pelvis/Hip_L/Knee_L"), -5.0, 150.0)
+
+	var saved_ik_pose: Dictionary = builder.capture_procedural_pose(procedural_rig)
+	if not saved_ik_pose.has("shoulder_left") or not saved_ik_pose.has("elbow_left"):
+		push_error("La pose ajustada con IK no se pudo guardar.")
+		quit(1)
+		return
+	builder.apply_procedural_pose(procedural_rig, {"shoulder_left": 0.0, "elbow_left": 0.0})
+	builder.apply_procedural_pose(procedural_rig, saved_ik_pose)
+	if not is_equal_approx(rad_to_deg(standard_arm_root.rotation), float(saved_ik_pose.shoulder_left)) or not is_equal_approx(rad_to_deg(standard_arm_joint.rotation), float(saved_ik_pose.elbow_left)):
+		push_error("La pose IK guardada no se pudo reaplicar.")
+		quit(1)
+		return
+
+	var unreachable_target := standard_arm_root.position + Vector2(1000.0, 0.0)
+	var unreachable_result: Dictionary = standard_overlay.apply_handle_target("Mano izquierda", unreachable_target)
+	if not bool(unreachable_result.get("ok", false)) or bool(unreachable_result.get("reachable", true)):
+		push_error("El IK no informó correctamente un objetivo fuera del alcance.")
+		quit(1)
+		return
 
 	var image := Image.create(128, 256, false, Image.FORMAT_RGBA8)
 	image.fill(Color.WHITE)
@@ -159,6 +238,32 @@ func _run_tests() -> void:
 			push_error("Falta un punto IK arrastrable en el rig segmentado: " + str(handle_name))
 			quit(1)
 			return
+
+	for handle_name in segmented_overlay.handle_specs.keys():
+		var chain: Dictionary = segmented_overlay._get_chain_data(str(handle_name))
+		var chain_root: Node2D = chain.get("root") as Node2D
+		var upper_vector: Vector2 = chain.get("upper_vector", Vector2.ZERO)
+		var lower_vector: Vector2 = chain.get("lower_vector", Vector2.ZERO)
+		var target := chain_root.position + upper_vector + lower_vector
+		var drag_result: Dictionary = segmented_overlay.apply_handle_target(str(handle_name), target)
+		var actual_end: Vector2 = drag_result.get("actual_end", Vector2.ZERO)
+		if not bool(drag_result.get("ok", false)) or actual_end.distance_to(target) > 0.1:
+			push_error("El arrastre IK segmentado no alcanzó el objetivo de " + str(handle_name) + ": " + str(drag_result))
+			quit(1)
+			return
+
+	var segmented_arm: Dictionary = segmented_overlay._get_chain_data("Mano izquierda")
+	var segmented_arm_root: Node2D = segmented_arm.root
+	var segmented_arm_joint: Node2D = segmented_arm.joint
+	segmented_arm_joint.set_meta("min_degrees", -0.5)
+	segmented_arm_joint.set_meta("max_degrees", 0.5)
+	var segmented_limited: Dictionary = segmented_overlay.apply_handle_target("Mano izquierda", segmented_arm_root.position + Vector2(-15.0, 80.0))
+	if not bool(segmented_limited.get("limit_clamped", false)) or not is_equal_approx(rad_to_deg(segmented_arm_joint.rotation), -0.5):
+		push_error("El IK segmentado no respetó el límite del codo: " + str(segmented_limited))
+		quit(1)
+		return
+	segmented_arm_joint.remove_meta("min_degrees")
+	segmented_arm_joint.remove_meta("max_degrees")
 	var left_hand_root := sprite_rig.find_child("Pivot_shoulder_left", true, false) as Node2D
 	var left_hand_joint := sprite_rig.find_child("Pivot_elbow_left", true, false) as Node2D
 	var left_hand_end := sprite_rig.find_child("Pivot_wrist_left", true, false) as Node2D

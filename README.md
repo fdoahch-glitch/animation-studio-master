@@ -8,7 +8,7 @@ Estudio visual de animación por escenas, desarrollado con Godot 4.x y orientado
 - Modos 2D, 2.5D, 3D e Híbrido.
 - Secciones de Escenas, Personajes, Fondos, Elementos, Decoraciones, Tiempo y clima, Animación, Audio y doblaje y Exportar.
 - Estudio de personajes con ficha, estilo y tipo de rig.
-- Constructor de rig 2D editable en tiempo de ejecución, con pivotes y controles manuales de articulaciones.
+- Constructor de rig 2D editable en tiempo de ejecución, con pivotes, controles manuales de articulaciones y manejadores IK por arrastre para manos y pies (rig estándar y por sprites segmentados).
 - Importación de imagen, eliminación local aproximada de fondo plano y exportación de recortes anatómicos proporcionales.
 - Generador procedural integrado de 20 poses expresivas y 20 ciclos de animación (respirar, caminar, correr, saltar, saludar, hablar, celebrar, bailar y más).
 - Keyframes calculados matemáticamente, curvas suaves y aplicación directa a rigs 2D estándar y segmentados.

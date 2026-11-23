@@ -35,7 +35,7 @@ La siguiente etapa debe incorporar:
 
 - El rig construido es 2D y procedural; no es un rig 3D.
 - Los segmentos visibles son geometría de referencia, no arte final.
-- Los ciclos son animaciones base de rotación; todavía no incluyen IK, física, captura de movimiento, lipsync fonético ni deformación de una ilustración importada.
+- Los ciclos son animaciones base de rotación; el editor 2D incorpora IK de dos huesos por arrastre para manos y pies, tanto en el rig estándar como en el rig de sprites segmentados. No incluye física, captura de movimiento, lipsync fonético ni deformación de malla de una ilustración importada.
 - La reconstrucción 2.5D/3D requiere otro pipeline, geometría y rig específicos.
 
 ## Flujo de imagen y rig por sprites
@@ -55,3 +55,10 @@ Las poses se aplican directamente al rig 2D y los ciclos se instalan en su `Anim
 `scripts/character_spatial_rig_builder.gd` crea un `Skeleton3D` humanoide con huesos para torso, cabeza, brazos, caderas, rodillas y tobillos. Cada segmento visible se adjunta a un hueso mediante `BoneAttachment3D`. También incluye una utilidad para colocar una imagen en un plano 2.5D.
 
 Este módulo es un esqueleto espacial de referencia. No equivale a un modelo 3D de alta calidad, no calcula pesos de skinning y no incluye aún un sistema de animación 3D. El giro 360° de un personaje 2D sigue requiriendo vistas multivista o reconstrucción 3D.
+
+
+## IK 2D por arrastre
+
+El editor muestra cuatro manejadores sobre los extremos de las cadenas (mano izquierda/derecha y pie izquierdo/derecho). Al iniciar el arrastre se detiene el ciclo activo y el solver geométrico de dos huesos calcula las posiciones de codo o rodilla y actualiza las rotaciones de la raíz y la articulación intermedia. Los objetivos fuera del alcance se proyectan al radio alcanzable; los límites `min_degrees` y `max_degrees` de cada pivote se respetan al aplicar la solución.
+
+La misma ruta de cálculo funciona con `2D_pivot_hierarchy` y `2D_segmented_sprite_pivots`. Las rotaciones resultantes siguen siendo parte de la pose del rig y pueden capturarse y reaplicarse desde el sistema existente de poses manuales. El cálculo es local y procedural; no llama a IA externa, modelos locales, servidores ni APIs.

@@ -226,14 +226,20 @@ func solve_two_bone_ik(root_position: Vector2, target_position: Vector2, upper_l
 	var a := maxf(upper_length, 0.001)
 	var b := maxf(lower_length, 0.001)
 	var delta := target_position - root_position
-	var distance := clampf(delta.length(), absf(a - b) + 0.001, a + b - 0.001)
+	var requested_distance := delta.length()
+	var minimum_distance := absf(a - b) + 0.001
+	var maximum_distance := maxf(a + b - 0.001, minimum_distance)
+	var distance := clampf(requested_distance, minimum_distance, maximum_distance)
 	var direction := delta.normalized()
+	if direction.length_squared() < 0.000001:
+		direction = Vector2.RIGHT
 	var along := (a * a - b * b + distance * distance) / (2.0 * distance)
 	var height := sqrt(maxf(a * a - along * along, 0.0))
-	var perpendicular := Vector2(-direction.y, direction.x) * signf(bend_direction)
+	var bend_sign := -1.0 if bend_direction < 0.0 else 1.0
+	var perpendicular := Vector2(-direction.y, direction.x) * bend_sign
 	var joint_position := root_position + direction * along + perpendicular * height
 	var clamped_target := root_position + direction * distance
-	return {"root": root_position, "joint": joint_position, "end": clamped_target, "reachable": is_equal_approx(distance, delta.length())}
+	return {"root": root_position, "joint": joint_position, "end": clamped_target, "reachable": is_equal_approx(distance, requested_distance)}
 
 func build_segmented_sprite_rig(parts: Array, joints: Dictionary, source_size: Vector2i, target_size: Vector2 = Vector2(210, 245)) -> Node2D:
 	var rig := Node2D.new()
