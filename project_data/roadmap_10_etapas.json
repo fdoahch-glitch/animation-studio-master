@@ -223,15 +223,26 @@
         "exportación de vídeo/audio/subtítulos",
         "guardado incremental y recuperación ante fallos"
       ],
-      "acceptance": [],
-      "tests": [],
-      "commit": null,
-      "notes": "Hay paquetes de personajes y exportaciones parciales; falta consolidar el proyecto completo y render final."
+      "acceptance": [
+        "El proyecto editable conserva el esquema versionado y normaliza documentos antiguos.",
+        "Se puede exportar un paquete .asbundle ZIP con manifiesto, documento del proyecto y recursos referenciados por la biblioteca.",
+        "La importación valida formato, versión, límites, nombres de entrada y rutas antes de restaurar archivos.",
+        "Las rutas de recursos restaurados se actualizan en el documento importado.",
+        "El paquete de personaje JSON y la exportación PNG de spritesheet existentes siguen disponibles.",
+        "La interfaz Exportar ofrece exportación/importación de proyecto portable y exportación del paquete de personaje."
+      ],
+      "tests": [
+        "tests/test_project_document.gd: persistencia y migración .amsproj/JSON.",
+        "tests/test_project_bundle.gd: manifiesto y exportación/importación ZIP roundtrip.",
+        "CI Godot: ejecución pendiente en commit de integración."
+      ],
+      "commit": "748d5521a6ece74667e70d9d1d3b4e2fc5d7ae2c",
+      "notes": "Añadido scripts/project_bundle_io.gd: archivo .asbundle con manifiesto versionado, proyecto completo y recursos de biblioteca, importación con validación de rutas y restauración. La UI Exportar integra el paquete portable y auditoría. Se mantienen .amsproj, JSON de personaje y spritesheet PNG. Falta probar paquetes con recursos reales grandes y validar importación en Windows/Android. La etapa sigue parcial por CI pendiente y etapas anteriores abiertas."
     },
     {
       "id": 10,
       "name": "Calidad, rendimiento y distribución Windows",
-      "status": "pending",
+      "status": "partial",
       "scope": [
         "pruebas automatizadas y aceptación funcional",
         "perfilado y optimización de escenas grandes",
@@ -239,10 +250,21 @@
         "instalador, configuración y guía de usuario",
         "prueba limpia de instalación y ejecución"
       ],
-      "acceptance": [],
-      "tests": [],
-      "commit": null,
-      "notes": "El ejecutable/instalador todavía no está certificado."
+      "acceptance": [
+        "Existe auditoría reproducible de escenas, objetos, recursos, bytes, rutas faltantes y presupuestos configurables.",
+        "El informe de calidad se exporta como JSON desde la interfaz.",
+        "Se estima el uso de memoria de texturas con/sin mipmaps.",
+        "Existe una política de escala dinámica con reducción gradual y recuperación más lenta.",
+        "Las pruebas automatizadas validan presupuestos, métricas y política de escala.",
+        "Se genera y valida un ejecutable Windows x64 y un instalador en una máquina Windows limpia."
+      ],
+      "tests": [
+        "tests/test_performance_auditor.gd: métricas, presupuestos, memoria estimada y escala dinámica sugerida.",
+        "CI Godot: ejecución pendiente en commit de integración.",
+        "La compilación Windows, instalador y prueba limpia aún no están configurados ni certificados."
+      ],
+      "commit": "748d5521a6ece74667e70d9d1d3b4e2fc5d7ae2c",
+      "notes": "Añadido scripts/performance_auditor.gd con presupuestos configurables, detección de recursos faltantes, tamaño de recursos, estimación de memoria y política conservadora de escala dinámica; UI genera informe JSON. La política no está conectada al renderizador y no mide GPU/FPS en vivo. No se ha generado ni certificado instalador Windows. Sigue parcial."
     }
   ]
 }
