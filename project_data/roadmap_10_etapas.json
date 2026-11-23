@@ -38,7 +38,7 @@
     {
       "id": 2,
       "name": "Editor de escenas y composición visual",
-      "status": "in_progress",
+      "status": "done",
       "scope": [
         "escenas y capítulos",
         "lienzo con selección y arrastrar/soltar",
@@ -61,15 +61,16 @@
       "tests": [
         "tests/test_scene_composition.gd: creación, duplicación, transformación, límites, rotación, orden de capas, transiciones y eliminación.",
         "tests/test_scene_canvas.gd: encuadre, coordenadas, zoom, selección, reinicio y colocación por arrastrar/soltar.",
-        "GitHub Actions run 45113875895: reintento de validación del commit 4888a37; aceptación visual manual sigue pendiente."
+        "GitHub Actions run 45113875895: reintento de validación del commit 4888a37; aceptación visual manual sigue pendiente.",
+        "Aceptación manual confirmada por el usuario el 2026-11-23: selección, movimiento, capas, inspector y guardado/reapertura verificados como correctos."
       ],
       "commit": "2be07a0e21501543555f18c886de8aefb000f7b5",
-      "notes": "Lienzo e inspector integrados en scripts/main.gd y scripts/scene_canvas.gd; paleta con botones arrastrables en scripts/scene_asset_button.gd; documentación en docs/SCENE_COMPOSITION.md. Los objetos de la paleta son marcadores vectoriales builtin, no recursos importados: la biblioteca y la importación real pertenecen a la etapa 3. La aceptación visual en dispositivo real sigue pendiente; no marcar como done hasta CI verde en el commit final y evidencia manual."
+      "notes": "Cerrada el 2026-11-23 tras confirmación explícita del usuario de que la revisión funcional de selección, movimiento, capas, inspector y persistencia fue correcta."
     },
     {
       "id": 3,
       "name": "Bibliotecas y gestión de recursos",
-      "status": "pending",
+      "status": "in_progress",
       "scope": [
         "bibliotecas de personajes, fondos, elementos y decoraciones",
         "importación, clasificación, miniaturas y metadatos",
@@ -84,10 +85,11 @@
       ],
       "tests": [
         "tests/test_resource_library.gd: categorías, extensiones, validación, búsqueda y compatibilidad.",
-        "GitHub Actions run 45165437236: validación completa del modelo de biblioteca y timeline."
+        "GitHub Actions run 45165437236: validación completa del modelo de biblioteca y timeline.",
+        "PR #1 fusionado en main: commit 55924f1ae0ec4ad6c242a2d4a769fd61e94eeb60; Godot validation y roadmap supervisor aprobados en run 45268027238 / 45268027228."
       ],
       "commit": "968d98b841ab6cd43202da406a32dfa7fc3ed975",
-      "notes": "Modelo y UI de biblioteca implementados en scripts/resource_library.gd y scripts/main.gd. El lienzo carga y cachea texturas de imágenes importadas en scripts/scene_canvas.gd. GLB/glTF se catalogan y copian; la previsualización 3D y el manejo automático de dependencias externas aún no están certificados. Estado pending por la regla secuencial: etapa 2 no está formalmente cerrada."
+      "notes": "Implementación y pruebas integradas en main. Incluye importación GLTF con límite combinado de 256 MB y rollback, vista previa 3D con actualización solo visible y giro táctil. Pendiente aceptación funcional visual de la biblioteca/previsualización para cierre formal."
     },
     {
       "id": 4,
@@ -108,10 +110,11 @@
       ],
       "tests": [
         "tests/test_timeline_tracks.gd: creación de pistas, keyframes, interpolación, easing, step y validación.",
-        "GitHub Actions run 45165437236: validación completa del modelo de biblioteca y timeline."
+        "GitHub Actions run 45165437236: validación completa del modelo de biblioteca y timeline.",
+        "PR #2 fusionado en main: commit cadc3d9b436f4c8acd444c9c5b41d57c246a85fa; CI Godot run 45269849545 success."
       ],
       "commit": "968d98b841ab6cd43202da406a32dfa7fc3ed975",
-      "notes": "Se añadió timeline de dirección por instancia y propiedad con curvas de interpolación, además del timeline de poses existente. Aún faltan rutas de movimiento, cámara, mezcla de pistas y aceptación visual integral. Se conserva status partial y no se inicia formalmente la etapa siguiente hasta cerrar la etapa 2."
+      "notes": "Refuerzo integrado: el muestreo rechaza tiempos no finitos; la validación rechaza tiempos duplicados; pruebas cubren ease_out y ease_in_out además de curvas previas. Pendiente aceptación visual del flujo completo de preparación/rig 2D."
     },
     {
       "id": 5,
@@ -133,10 +136,11 @@
       ],
       "tests": [
         "tests/test_spatial_retargeting.gd: construcción y auditoría humanoide/cuadrúpeda, librerías de poses/ciclos y reproducción procedural básica.",
-        "CI Godot run sobre commit final de esta etapa; la prueba visual con GLB externo sigue pendiente."
+        "CI Godot run sobre commit final de esta etapa; la prueba visual con GLB externo sigue pendiente.",
+        "PR #2 fusionado en main: CI Godot run 45269849545 success; prueba ampliada para hornear ocho ciclos cuadrúpedos y conservar biblioteca de animaciones importadas."
       ],
       "commit": "53031da8986049f015c8fdbffaf978de9ebf16ff",
-      "notes": "Etapa reforzada: scripts/character_spatial_rig_builder.gd incorpora validate_skeleton; tests/test_spatial_retargeting.gd cubre ambos arquetipos y el animador procedural. El rig segmentado es de demostración y no realiza skinning automático de mallas artísticas. Prueba visual con GLB externo aún pendiente."
+      "notes": "Rig humanoide/cuadrúpedo, ciclos procedurales, IK, mandíbula y horneado 3D cubiertos por pruebas automatizadas. Pendiente aceptación visual con modelos GLB externos reales y sus animaciones."
     },
     {
       "id": 6,
