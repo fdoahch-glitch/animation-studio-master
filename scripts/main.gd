@@ -770,9 +770,13 @@ func _load_3d_model_from_path(path: String, update_status: bool = true) -> bool:
 		if update_status:
 			_set_status("Modelo 3D con esqueleto importado. Animaciones originales disponibles y rig procedural conectado.")
 	else:
-		character_output.text = "Modelo 3D importado como escena estática. No se encontró Skeleton3D; las mallas y materiales se conservan, pero no se pueden generar poses de huesos."
+		if is_instance_valid(animation_controls):
+			for child in animation_controls.get_children():
+				child.queue_free()
+			_append_imported_3d_animation_buttons()
+		character_output.text = "Modelo 3D importado sin Skeleton3D. Se conservan mallas, materiales y posibles animaciones de nodos; no se pueden generar poses de huesos."
 		if update_status:
-			_set_status("Modelo 3D importado, pero no contiene un Skeleton3D reconocible.")
+			_set_status("Modelo 3D importado. No contiene Skeleton3D; se revisaron las animaciones originales disponibles.")
 	_refresh_timeline_ui()
 	return true
 
