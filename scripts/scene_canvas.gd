@@ -103,16 +103,24 @@ func _draw() -> void:
 	draw_rect(frame, Color("#24384b"), false, 2.0)
 
 func _hit_test(screen_point: Vector2) -> String:
-	var objects: Array = scene_data.get("objects", [])
-	for i in range(objects.size()-1, -1, -1):
+	var objects: Array = scene_data.get("objects", []).duplicate(true)
+	objects.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var a_depth := float(a.get("transform", {}).get("depth", 0.0))
+		var b_depth := float(b.get("transform", {}).get("depth", 0.0))
+		if str(a.get("type", "")) == "background": a_depth -= 100000.0
+		if str(b.get("type", "")) == "background": b_depth -= 100000.0
+		return a_depth < b_depth
+	)
+	for i in range(objects.size() - 1, -1, -1):
 		var item: Dictionary = objects[i]
 		if not bool(item.get("transform", {}).get("visible", true)):
 			continue
 		var t: Dictionary = item.get("transform", {})
-		var center := _scene_to_screen(Vector2(float(t.get("x",scene_width*0.5)),float(t.get("y",scene_height*0.5))))
-		var extent := _object_size(item) * Vector2(float(t.get("scale_x",1.0)),float(t.get("scale_y",1.0))) * _canvas_scale()
-		if Rect2(center-extent*0.5,extent).has_point(screen_point):
-			return str(item.get("id",""))
+		var center := _scene_to_screen(Vector2(float(t.get("x", scene_width * 0.5)), float(t.get("y", scene_height * 0.5))))
+		var extent := _object_size(item) * Vector2(float(t.get("scale_x", 1.0)), float(t.get("scale_y", 1.0))) * _canvas_scale()
+		var local_point := (screen_point - center).rotated(-deg_to_rad(float(t.get("rotation", 0.0))))
+		if Rect2(-extent * 0.5, extent).has_point(local_point):
+			return str(item.get("id", ""))
 	return ""
 
 func _gui_input(event: InputEvent) -> void:
