@@ -94,7 +94,7 @@ var resource_library
 var resource_list: ItemList
 var resource_preview: TextureRect
 var resource_preview_info: Label
-var resource_model_preview: Control
+var resource_model_preview
 var resource_category := "character"
 var selected_resource_id := ""
 var resource_file_dialog: FileDialog
