@@ -56,6 +56,24 @@ func _initialize() -> void:
 		generated.free()
 		quit(1)
 		return
+	var preview = load("res://scripts/resource_model_preview.gd").new()
+	root.add_child(preview)
+	assert(preview.preview_viewport.render_target_update_mode == SubViewport.UPDATE_WHEN_VISIBLE, "La vista previa debe limitar el render al estado visible")
+	var preview_result: Dictionary = preview.load_model(path)
+	assert(preview_result.ok and preview.has_model(), "La vista previa debe cargar el modelo GLB")
+	var initial_rotation := preview.model_pivot.rotation.y
+	var touch_down := InputEventScreenTouch.new()
+	touch_down.pressed = true
+	touch_down.position = Vector2(100, 100)
+	preview._gui_input(touch_down)
+	var touch_drag := InputEventScreenDrag.new()
+	touch_drag.position = Vector2(130, 100)
+	preview._gui_input(touch_drag)
+	assert(not is_equal_approx(preview.model_pivot.rotation.y, initial_rotation), "El modelo debe poder girarse mediante arrastre táctil")
+	var touch_up := InputEventScreenTouch.new()
+	touch_up.pressed = false
+	touch_up.position = Vector2(130, 100)
+	preview._gui_input(touch_up)
 	var imported_player := animation_players[0] as AnimationPlayer
 	if not imported_player.has_animation("Move"):
 		push_error("La escena GLB importada no conserva el clip Move.")
@@ -63,6 +81,8 @@ func _initialize() -> void:
 		quit(1)
 		return
 	generated.free()
+	preview.clear_model()
+	preview.queue_free()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	print("RESOURCE_MODEL_PREVIEW_TESTS_OK")
 	quit(0)
