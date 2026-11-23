@@ -1,6 +1,9 @@
 extends SceneTree
 
 func _initialize() -> void:
+	call_deferred("_run")
+
+func _run() -> void:
 	var source_root := Node3D.new()
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = "PreviewMesh"
@@ -18,58 +21,58 @@ func _initialize() -> void:
 	clip.track_insert_key(value_track, 1.0, Vector3.UP)
 	library.add_animation("Move", clip)
 	player.add_animation_library("", library)
+
 	var export_document := GLTFDocument.new()
 	var export_state := GLTFState.new()
 	var export_error := export_document.append_from_scene(source_root, export_state)
-	if export_error != OK:
-		push_error("No se pudo serializar la escena de prueba: " + error_string(export_error))
-		quit(1)
+	if not _check(export_error == OK, "No se pudo serializar la escena GLB: " + error_string(export_error)):
 		return
 	var path := "user://resource_model_preview_test.glb"
 	var write_error := export_document.write_to_filesystem(export_state, path)
-	if write_error != OK:
-		push_error("No se pudo escribir el GLB de prueba: " + error_string(write_error))
-		quit(1)
+	if not _check(write_error == OK, "No se pudo escribir el GLB: " + error_string(write_error)):
 		return
 	source_root.free()
-	var import_document := GLTFDocument.new()
-	var import_state := GLTFState.new()
-	var import_error := import_document.append_from_file(path, import_state)
-	if import_error != OK:
-		push_error("No se pudo importar el GLB de prueba: " + error_string(import_error))
-		quit(1)
-		return
-	var generated: Node = import_document.generate_scene(import_state)
-	if generated == null:
-		push_error("La importación no generó una escena 3D.")
-		quit(1)
-		return
-	var meshes := generated.find_children("*", "MeshInstance3D", true, false)
-	if meshes.is_empty():
-		push_error("La escena GLB importada no conserva su malla.")
-		generated.free()
-		quit(1)
-		return
-	var animation_players := generated.find_children("*", "AnimationPlayer", true, false)
-	if animation_players.is_empty():
-		push_error("La escena GLB importada no conserva su AnimationPlayer.")
-		generated.free()
-		quit(1)
-		return
+	print("GLB_PREVIEW_EXPORT_OK")
+
 	var preview = load("res://scripts/resource_model_preview.gd").new()
-	preview.model_pivot = Node3D.new()
-	preview.last_pointer = Vector2(100, 100)
-	var initial_rotation: float = float(preview.model_pivot.rotation.y)
-	preview._rotate_from_pointer(Vector2(130, 100))
-	assert(not is_equal_approx(preview.model_pivot.rotation.y, initial_rotation), "El modelo debe girar al arrastrar el puntero")
-	preview.model_pivot.free()
-	var imported_player := animation_players[0] as AnimationPlayer
-	if not imported_player.has_animation("Move"):
-		push_error("La escena GLB importada no conserva el clip Move.")
-		generated.free()
-		quit(1)
+	root.add_child(preview)
+	await process_frame
+	var result: Dictionary = preview.load_model(path)
+	if not _check(result.get("ok", false), "El visor no pudo cargar el GLB: " + str(result.get("error", ""))):
 		return
-	generated.free()
+	if not _check(preview.has_model(), "El visor debe mantener el modelo cargado"):
+		return
+	print("GLB_PREVIEW_LOAD_OK")
+
+	if not _check(int(result.get("animation_count", 0)) >= 1, "El visor no detectó clips importados"):
+		return
+	if not _check(preview.get_animation_names().has("Move"), "No enumeró la animación importada Move"):
+		return
+	if not _check(preview.play_animation("Move"), "No pudo reproducir la animación importada"):
+		return
+	print("GLB_PREVIEW_ANIMATION_OK")
+
+	preview.last_pointer = Vector2(100, 100)
+	var initial_rotation: float = preview.model_pivot.rotation.y
+	preview._rotate_from_pointer(Vector2(130, 100))
+	if not _check(not is_equal_approx(preview.model_pivot.rotation.y, initial_rotation), "El modelo no giró al arrastrar"):
+		return
+	var initial_zoom: float = preview.preview_camera.position.length()
+	preview._zoom_camera(0.88)
+	if not _check(preview.preview_camera.position.length() < initial_zoom, "El zoom no acercó la cámara"):
+		return
+	preview.stop_animation()
+	preview.clear_model()
+	if not _check(not preview.has_model(), "Limpiar el visor debe liberar el modelo activo"):
+		return
+	preview.free()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	print("RESOURCE_MODEL_PREVIEW_TESTS_OK")
 	quit(0)
+
+func _check(condition: bool, message: String) -> bool:
+	if condition:
+		return true
+	push_error(message)
+	quit(1)
+	return false

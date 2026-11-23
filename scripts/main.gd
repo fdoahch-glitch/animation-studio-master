@@ -2019,7 +2019,7 @@ func _show_character_lab() -> void:
 	var texture_title := Label.new()
 	texture_title.text = "AJUSTE DE TEXTURA E SEGMENTACIÓN"
 	right.add_child(texture_title)
-	_add_image_adjustment_slider(right, "Brillo", "brightness", -1.0, 1.0, 0.0)
+	_add_image_adjustment_slider(right, "Brillo", "brightness", 0.0, 2.0, 1.0)
 	_add_image_adjustment_slider(right, "Contraste", "contrast", 0.5, 1.8, 1.0)
 	_add_image_adjustment_slider(right, "Saturación", "saturation", 0.0, 2.0, 1.0)
 	_add_image_adjustment_slider(right, "Tolerancia del fondo", "tolerance", 0.03, 0.45, 0.16)
