@@ -4,6 +4,7 @@ class_name CharacterSpatialAnimator
 ## Animador 3D procedural local para Skeleton3D. No usa modelos externos ni servicios de IA.
 
 var skeleton: Skeleton3D
+var imported_animation_player: AnimationPlayer
 var current_cycle := ""
 var elapsed := 0.0
 var playback_speed := 1.0
@@ -13,8 +14,9 @@ var active_clip: Dictionary = {}
 
 const CYCLE_NAMES := ["idle", "walk", "run", "jump", "wave", "talk", "dance", "sneak"]
 
-func configure(target_skeleton: Skeleton3D) -> void:
+func configure(target_skeleton: Skeleton3D, target_animation_player: AnimationPlayer = null) -> void:
 	skeleton = target_skeleton
+	imported_animation_player = target_animation_player
 	elapsed = 0.0
 	playing = false
 	set_process(is_instance_valid(skeleton))
@@ -84,7 +86,9 @@ func generate_animation_library(intensity: float = 1.0) -> Array:
 func apply_pose(pose: Dictionary) -> int:
 	if not is_instance_valid(skeleton):
 		return 0
+	_stop_imported_animation()
 	playing = false
+	active_clip.clear()
 	current_cycle = ""
 	_reset_skeleton_pose()
 	var rotations: Variant = pose.get("bone_rotations_degrees", pose)
@@ -92,7 +96,7 @@ func apply_pose(pose: Dictionary) -> int:
 		return 0
 	var applied := 0
 	for bone_name in rotations.keys():
-		var index := skeleton.find_bone(str(bone_name))
+		var index := _find_bone_index(str(bone_name))
 		if index < 0:
 			continue
 		var euler := _as_vector3(rotations[bone_name])
@@ -105,7 +109,10 @@ func capture_pose() -> Dictionary:
 	if not is_instance_valid(skeleton):
 		return result
 	for index in range(skeleton.get_bone_count()):
-		var name := skeleton.get_bone_name(index)
+		var actual_name := skeleton.get_bone_name(index)
+		var name := _canonical_bone_name(actual_name)
+		if name == "":
+			name = actual_name
 		var euler := skeleton.get_bone_pose_rotation(index).get_euler() * (180.0 / PI)
 		result[name] = [snappedf(euler.x, 0.01), snappedf(euler.y, 0.01), snappedf(euler.z, 0.01)]
 	return result
@@ -114,6 +121,7 @@ func play_animation(animation_name: String, custom_speed: float = 1.0, intensity
 	var key := animation_name.to_lower().strip_edges()
 	if not CYCLE_NAMES.has(key) or not is_instance_valid(skeleton):
 		return false
+	_stop_imported_animation()
 	current_cycle = key
 	active_clip.clear()
 	elapsed = 0.0
@@ -124,6 +132,7 @@ func play_animation(animation_name: String, custom_speed: float = 1.0, intensity
 	return true
 
 func stop_animation() -> void:
+	_stop_imported_animation()
 	playing = false
 	current_cycle = ""
 	active_clip.clear()
@@ -132,6 +141,7 @@ func stop_animation() -> void:
 func play_clip(clip: Dictionary, custom_speed: float = 1.0) -> bool:
 	if not is_instance_valid(skeleton) or clip.get("keyframes", []).is_empty():
 		return false
+	_stop_imported_animation()
 	active_clip = clip.duplicate(true)
 	current_cycle = ""
 	elapsed = 0.0
@@ -201,7 +211,7 @@ func _sample_clip_pose(clip: Dictionary, time: float) -> Dictionary:
 func _apply_runtime_rotations(pose: Dictionary) -> void:
 	_reset_skeleton_pose()
 	for bone_name in pose.keys():
-		var index := skeleton.find_bone(str(bone_name))
+		var index := _find_bone_index(str(bone_name))
 		if index >= 0:
 			var euler := _as_vector3(pose[bone_name])
 			skeleton.set_bone_pose_rotation(index, Quaternion.from_euler(euler * (PI / 180.0)))
@@ -209,6 +219,59 @@ func _apply_runtime_rotations(pose: Dictionary) -> void:
 func _reset_skeleton_pose() -> void:
 	for index in range(skeleton.get_bone_count()):
 		skeleton.set_bone_pose_rotation(index, Quaternion.IDENTITY)
+
+
+func _stop_imported_animation() -> void:
+	if is_instance_valid(imported_animation_player):
+		imported_animation_player.stop()
+
+func _normalize_bone_name(value: String) -> String:
+	var normalized := value.to_lower()
+	normalized = normalized.replace("mixamorig:", "").replace("mixamorig", "")
+	normalized = normalized.replace("_", "").replace(" ", "").replace("-", "").replace(":", "")
+	return normalized
+
+func _canonical_bone_name(actual_name: String) -> String:
+	var normalized := _normalize_bone_name(actual_name)
+	var aliases := {
+		"Pelvis":["pelvis","hips","hip"],
+		"Spine":["spine","spine0"],
+		"Chest":["chest","spine1","spine2","upperchest"],
+		"Neck":["neck"],
+		"Head":["head"],
+		"Shoulder_L":["shoulderleft","leftshoulder","leftarm","upperarmleft","leftupperarm"],
+		"Elbow_L":["elbowleft","leftelbow","leftforearm","forearmleft","leftlowerarm"],
+		"Wrist_L":["wristleft","leftwrist","lefthand","handleft"],
+		"Shoulder_R":["shoulderright","rightshoulder","rightarm","upperarmright","rightupperarm"],
+		"Elbow_R":["elbowright","rightelbow","rightforearm","forearmright","rightlowerarm"],
+		"Wrist_R":["wristright","rightwrist","righthand","handright"],
+		"Hip_L":["hipleft","lefthip","leftupleg","leftthigh","thighleft","upperlegleft"],
+		"Knee_L":["kneeleft","leftknee","leftleg","leftcalf","calfleft","lowerlegleft"],
+		"Ankle_L":["ankleleft","leftankle","leftfoot","footleft"],
+		"Hip_R":["hipright","righthip","rightupleg","rightthigh","thighright","upperlegright"],
+		"Knee_R":["kneeright","rightknee","rightleg","rightcalf","calfright","lowerlegright"],
+		"Ankle_R":["ankleright","rightankle","rightfoot","footright"]
+	}
+	for canonical in aliases.keys():
+		if normalized in aliases[canonical]:
+			return str(canonical)
+	return ""
+
+func _find_bone_index(requested_name: String) -> int:
+	var exact := skeleton.find_bone(requested_name)
+	if exact >= 0:
+		return exact
+	var normalized := _normalize_bone_name(requested_name)
+	for index in range(skeleton.get_bone_count()):
+		if _normalize_bone_name(skeleton.get_bone_name(index)) == normalized:
+			return index
+	var canonical := _canonical_bone_name(requested_name)
+	if canonical == "":
+		return -1
+	for index in range(skeleton.get_bone_count()):
+		if _canonical_bone_name(skeleton.get_bone_name(index)) == canonical:
+			return index
+	return -1
 
 func _sample_cycle(name: String, time: float, factor: float) -> Dictionary:
 	var frequency := 1.0
