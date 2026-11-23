@@ -1,5 +1,7 @@
 extends SceneTree
 const STUDIO=preload("res://scripts/dialogue_studio.gd")
+const SPATIAL_BUILDER=preload("res://scripts/character_spatial_rig_builder.gd")
+const SPATIAL_ANIMATOR=preload("res://scripts/character_spatial_animator.gd")
 func _initialize():
  var studio=STUDIO.new()
  var script=studio.create_script("Piloto")
@@ -46,9 +48,9 @@ func _initialize():
  viseme_wav.stereo = false
  viseme_wav.format = AudioStreamWAV.FORMAT_16_BITS
  viseme_wav.data = pcm
- var wav_path := "user://dialogue_viseme_test.wav"
- assert(viseme_wav.save_to_wav(wav_path) == OK, "Debe escribir el WAV PCM de prueba")
- var loaded_wav: AudioStreamWAV = AudioStreamWAV.load_from_file(wav_path)
+ var viseme_wav_path := "user://dialogue_viseme_test.wav"
+ assert(viseme_wav.save_to_wav(viseme_wav_path) == OK, "Debe escribir el WAV PCM de prueba")
+ var loaded_wav: AudioStreamWAV = AudioStreamWAV.load_from_file(viseme_wav_path)
  assert(loaded_wav != null and not loaded_wav.data.is_empty(), "Debe poder volver a abrir el WAV PCM")
  var pcm_visemes: Array = studio.build_viseme_track_from_wav(loaded_wav, 0.0, 30.0)
  assert(pcm_visemes.size()==3 and pcm_visemes[0].viseme=="sil" and pcm_visemes[2].viseme=="A", "Debe generar visemas temporizados desde PCM WAV")
@@ -86,7 +88,7 @@ func _initialize():
  assert(animator.active_viseme_track.is_empty(), "La pista de visemas debe finalizar al alcanzar su duración")
  animator.stop_animation()
  assert(script.lines[0].has("visemes") or script.lines[1].has("visemes"), "La línea debe conservar su pista de visemas")
- DirAccess.remove_absolute(ProjectSettings.globalize_path(wav_path))
+ DirAccess.remove_absolute(ProjectSettings.globalize_path(viseme_wav_path))
  assert(not studio.add_line(script,"","",0,1).ok)
  print("DIALOGUE_STUDIO_TESTS_OK")
  quit(0)
