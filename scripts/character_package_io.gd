@@ -6,7 +6,7 @@ const FORMAT_VERSION := 1
 const MAX_FILE_BYTES := 32 * 1024 * 1024
 const MAX_ASSET_BYTES := 20 * 1024 * 1024
 
-func build_package(character: Dictionary, rig_type: String, joint_angles: Dictionary, procedural_poses: Array, custom_poses: Array, clips: Array, image_data: Dictionary = {}, spatial_poses: Array = [], spatial_clips: Array = [], spatial_bone_rotations: Dictionary = {}) -> Dictionary:
+func build_package(character: Dictionary, rig_type: String, joint_angles: Dictionary, procedural_poses: Array, custom_poses: Array, clips: Array, image_data: Dictionary = {}, spatial_poses: Array = [], spatial_clips: Array = [], spatial_bone_rotations: Dictionary = {}, model_path: String = "") -> Dictionary:
 	return {
 		"format": FORMAT_ID,
 		"format_version": FORMAT_VERSION,
@@ -16,7 +16,8 @@ func build_package(character: Dictionary, rig_type: String, joint_angles: Dictio
 		"rig": {
 			"type": rig_type,
 			"joint_angles_degrees": _clean_angles(joint_angles),
-			"bone_rotations_degrees": _clean_bone_rotations(spatial_bone_rotations)
+			"bone_rotations_degrees": _clean_bone_rotations(spatial_bone_rotations),
+			"model_asset": _model_asset_key(image_data, model_path)
 		},
 		"procedural_poses": procedural_poses.duplicate(true),
 		"custom_poses": custom_poses.duplicate(true),
@@ -24,8 +25,8 @@ func build_package(character: Dictionary, rig_type: String, joint_angles: Dictio
 		"spatial_poses": _clean_spatial_poses(spatial_poses),
 		"spatial_animation_clips": _clean_spatial_clips(spatial_clips),
 		"image_import": _portable_image_metadata(image_data),
-		"assets": _collect_image_assets(image_data),
-		"asset_note": "Las imágenes utilizadas por el rig se incluyen dentro del paquete cuando caben en el límite de tamaño."
+		"assets": _collect_image_assets(image_data, model_path),
+		"asset_note": "Las imágenes y modelos 3D se incluyen dentro del paquete cuando caben en el límite de tamaño."
 	}
 
 func encode_package(package_data: Dictionary) -> String:
@@ -168,10 +169,21 @@ func _clean_poses(value: Array) -> Array:
 	return result
 
 
-func _collect_image_assets(image_data: Dictionary) -> Dictionary:
+func _model_asset_key(image_data: Dictionary, model_path: String) -> String:
+	if model_path == "":
+		return ""
+	var index := 0
+	if str(image_data.get("source", "")) != "":
+		index += 1
+	if str(image_data.get("processed_image", "")) != "":
+		index += 1
+	for part in image_data.get("parts", []):
+		if part is Dictionary and str(part.get("path", "")) != "":
+			index += 1
+	return "asset_%02d_%s" % [index, model_path.get_file().validate_filename()]
+
+func _collect_image_assets(image_data: Dictionary, model_path: String = "") -> Dictionary:
 	var assets := {}
-	if image_data.is_empty():
-		return assets
 	var candidates: Array[String] = []
 	var source_path := str(image_data.get("source", ""))
 	var processed_path := str(image_data.get("processed_image", ""))
@@ -182,6 +194,8 @@ func _collect_image_assets(image_data: Dictionary) -> Dictionary:
 	for part in image_data.get("parts", []):
 		if part is Dictionary and str(part.get("path", "")) != "":
 			candidates.append(str(part.get("path", "")))
+	if model_path != "":
+		candidates.append(model_path)
 	var total_bytes := 0
 	for index in range(candidates.size()):
 		var source := candidates[index]
@@ -198,7 +212,7 @@ func _collect_image_assets(image_data: Dictionary) -> Dictionary:
 func restore_image_assets(package_data: Dictionary, target_directory: String) -> Dictionary:
 	var metadata: Dictionary = package_data.get("image_import", {})
 	var assets: Dictionary = package_data.get("assets", {})
-	if assets.is_empty() or metadata.is_empty():
+	if assets.is_empty():
 		return {}
 	var absolute_dir := ProjectSettings.globalize_path(target_directory)
 	if DirAccess.make_dir_recursive_absolute(absolute_dir) != OK:
@@ -222,12 +236,15 @@ func restore_image_assets(package_data: Dictionary, target_directory: String) ->
 		"width": int(metadata.get("width", 0)),
 		"height": int(metadata.get("height", 0)),
 		"output_dir": target_directory,
-		"parts": []
+		"parts": [],
+		"model_path": ""
 	}
 	var source_key := str(metadata.get("source_asset", ""))
 	var processed_key := str(metadata.get("processed_asset", ""))
 	result["source"] = str(restored_paths.get(source_key, ""))
 	result["processed_image"] = str(restored_paths.get(processed_key, ""))
+	var model_asset_key := str(package_data.get("rig", {}).get("model_asset", ""))
+	result["model_path"] = str(restored_paths.get(model_asset_key, ""))
 	for part in metadata.get("parts", []):
 		if part is Dictionary:
 			var part_copy: Dictionary = part.duplicate(true)
