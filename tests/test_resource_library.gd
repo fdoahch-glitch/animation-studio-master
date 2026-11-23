@@ -12,7 +12,7 @@ func _initialize() -> void:
 	assert(library.normalize_category("Fondos") == "background")
 	assert(library.supported_extensions("character").has("glb"))
 	assert(not library.supported_extensions("background").has("glb"))
-	var valid := {"id":"a1","name":"Bosque","category":"background","path":"user://animation_studio_assets/background/a1.webp","extension":"webp"}
+	var valid := {"id":"a1","name":"Bosque","source_name":"bosque_original.webp","category":"background","path":"user://animation_studio_assets/background/a1.webp","extension":"webp"}
 	assert(library.validate_resource(valid).ok)
 	assert(not library.validate_resource({"id":"bad","category":"unknown"}).ok)
 	var wrong_folder := valid.duplicate(true)
@@ -43,6 +43,7 @@ func _initialize() -> void:
 	]
 	assert(library.search(records, "jungla").is_empty())
 	assert(library.search(records, "tree").size() == 1)
+	assert(library.search([valid], "bosque_original.webp").size() == 1, "La búsqueda debe incluir el nombre del archivo original")
 	assert(library.search(records, "", "Fondos").size() == 1)
 	var tag_record := {"id":"tagged","name":"Bosque","category":"background","path":"user://animation_studio_assets/background/tagged.webp","extension":"webp","tags":[]}
 	var tag_result: Dictionary = library.update_tags(tag_record, ["Jungla", " bosque ", "JUNGLA", ""])
@@ -58,6 +59,10 @@ func _initialize() -> void:
 	var imported: Dictionary = library.import_file(temp_image_path, "background", "Prueba miniatura")
 	assert(imported.ok, "La importación de imagen debe completarse")
 	var imported_resource: Dictionary = imported.resource
+	assert(not str(imported_resource.id).is_empty() and imported_resource.name == "Prueba miniatura", "Debe conservar ID y nombre")
+	assert(imported_resource.source_name == "resource_library_thumbnail_source.png" and imported_resource.extension == "png", "Debe conservar archivo original y extensión")
+	assert(int(imported_resource.bytes) > 0 and imported_resource.visual_mode == "2D", "Debe conservar tamaño y modo visual")
+	assert(imported_resource.compatible_modes.has("2D") and imported_resource.path.begins_with("user://animation_studio_assets/background/"), "Debe guardar compatibilidad y ruta administrada")
 	var generated_thumbnail := str(imported_resource.get("thumbnail_path", ""))
 	assert(not generated_thumbnail.is_empty() and FileAccess.file_exists(generated_thumbnail), "La biblioteca debe generar una miniatura PNG")
 	var thumbnail_image := Image.new()
