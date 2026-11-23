@@ -23,5 +23,12 @@ func _initialize() -> void:
 	assert(canvas.selected_id == "actor", "Debe conservar selección")
 	canvas.reset_view()
 	assert(canvas.zoom == 1.0 and canvas.pan == Vector2.ZERO, "Debe reiniciar cámara")
+	var dropped: Array = []
+	canvas.asset_dropped.connect(func(kind: String, position: Vector2): dropped.append({"kind":kind,"position":position}))
+	assert(canvas._can_drop_data(Vector2.ZERO, {"scene_asset_type":"character"}), "Debe aceptar tipos de recurso admitidos")
+	assert(not canvas._can_drop_data(Vector2.ZERO, {"scene_asset_type":"audio"}), "Debe rechazar tipos no admitidos")
+	canvas._drop_data(Vector2(400,300), {"scene_asset_type":"decoration"})
+	assert(dropped.size() == 1 and dropped[0].kind == "decoration", "Debe emitir la colocación por arrastre")
+	assert(dropped[0].position.distance_to(Vector2(960,540)) < 0.01, "Debe convertir la posición soltada al espacio de escena")
 	print("SCENE_CANVAS_TESTS_OK")
 	quit(0)
