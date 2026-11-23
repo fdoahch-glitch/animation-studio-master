@@ -6,6 +6,7 @@ const SPATIAL_BUILDER = preload("res://scripts/character_spatial_rig_builder.gd"
 const PROCEDURAL_ANIMATOR = preload("res://scripts/character_procedural_animator.gd")
 const IK_DRAG_OVERLAY = preload("res://scripts/ik_drag_overlay.gd")
 const ANIMATION_TIMELINE = preload("res://scripts/animation_timeline.gd")
+const PACKAGE_IO = preload("res://scripts/character_package_io.gd")
 
 func _initialize() -> void:
 	call_deferred("_run_tests")
@@ -69,6 +70,30 @@ func _run_tests() -> void:
 	keys = timeline.remove_keyframe(keys, 1)
 	if keys.size() != 2:
 		push_error("No se pudo eliminar un fotograma clave.")
+		quit(1)
+		return
+
+
+	var package_io = PACKAGE_IO.new()
+	var source_clips := [{"name":"Caminar","duration":2.0,"loop":true,"keyframes":[{"time":0.0,"joint_angles":{"head":15.0,"elbow_left":-25.0}},{"time":2.0,"joint_angles":{"head":-15.0,"elbow_left":25.0}}]}]
+	var package_data: Dictionary = package_io.build_package({"name":"Heroe CI","description":"Prueba","rig":{"type":"2D"}}, "2D_pivot_hierarchy", {"head":45.0,"torso":-12.0}, [{"name":"Saludo","joint_angles":{"elbow_right":80.0}}], [], source_clips)
+	var decoded_package: Dictionary = package_io.decode_package(package_io.encode_package(package_data))
+	if not bool(decoded_package.get("ok", false)):
+		push_error("No se pudo serializar y recuperar un paquete de personaje.")
+		quit(1)
+		return
+	var restored: Dictionary = decoded_package["package"]
+	if str(restored.character.get("name", "")) != "Heroe CI" or not is_equal_approx(float(restored.rig.joint_angles_degrees.get("head", 0.0)), 45.0):
+		push_error("El paquete no conservó la ficha o los ángulos del rig.")
+		quit(1)
+		return
+	if restored.animation_clips.size() != 1 or restored.animation_clips[0].keyframes.size() != 2:
+		push_error("El paquete no conservó los fotogramas clave.")
+		quit(1)
+		return
+	var rejected_package: Dictionary = package_io.decode_package("{\"format\":\"otro\"}")
+	if bool(rejected_package.get("ok", true)):
+		push_error("El importador aceptó un formato desconocido.")
 		quit(1)
 		return
 
