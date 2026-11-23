@@ -4,6 +4,10 @@ const LIBRARY = preload("res://scripts/resource_library.gd")
 
 func _initialize() -> void:
 	var library = LIBRARY.new()
+	assert(library.is_resource_size_allowed(1), "Debe aceptar un recurso no vacío")
+	assert(library.is_resource_size_allowed(256 * 1024 * 1024), "Debe aceptar el límite máximo")
+	assert(not library.is_resource_size_allowed(256 * 1024 * 1024 + 1), "Debe rechazar recursos que superen el límite total")
+	assert(not library.is_resource_size_allowed(0), "Debe rechazar recursos vacíos")
 	assert(library.normalize_category("Personajes") == "character")
 	assert(library.normalize_category("Fondos") == "background")
 	assert(library.supported_extensions("character").has("glb"))
