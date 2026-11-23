@@ -25,6 +25,7 @@ var build_segmented_button: Button
 var animation_controls: GridContainer
 var pose_controls: GridContainer
 var animation_speed_slider: HSlider
+var motion_intensity_slider: HSlider
 var imported_character_data: Dictionary = {}
 var procedural_poses: Array = []
 var runtime_rig: Node2D
@@ -393,6 +394,25 @@ func _show_character_lab() -> void:
 	animation_speed_slider.value_changed.connect(func(value: float) -> void:
 		speed_value.text = "%.2f×" % value
 	)
+	var intensity_row := HBoxContainer.new()
+	right.add_child(intensity_row)
+	var intensity_label := Label.new()
+	intensity_label.text = "Intensidad de movimiento"
+	intensity_label.custom_minimum_size.x = 150
+	intensity_row.add_child(intensity_label)
+	motion_intensity_slider = HSlider.new()
+	motion_intensity_slider.min_value = 0.5
+	motion_intensity_slider.max_value = 1.75
+	motion_intensity_slider.step = 0.05
+	motion_intensity_slider.value = 1.0
+	motion_intensity_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	intensity_row.add_child(motion_intensity_slider)
+	var intensity_value := Label.new()
+	intensity_value.text = "1.00×"
+	intensity_row.add_child(intensity_value)
+	motion_intensity_slider.value_changed.connect(func(value: float) -> void:
+		intensity_value.text = "%.2f×" % value
+	)
 	var pose_title := Label.new()
 	pose_title.text = "BIBLIOTECA DE POSES PROCEDURALES"
 	right.add_child(pose_title)
@@ -495,7 +515,8 @@ func _generate_procedural_pose_set() -> void:
 		_generate_character()
 	if procedural_animator == null:
 		procedural_animator = CHARACTER_PROCEDURAL_ANIMATOR.new()
-	var generated: Dictionary = procedural_animator.generate_pose_library()
+	var intensity := motion_intensity_slider.value if is_instance_valid(motion_intensity_slider) else 1.0
+	var generated: Dictionary = procedural_animator.generate_pose_library(intensity)
 	procedural_poses = generated.get("poses", [])
 	var clips: Array = generated.get("animations", [])
 	var added := 0
@@ -515,7 +536,7 @@ func _generate_procedural_pose_set() -> void:
 		for clip in clips:
 			var clip_key := "proc_" + str(clip.get("name", "generated")).validate_filename().to_lower()
 			_add_button(animation_controls, str(clip.get("name", "Animación")), _play_rig_animation.bind(clip_key))
-	var record := {"character": character_name.text if is_instance_valid(character_name) else "Personaje", "poses": procedural_poses, "animations": clips, "generator": "procedural_v1"}
+	var record := {"character": character_name.text if is_instance_valid(character_name) else "Personaje", "poses": procedural_poses, "animations": clips, "intensity": intensity, "generator": "procedural_v1"}
 	if not project_data.has("procedural_pose_sets"):
 		project_data["procedural_pose_sets"] = []
 	project_data["procedural_pose_sets"].append(record)
@@ -524,6 +545,7 @@ func _generate_procedural_pose_set() -> void:
 	lines.append("GENERACIÓN PROCEDURAL COMPLETADA")
 	lines.append("Poses listas: %d" % procedural_poses.size())
 	lines.append("Ciclos de animación creados: %d" % clips.size())
+	lines.append("Intensidad aplicada: %.2f×" % intensity)
 	lines.append("Clips añadidos al rig actual: %d" % added)
 	lines.append("Primera pose aplicada: %d articulaciones" % applied)
 	lines.append("")
