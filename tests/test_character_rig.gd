@@ -209,6 +209,10 @@ func _run_tests() -> void:
 		push_error("No se pudo aplicar una pose al Skeleton3D.")
 		quit(1)
 		return
+	if skeleton.find_bone("Jaw") < 0 or spatial_animator.apply_pose({"bone_rotations_degrees":{"Jaw":[18.0,0.0,0.0]}}) < 1:
+		push_error("No se pudo aplicar una pose de mandíbula al rig humanoide.")
+		quit(1)
+		return
 	if not spatial_animator.play_animation("walk", 1.0, 1.0):
 		push_error("No se pudo iniciar el ciclo procedural 3D.")
 		quit(1)
@@ -245,7 +249,7 @@ func _run_tests() -> void:
 	var quadruped_rig: Node3D = quadruped_builder.build_quadruped_3d("Dinosaurio_CI")
 	root.add_child(quadruped_rig)
 	var quadruped_skeleton := quadruped_rig.get_node_or_null("Skeleton3D") as Skeleton3D
-	if quadruped_skeleton == null or quadruped_skeleton.find_bone("Tail_04") < 0:
+	if quadruped_skeleton == null or quadruped_skeleton.find_bone("Tail_04") < 0 or quadruped_skeleton.find_bone("Jaw") < 0:
 		push_error("No se construyó el rig 3D cuadrúpedo con cola.")
 		quit(1)
 		return
