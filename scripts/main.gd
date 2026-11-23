@@ -424,6 +424,8 @@ func _show_scene_manager() -> void:
 	_add_button(actions, "Nueva", _create_scene)
 	_add_button(actions, "Duplicar", _duplicate_scene)
 	_add_button(actions, "Eliminar", _delete_scene)
+	_add_button(actions, "Subir escena", _move_scene_up)
+	_add_button(actions, "Bajar escena", _move_scene_down)
 	_add_button(left, "Volver", _show_workspace)
 	var center := VBoxContainer.new()
 	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -536,9 +538,17 @@ func _active_scene() -> Dictionary:
 
 func _refresh_scene_canvas() -> void:
 	if not is_instance_valid(scene_canvas): return
-	scene_canvas.set_scene_data(_active_scene(), float(project_data.get("width", 1920)), float(project_data.get("height", 1080)))
+	var scene := _active_scene()
+	scene_canvas.set_scene_data(scene, float(project_data.get("width", 1920)), float(project_data.get("height", 1080)))
 	_refresh_layer_list()
 	_update_scene_inspector()
+	var transition: Dictionary = scene.get("transitions", {})
+	var transition_type := str(transition.get("type", "cut"))
+	for i in range(transition_picker.item_count):
+		if transition_picker.get_item_text(i) == transition_type:
+			transition_picker.select(i)
+			break
+	transition_duration.value = float(transition.get("duration_seconds", 1.0))
 
 func _refresh_layer_list() -> void:
 	if not is_instance_valid(layer_list): return
@@ -733,6 +743,20 @@ func _delete_scene() -> void:
 	_refresh_scene_list()
 	_save_project()
 	_set_status("Escena eliminada.")
+
+func _move_scene(offset: int) -> void:
+	var scenes: Array = project_data.get("scenes", [])
+	var target := selected_scene_index + offset
+	if selected_scene_index < 0 or target < 0 or target >= scenes.size(): return
+	var item = scenes.pop_at(selected_scene_index)
+	scenes.insert(target, item)
+	project_data["scenes"] = scenes
+	selected_scene_index = target
+	_refresh_scene_list()
+	_refresh_scene_canvas()
+	_save_project()
+func _move_scene_up() -> void: _move_scene(-1)
+func _move_scene_down() -> void: _move_scene(1)
 
 func _on_scene_selected(index: int) -> void:
 	var scenes: Array = project_data.get("scenes", [])
