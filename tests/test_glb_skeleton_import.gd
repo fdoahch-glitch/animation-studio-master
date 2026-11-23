@@ -94,3 +94,10 @@ func _add_skinned_triangle(parent: Node3D, skeleton: Skeleton3D, skeleton_path: 
 	parent.add_child(instance)
 	instance.skeleton = skeleton_path
 	instance.skin = skeleton.create_skin_from_rest_transforms()
+
+func _check(condition: bool, message: String) -> bool:
+	if condition:
+		return true
+	push_error(message)
+	quit(1)
+	return false
