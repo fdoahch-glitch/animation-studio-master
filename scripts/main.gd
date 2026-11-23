@@ -6,6 +6,7 @@ const CHARACTER_IMAGE_PROCESSOR = preload("res://scripts/character_image_process
 const CHARACTER_PROCEDURAL_ANIMATOR = preload("res://scripts/character_procedural_animator.gd")
 const CHARACTER_SPATIAL_RIG_BUILDER = preload("res://scripts/character_spatial_rig_builder.gd")
 const IK_DRAG_OVERLAY = preload("res://scripts/ik_drag_overlay.gd")
+const ANIMATION_TIMELINE = preload("res://scripts/animation_timeline.gd")
 const DEFAULT_PROJECT := {"name":"Mi primera animación","width":1920,"height":1080,"fps":60,"orientation":"Horizontal","visual_mode":"2D","background_mode":"Vacío"}
 
 var project_data: Dictionary = DEFAULT_PROJECT.duplicate(true)
@@ -34,6 +35,14 @@ var joint_angle_spin: SpinBox
 var joint_undo_stack: Array[Dictionary] = []
 var joint_redo_stack: Array[Dictionary] = []
 var joint_editor_syncing := false
+var timeline_model
+var timeline_clip_picker: OptionButton
+var timeline_key_list: ItemList
+var timeline_duration: SpinBox
+var timeline_playhead: HSlider
+var timeline_loop: CheckBox
+var timeline_name_input: LineEdit
+var timeline_time_input: SpinBox
 var imported_character_data: Dictionary = {}
 var procedural_poses: Array = []
 var runtime_rig: Node2D
@@ -482,6 +491,64 @@ func _show_character_lab() -> void:
 	_add_button(joint_action_row, "Rehacer", _redo_joint_edit)
 	_add_button(joint_action_row, "Restablecer articulación", _reset_selected_joint)
 	_add_button(joint_action_row, "Restablecer todo", _reset_all_joints)
+	var timeline_title := Label.new()
+	timeline_title.text = "LÍNEA DE TIEMPO · FOTOGRAMAS CLAVE"
+	right.add_child(timeline_title)
+	var timeline_create_row := HBoxContainer.new()
+	right.add_child(timeline_create_row)
+	timeline_name_input = LineEdit.new()
+	timeline_name_input.placeholder_text = "Nombre del clip"
+	timeline_name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	timeline_create_row.add_child(timeline_name_input)
+	_add_button(timeline_create_row, "Nuevo clip", _create_timeline_clip)
+	timeline_clip_picker = OptionButton.new()
+	timeline_clip_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	timeline_clip_picker.item_selected.connect(_on_timeline_clip_selected)
+	right.add_child(timeline_clip_picker)
+	var timeline_settings := HBoxContainer.new()
+	right.add_child(timeline_settings)
+	timeline_duration = SpinBox.new()
+	timeline_duration.min_value = 0.1
+	timeline_duration.max_value = 120.0
+	timeline_duration.step = 0.1
+	timeline_duration.value = 2.0
+	timeline_duration.suffix = " s"
+	timeline_duration.value_changed.connect(_on_timeline_duration_changed)
+	timeline_settings.add_child(timeline_duration)
+	timeline_loop = CheckBox.new()
+	timeline_loop.text = "Repetir"
+	timeline_loop.button_pressed = true
+	timeline_loop.toggled.connect(_on_timeline_loop_changed)
+	timeline_settings.add_child(timeline_loop)
+	timeline_playhead = HSlider.new()
+	timeline_playhead.min_value = 0.0
+	timeline_playhead.max_value = 2.0
+	timeline_playhead.step = 0.01
+	timeline_playhead.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	timeline_playhead.value_changed.connect(_on_timeline_playhead_changed)
+	right.add_child(timeline_playhead)
+	var timeline_key_row := HBoxContainer.new()
+	right.add_child(timeline_key_row)
+	timeline_time_input = SpinBox.new()
+	timeline_time_input.min_value = 0.0
+	timeline_time_input.max_value = 120.0
+	timeline_time_input.step = 0.05
+	timeline_time_input.suffix = " s"
+	timeline_key_row.add_child(timeline_time_input)
+	_add_button(timeline_key_row, "Capturar pose", _capture_timeline_keyframe)
+	_add_button(timeline_key_row, "Eliminar clave", _delete_timeline_keyframe)
+	timeline_key_list = ItemList.new()
+	timeline_key_list.custom_minimum_size.y = 90
+	timeline_key_list.item_selected.connect(_on_timeline_key_selected)
+	right.add_child(timeline_key_list)
+	var timeline_actions := HBoxContainer.new()
+	right.add_child(timeline_actions)
+	_add_button(timeline_actions, "Reproducir clip", _play_timeline_clip)
+	_add_button(timeline_actions, "Detener", _stop_timeline_clip)
+	_add_button(timeline_actions, "Guardar clips", _save_timeline_clips)
+	if timeline_model == null:
+		timeline_model = ANIMATION_TIMELINE.new()
+	_refresh_timeline_ui()
 	var position_title := Label.new()
 	position_title.text = "POSICIÓN DE PIVOTES (X / Y)"
 	right.add_child(position_title)
@@ -624,6 +691,135 @@ func _apply_generated_pose(pose: Dictionary) -> void:
 	var angles: Dictionary = pose.get("joint_angles", {})
 	var applied := rig_builder.apply_procedural_pose(runtime_rig, angles)
 	_set_status("Pose «%s» aplicada en %d articulaciones." % [str(pose.get("name", "Pose")), applied])
+
+
+func _timeline_clips() -> Array:
+	if not project_data.has("animation_clips"):
+		project_data["animation_clips"] = []
+	return project_data["animation_clips"]
+
+func _active_timeline_clip() -> Dictionary:
+	var clips := _timeline_clips()
+	if not is_instance_valid(timeline_clip_picker) or timeline_clip_picker.selected < 0 or timeline_clip_picker.selected >= clips.size():
+		return {}
+	return clips[timeline_clip_picker.selected]
+
+func _refresh_timeline_ui() -> void:
+	if not is_instance_valid(timeline_clip_picker):
+		return
+	var selected := timeline_clip_picker.selected
+	timeline_clip_picker.clear()
+	var clips := _timeline_clips()
+	for clip in clips:
+		timeline_clip_picker.add_item(str(clip.get("name", "Clip")))
+	if not clips.is_empty():
+		timeline_clip_picker.select(clampi(selected, 0, clips.size() - 1))
+		_on_timeline_clip_selected(timeline_clip_picker.selected)
+	else:
+		timeline_key_list.clear()
+		timeline_playhead.value = 0.0
+
+func _create_timeline_clip() -> void:
+	var clip_name := timeline_name_input.text.strip_edges()
+	if clip_name.is_empty():
+		clip_name = "Animación %d" % (_timeline_clips().size() + 1)
+	var clip := {"name": clip_name, "duration": 2.0, "loop": true, "interpolation": "linear", "keyframes": []}
+	_timeline_clips().append(clip)
+	timeline_name_input.clear()
+	_refresh_timeline_ui()
+	_set_status("Clip «%s» creado. Captura poses en distintos tiempos." % clip_name)
+
+func _on_timeline_clip_selected(index: int) -> void:
+	var clip := _active_timeline_clip()
+	if clip.is_empty():
+		return
+	timeline_duration.set_value_no_signal(float(clip.get("duration", 2.0)))
+	timeline_loop.set_pressed_no_signal(bool(clip.get("loop", true)))
+	timeline_playhead.max_value = float(clip.get("duration", 2.0))
+	timeline_time_input.max_value = timeline_playhead.max_value
+	_refresh_timeline_keys()
+
+func _on_timeline_duration_changed(value: float) -> void:
+	var clip := _active_timeline_clip()
+	if clip.is_empty():
+		return
+	clip["duration"] = value
+	timeline_playhead.max_value = value
+	timeline_time_input.max_value = value
+	timeline_playhead.value = minf(timeline_playhead.value, value)
+
+func _on_timeline_loop_changed(enabled: bool) -> void:
+	var clip := _active_timeline_clip()
+	if not clip.is_empty():
+		clip["loop"] = enabled
+
+func _refresh_timeline_keys() -> void:
+	if not is_instance_valid(timeline_key_list):
+		return
+	timeline_key_list.clear()
+	var clip := _active_timeline_clip()
+	for frame in clip.get("keyframes", []):
+		timeline_key_list.add_item("%.2f s · %d articulaciones" % [float(frame.get("time", 0.0)), frame.get("joint_angles", {}).size()])
+
+func _on_timeline_playhead_changed(value: float) -> void:
+	if is_instance_valid(timeline_time_input):
+		timeline_time_input.set_value_no_signal(value)
+	var clip := _active_timeline_clip()
+	if clip.is_empty() or not is_instance_valid(runtime_rig):
+		return
+	var pose: Dictionary = timeline_model.sample_pose(clip, value)
+	if not pose.is_empty():
+		rig_builder.stop_animation(runtime_rig)
+		rig_builder.apply_procedural_pose(runtime_rig, pose)
+
+func _on_timeline_key_selected(index: int) -> void:
+	var clip := _active_timeline_clip()
+	var frames: Array = clip.get("keyframes", [])
+	if index >= 0 and index < frames.size():
+		timeline_playhead.value = float(frames[index].get("time", 0.0))
+
+func _capture_timeline_keyframe() -> void:
+	var clip := _active_timeline_clip()
+	if clip.is_empty() or not is_instance_valid(runtime_rig):
+		_set_status("Crea un clip y un rig antes de capturar fotogramas.")
+		return
+	var at := clampf(timeline_time_input.value, 0.0, float(clip.get("duration", 2.0)))
+	var pose: Dictionary = rig_builder.capture_procedural_pose(runtime_rig)
+	if pose.is_empty():
+		return
+	clip["keyframes"] = timeline_model.insert_keyframe(clip.get("keyframes", []), at, pose)
+	timeline_playhead.value = at
+	_refresh_timeline_keys()
+	_set_status("Fotograma clave guardado en %.2f segundos." % at)
+
+func _delete_timeline_keyframe() -> void:
+	var clip := _active_timeline_clip()
+	if clip.is_empty() or timeline_key_list.get_selected_items().is_empty():
+		return
+	var index: int = timeline_key_list.get_selected_items()[0]
+	clip["keyframes"] = timeline_model.remove_keyframe(clip.get("keyframes", []), index)
+	_refresh_timeline_keys()
+
+func _play_timeline_clip() -> void:
+	var clip := _active_timeline_clip()
+	if clip.is_empty() or clip.get("keyframes", []).is_empty() or not is_instance_valid(runtime_rig):
+		_set_status("El clip necesita al menos un fotograma clave y un rig.")
+		return
+	var installed: int = rig_builder.add_procedural_animation_set(runtime_rig, [clip])
+	var key := "proc_" + str(clip.get("name", "clip")).validate_filename().to_lower()
+	if installed > 0 and rig_builder.play_animation(runtime_rig, key, animation_speed_slider.value if is_instance_valid(animation_speed_slider) else 1.0):
+		_set_status("Reproduciendo «%s»." % clip.get("name", "Clip"))
+	else:
+		_set_status("No se pudo reproducir el clip. Comprueba que las claves tengan articulaciones compatibles.")
+
+func _stop_timeline_clip() -> void:
+	if is_instance_valid(runtime_rig):
+		rig_builder.stop_animation(runtime_rig)
+	_set_status("Reproducción detenida.")
+
+func _save_timeline_clips() -> void:
+	_save_project()
+	_set_status("Biblioteca de clips guardada en el proyecto.")
 
 func _save_current_procedural_pose() -> void:
 	if not is_instance_valid(runtime_rig):
