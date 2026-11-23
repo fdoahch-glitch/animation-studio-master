@@ -4179,6 +4179,11 @@ func _labeled_control(parent: Node, label_text: String, control: Control) -> HBo
 func _apply_environment_preset(preset: String) -> void:
 	var result=environment_director.set_time_preset(active_environment,preset)
 	if result.ok:
+		if is_instance_valid(environment_hour_slider): environment_hour_slider.value = float(active_environment.hour)
+		if is_instance_valid(environment_sun_energy_slider): environment_sun_energy_slider.value = float(active_environment.sun_energy)
+		if is_instance_valid(environment_ambient_energy_slider): environment_ambient_energy_slider.value = float(active_environment.ambient_energy)
+		if is_instance_valid(environment_sky_picker): environment_sky_picker.color = _environment_color_from_value(active_environment.sky_color, Color("#9bc7df"))
+		if is_instance_valid(environment_sun_picker): environment_sun_picker.color = _environment_color_from_value(active_environment.sun_color, Color("#fff4dc"))
 		_save_environment()
 		_set_status("Preset horario aplicado: " + preset)
 
@@ -4190,6 +4195,9 @@ func _save_environment() -> void:
 	project_data["environments"]=[active_environment.duplicate(true)]
 	if is_instance_valid(scene_canvas):
 		scene_canvas.set_environment_data(active_environment)
+	if is_instance_valid(environment_preview_canvas):
+		environment_preview_canvas.set_resource_catalog(project_data.get("resources", []))
+		environment_preview_canvas.set_environment_data(active_environment)
 	_save_project()
 
 func _ensure_dialogue_script() -> void:
