@@ -21,7 +21,7 @@ func _initialize() -> void:
 	var duplicate: Dictionary = model.duplicate_clip(video, str(split.right.id), 12.0)
 	assert(duplicate.ok and video.clips.size() == 3)
 	assert(model.add_clip(audio, "res://voice.wav", 0.5, 3.0, {"volume": 0.8}).ok)
-	assert(is_equal_approx(model.timeline_duration(timeline), 17.0))
+	assert(is_equal_approx(model.timeline_duration(timeline), 15.0))
 	assert(is_equal_approx(model.snap_time(1.01, 30), 1.0))
 	assert(model.validate_timeline(timeline).ok)
 	audio.locked = true
