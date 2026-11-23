@@ -50,7 +50,7 @@ func _run_tests() -> void:
 		push_error("No se pudieron instalar los ciclos procedurales en el rig.")
 		quit(1)
 		return
-	var existing_animation_count := procedural_rig.get_node("AnimationPlayer").get_animation_library("base").get_animation_list().size()
+	var existing_animation_count: int = procedural_rig.get_node("AnimationPlayer").get_animation_library("base").get_animation_list().size()
 	var invalid_clips := [
 		{"name":"Tiempo inválido","duration":1.0,"keyframes":[{"time":INF,"joint_angles":{"head":20.0}}]},
 		{"name":"Ángulo inválido","duration":1.0,"keyframes":[{"time":0.0,"joint_angles":{"head":NAN}}]},

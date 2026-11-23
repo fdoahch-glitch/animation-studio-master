@@ -418,8 +418,8 @@ func _show_workspace() -> void:
 	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	page.add_theme_constant_override("separation", 14)
 	scroll.add_child(page)
-	var scene_count := project_data.get("scenes", []).size()
-	var resource_count := project_data.get("resources", []).size()
+	var scene_count: int = project_data.get("scenes", []).size()
+	var resource_count: int = project_data.get("resources", []).size()
 	var character_count := 0
 	for resource in project_data.get("resources", []):
 		if str(resource.get("category", "")) == "character":
@@ -897,7 +897,7 @@ func _director_add_keyframe() -> void:
 	var track: Dictionary = tracks[director_selected_track]
 	var easing := director_easing_picker.get_item_text(director_easing_picker.selected)
 	var fps := maxi(1, int(project_data.get("fps", 24)))
-	var key_time := timeline_model.frame_to_seconds(int(director_time_input.value), fps)
+	var key_time: float = timeline_model.frame_to_seconds(int(director_time_input.value), fps)
 	var result: Dictionary = timeline_model.insert_property_keyframe(track, key_time, director_value_input.value, easing)
 	if not bool(result.get("ok",false)):
 		_set_status(str(result.get("error","No se pudo añadir el keyframe.")))
@@ -920,7 +920,7 @@ func _director_delete_track() -> void:
 
 func _on_director_playhead_changed(value: float) -> void:
 	var fps := maxi(1, int(project_data.get("fps", 24)))
-	var seconds := timeline_model.frame_to_seconds(int(value), fps)
+	var seconds: float = timeline_model.frame_to_seconds(int(value), fps)
 	var scene := _active_scene()
 	var tracks := _director_tracks()
 	for track in tracks:
