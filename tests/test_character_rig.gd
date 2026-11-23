@@ -67,6 +67,14 @@ func _run_tests() -> void:
 		push_error("La interpolación de poses no coincide con el valor esperado.")
 		quit(1)
 		return
+	var spatial_keys: Array = timeline.insert_keyframe([], 0.0, {"Head":[0.0,0.0,0.0]}, "bone_rotations_degrees")
+	spatial_keys = timeline.insert_keyframe(spatial_keys, 2.0, {"Head":[0.0,0.0,90.0]}, "bone_rotations_degrees")
+	var spatial_mid: Dictionary = timeline.sample_pose({"keyframes":spatial_keys}, 1.0, "bone_rotations_degrees")
+	var spatial_head: Array = spatial_mid.get("Head", [])
+	if spatial_head.size() < 3 or not is_equal_approx(float(spatial_head[2]), 45.0):
+		push_error("La línea de tiempo no interpola las rotaciones vectoriales 3D.")
+		quit(1)
+		return
 	keys = timeline.remove_keyframe(keys, 1)
 	if keys.size() != 2:
 		push_error("No se pudo eliminar un fotograma clave.")
