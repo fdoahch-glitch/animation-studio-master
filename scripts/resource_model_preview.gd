@@ -45,8 +45,8 @@ func _ready() -> void:
 	preview_camera.look_at(Vector3.ZERO, Vector3.UP)
 
 func load_model(path: String) -> Dictionary:
-	if not is_inside_tree():
-		return {"ok": false, "error": "La vista previa todavía no está dentro del árbol de escena."}
+	if not is_instance_valid(preview_world):
+		return {"ok": false, "error": "La vista previa todavía no está inicializada."}
 	if not FileAccess.file_exists(path):
 		return {"ok": false, "error": "No existe el archivo GLB/glTF seleccionado."}
 	clear_model()

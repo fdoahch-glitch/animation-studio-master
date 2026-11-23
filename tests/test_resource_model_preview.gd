@@ -8,13 +8,15 @@ func _initialize() -> void:
 func _run_test() -> void:
 	var preview = PREVIEW.new()
 	preview.custom_minimum_size = Vector2(256, 192)
-	root.add_child(preview)
+	preview._ready()
+	print("PREVIEW_TEST_READY")
 	var sample_root := Node3D.new()
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.mesh = BoxMesh.new()
 	sample_root.add_child(mesh_instance)
 	var document := GLTFDocument.new()
 	var state := GLTFState.new()
+	print("PREVIEW_TEST_EXPORTING")
 	var append_error := document.append_from_scene(sample_root, state)
 	if append_error != OK:
 		push_error("No se pudo serializar la escena de prueba a glTF: " + error_string(append_error))
@@ -27,6 +29,7 @@ func _run_test() -> void:
 		quit(1)
 		return
 	sample_root.free()
+	print("PREVIEW_TEST_IMPORTING")
 	var result: Dictionary = preview.load_model(path)
 	if not bool(result.get("ok", false)):
 		push_error("No se pudo cargar el GLB en la vista previa: " + str(result.get("error", "")))
