@@ -113,6 +113,11 @@ func _run_tests() -> void:
 		return
 
 	var processor = IMAGE_PROCESSOR.new()
+	var adjusted_path: String = processor.create_adjusted_texture(source_path, 0.1, 1.1, 1.2)
+	if adjusted_path.is_empty() or not FileAccess.file_exists(adjusted_path):
+		push_error("No se pudo generar una textura ajustada localmente.")
+		quit(1)
+		return
 	var prepared: Dictionary = processor.process_character_image(source_path, 0.16)
 	if not bool(prepared.get("ok", false)) or prepared.get("parts", []).is_empty():
 		push_error("Falló la preparación local de imagen.")
