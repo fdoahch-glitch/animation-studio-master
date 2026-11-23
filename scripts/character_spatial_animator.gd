@@ -260,10 +260,12 @@ func apply_two_bone_ik(chain_name: String, target_position: Vector3, pole_positi
 	var end_index := _find_bone_index(str(chain[2]))
 	if root_index < 0 or middle_index < 0 or end_index < 0:
 		return {"ok":false,"error":"El modelo no contiene todos los huesos de esta cadena."}
-	skeleton.force_update_all_bone_transforms()
-	var root_position: Vector3 = skeleton.get_bone_global_pose(root_index).origin
-	var middle_position: Vector3 = skeleton.get_bone_global_pose(middle_index).origin
-	var end_position: Vector3 = skeleton.get_bone_global_pose(end_index).origin
+	var root_transform := _get_bone_global_transform(root_index)
+	var middle_transform := _get_bone_global_transform(middle_index)
+	var end_transform := _get_bone_global_transform(end_index)
+	var root_position: Vector3 = root_transform.origin
+	var middle_position: Vector3 = middle_transform.origin
+	var end_position: Vector3 = end_transform.origin
 	var first_length := root_position.distance_to(middle_position)
 	var second_length := middle_position.distance_to(end_position)
 	if first_length <= 0.0001 or second_length <= 0.0001:
@@ -271,16 +273,27 @@ func apply_two_bone_ik(chain_name: String, target_position: Vector3, pole_positi
 	var solution := solve_two_bone_ik(root_position, target_position, first_length, second_length, pole_position)
 	if not bool(solution.get("ok", false)):
 		return solution
-	_rotate_bone_towards(root_index, root_position, middle_position, solution["joint"])
-	skeleton.force_update_all_bone_transforms()
-	middle_position = skeleton.get_bone_global_pose(middle_index).origin
-	end_position = skeleton.get_bone_global_pose(end_index).origin
-	_rotate_bone_towards(middle_index, middle_position, end_position, solution["end"])
-	skeleton.force_update_all_bone_transforms()
-	var final_end: Vector3 = skeleton.get_bone_global_pose(end_index).origin
-	solution["actual_end"] = final_end
-	solution["error_distance"] = final_end.distance_to(target_position)
+	var root_delta := Quaternion((middle_position - root_position).normalized(), (solution["joint"] - root_position).normalized())
+	var rotated_middle := root_position + root_delta * (middle_position - root_position)
+	var rotated_end := root_position + root_delta * (end_position - root_position)
+	var root_rotation := root_delta * root_transform.basis.get_rotation_quaternion()
+	skeleton.set_bone_global_pose(root_index, Transform3D(Basis(root_rotation), root_position))
+	var middle_current_direction := rotated_end - rotated_middle
+	var middle_target_direction: Vector3 = solution["end"] - rotated_middle
+	if middle_current_direction.length_squared() > 0.0001 and middle_target_direction.length_squared() > 0.0001:
+		var middle_delta := Quaternion(middle_current_direction.normalized(), middle_target_direction.normalized())
+		var middle_rotation := middle_delta * root_delta * middle_transform.basis.get_rotation_quaternion()
+		skeleton.set_bone_global_pose(middle_index, Transform3D(Basis(middle_rotation), rotated_middle))
+	solution["actual_end"] = solution["end"]
+	solution["error_distance"] = (solution["end"] as Vector3).distance_to(target_position)
 	return solution
+
+func _get_bone_global_transform(bone_index: int) -> Transform3D:
+	var current := skeleton.get_bone_global_pose(bone_index)
+	var rest := skeleton.get_bone_global_rest(bone_index)
+	if current.origin.length_squared() < 0.000001 and rest.origin.length_squared() > 0.000001:
+		return rest
+	return current
 
 func _rotate_bone_towards(bone_index: int, bone_origin: Vector3, child_position: Vector3, desired_child_position: Vector3) -> void:
 	var current_direction := child_position - bone_origin
