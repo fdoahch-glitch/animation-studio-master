@@ -143,8 +143,6 @@ jobs:
             build/AnimationStudioMaster-Setup-x64.exe
             build/SHA256SUMS.txt
             build/BUILD_INFO.json
-            build/SHA256SUMS.txt
-            build/BUILD_INFO.json
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
@@ -163,3 +161,5 @@ jobs:
             build/AnimationStudioMaster.exe
             build/AnimationStudioMaster-Windows-x64.zip
             build/AnimationStudioMaster-Setup-x64.exe
+            build/SHA256SUMS.txt
+            build/BUILD_INFO.json
