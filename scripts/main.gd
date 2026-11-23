@@ -403,60 +403,281 @@ func _open_section(section: String) -> void:
 
 func _show_scene_manager() -> void:
 	_clear_content()
+	if scene_model == null:
+		scene_model = SCENE_COMPOSITION_MODEL.new()
 	var layout := HBoxContainer.new()
 	layout.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	layout.add_theme_constant_override("separation", 14)
+	layout.add_theme_constant_override("separation", 10)
 	content.add_child(layout)
 	var left := VBoxContainer.new()
-	left.custom_minimum_size.x = 280
+	left.custom_minimum_size.x = 190
 	layout.add_child(left)
-	_add_heading(left, "Escenas", "Administra las escenas del proyecto y su orden.")
+	_add_heading(left, "Escenas", "Orden y duración.")
 	scene_list = ItemList.new()
+	scene_list.custom_minimum_size.y = 180
 	scene_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scene_list.item_selected.connect(_on_scene_selected)
 	left.add_child(scene_list)
-	var scene_actions := GridContainer.new()
-	scene_actions.columns = 2
-	left.add_child(scene_actions)
-	_add_button(scene_actions, "Nueva escena", _create_scene)
-	_add_button(scene_actions, "Duplicar", _duplicate_scene)
-	_add_button(scene_actions, "Eliminar", _delete_scene)
+	var actions := GridContainer.new()
+	actions.columns = 2
+	left.add_child(actions)
+	_add_button(actions, "Nueva", _create_scene)
+	_add_button(actions, "Duplicar", _duplicate_scene)
+	_add_button(actions, "Eliminar", _delete_scene)
+	_add_button(left, "Volver", _show_workspace)
+	var center := VBoxContainer.new()
+	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	center.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	layout.add_child(center)
+	_add_heading(center, "Lienzo de composición", "Selecciona y arrastra objetos. Rueda: zoom; botón derecho o central: desplazar.")
+	var add_row := HBoxContainer.new()
+	center.add_child(add_row)
+	_add_button(add_row, "+ Personaje", _add_scene_character)
+	_add_button(add_row, "+ Fondo", _add_scene_background)
+	_add_button(add_row, "+ Elemento", _add_scene_element)
+	_add_button(add_row, "+ Decoración", _add_scene_decoration)
+	_add_button(add_row, "Ajustar vista", _reset_scene_canvas)
+	var frame := PanelContainer.new()
+	frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	center.add_child(frame)
+	scene_canvas = SCENE_CANVAS.new()
+	scene_canvas.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scene_canvas.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scene_canvas.custom_minimum_size = Vector2(420, 300)
+	scene_canvas.selection_changed.connect(_on_canvas_selection_changed)
+	scene_canvas.composition_changed.connect(_on_canvas_composition_changed)
+	frame.add_child(scene_canvas)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size.x = 245
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	layout.add_child(scroll)
 	var right := VBoxContainer.new()
-	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	layout.add_child(right)
-	_add_heading(right, "Inspector de escena", "Nombre, duración y notas de producción.")
-	var name_row := HBoxContainer.new()
-	right.add_child(name_row)
-	var name_label := Label.new()
-	name_label.text = "Nombre"
-	name_label.custom_minimum_size.x = 150
-	name_row.add_child(name_label)
+	right.custom_minimum_size.x = 225
+	right.add_theme_constant_override("separation", 6)
+	scroll.add_child(right)
+	_add_heading(right, "Inspector", "Propiedades del objeto seleccionado.")
+	layer_list = ItemList.new()
+	layer_list.custom_minimum_size.y = 110
+	layer_list.item_selected.connect(_on_layer_selected)
+	right.add_child(layer_list)
+	_add_button(right, "Subir capa", _raise_selected_layer)
+	_add_button(right, "Bajar capa", _lower_selected_layer)
+	_add_button(right, "Eliminar objeto", _delete_selected_object)
+	_add_scene_numeric_field(right, "Posición X", "x")
+	_add_scene_numeric_field(right, "Posición Y", "y")
+	_add_scene_numeric_field(right, "Escala X", "sx")
+	_add_scene_numeric_field(right, "Escala Y", "sy")
+	_add_scene_numeric_field(right, "Rotación °", "rotation")
+	_add_scene_numeric_field(right, "Profundidad", "depth")
+	object_visible = CheckBox.new()
+	object_visible.text = "Visible"
+	object_visible.toggled.connect(_on_scene_visibility_changed)
+	right.add_child(object_visible)
+	_add_heading(right, "Transición", "Salida a la siguiente escena.")
+	transition_picker = OptionButton.new()
+	for option in ["cut", "fade", "dissolve", "wipe"]:
+		transition_picker.add_item(option)
+	right.add_child(transition_picker)
+	transition_duration = SpinBox.new()
+	transition_duration.min_value = 0.0
+	transition_duration.max_value = 30.0
+	transition_duration.step = 0.1
+	transition_duration.value = 1.0
+	right.add_child(transition_duration)
+	_add_button(right, "Aplicar transición", _apply_scene_transition)
+	_add_heading(right, "Escena activa", "Datos generales.")
 	scene_name_input = LineEdit.new()
-	scene_name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_row.add_child(scene_name_input)
-	var duration_row := HBoxContainer.new()
-	right.add_child(duration_row)
-	var duration_label := Label.new()
-	duration_label.text = "Duración (segundos)"
-	duration_label.custom_minimum_size.x = 150
-	duration_row.add_child(duration_label)
+	scene_name_input.placeholder_text = "Nombre de escena"
+	right.add_child(scene_name_input)
 	scene_duration_input = SpinBox.new()
 	scene_duration_input.min_value = 0.1
 	scene_duration_input.max_value = 86400.0
 	scene_duration_input.step = 0.5
-	duration_row.add_child(scene_duration_input)
-	var notes_label := Label.new()
-	notes_label.text = "Notas"
-	right.add_child(notes_label)
+	scene_duration_input.value = 10.0
+	right.add_child(scene_duration_input)
 	scene_notes_input = TextEdit.new()
-	scene_notes_input.custom_minimum_size.y = 180
-	scene_notes_input.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scene_notes_input.custom_minimum_size.y = 65
+	scene_notes_input.placeholder_text = "Notas de producción"
 	right.add_child(scene_notes_input)
-	_add_button(right, "Guardar cambios de escena", _save_scene_properties)
-	_add_button(right, "Volver al escenario", _show_workspace)
+	_add_button(right, "Guardar escena", _save_scene_properties)
 	_refresh_scene_list()
-	_set_status("Gestor de escenas: crea, duplica, edita y elimina escenas.")
+	_refresh_scene_canvas()
+	_set_status("Editor de escenas: lienzo, selección, transformaciones, capas y transiciones.")
 
+func _add_scene_numeric_field(parent: Node, label_text: String, key: String) -> void:
+	var row := HBoxContainer.new()
+	parent.add_child(row)
+	var label := Label.new()
+	label.text = label_text
+	label.custom_minimum_size.x = 92
+	row.add_child(label)
+	var field := SpinBox.new()
+	field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	field.step = 1.0 if key in ["x", "y", "depth"] else 0.1
+	field.min_value = 0.01 if key in ["sx", "sy"] else -100000.0
+	field.max_value = 100000.0
+	field.value = 1.0 if key in ["sx", "sy"] else 0.0
+	field.value_changed.connect(_on_scene_transform_changed.bind(key))
+	row.add_child(field)
+	match key:
+		"x": object_x = field
+		"y": object_y = field
+		"sx": object_scale_x = field
+		"sy": object_scale_y = field
+		"rotation": object_rotation = field
+		"depth": object_depth = field
+
+func _active_scene() -> Dictionary:
+	var scenes: Array = project_data.get("scenes", [])
+	if selected_scene_index < 0 or selected_scene_index >= scenes.size():
+		return {}
+	return scenes[selected_scene_index]
+
+func _refresh_scene_canvas() -> void:
+	if not is_instance_valid(scene_canvas): return
+	scene_canvas.set_scene_data(_active_scene(), float(project_data.get("width", 1920)), float(project_data.get("height", 1080)))
+	_refresh_layer_list()
+	_update_scene_inspector()
+
+func _refresh_layer_list() -> void:
+	if not is_instance_valid(layer_list): return
+	layer_list.clear()
+	var objects: Array = _active_scene().get("objects", [])
+	for i in range(objects.size()):
+		var item: Dictionary = objects[i]
+		layer_list.add_item("%02d · %s [%s]" % [i + 1, str(item.get("name", "Objeto")), str(item.get("type", ""))])
+		if str(item.get("id", "")) == selected_instance_id: layer_list.select(i)
+
+func _find_selected_instance() -> Dictionary:
+	for item in _active_scene().get("objects", []):
+		if str(item.get("id", "")) == selected_instance_id: return item
+	return {}
+
+func _update_scene_inspector() -> void:
+	if not is_instance_valid(object_x): return
+	var item := _find_selected_instance()
+	var enabled := not item.is_empty()
+	for field in [object_x, object_y, object_scale_x, object_scale_y, object_rotation, object_depth]: field.editable = enabled
+	object_visible.disabled = not enabled
+	if not enabled:
+		selected_instance_id = ""
+		return
+	var t: Dictionary = item.get("transform", {})
+	scene_canvas_guard = true
+	object_x.value = float(t.get("x", 0.0))
+	object_y.value = float(t.get("y", 0.0))
+	object_scale_x.value = float(t.get("scale_x", 1.0))
+	object_scale_y.value = float(t.get("scale_y", 1.0))
+	object_rotation.value = float(t.get("rotation", 0.0))
+	object_depth.value = float(t.get("depth", 0.0))
+	object_visible.button_pressed = bool(t.get("visible", true))
+	scene_canvas_guard = false
+
+func _add_scene_object(kind: String) -> void:
+	if _active_scene().is_empty(): _create_scene()
+	var scene := _active_scene()
+	var labels := {"character": "Personaje nuevo", "background": "Fondo de escena", "element": "Elemento nuevo", "decoration": "Decoración nueva"}
+	var rid := "builtin:" + kind + ":" + str(Time.get_ticks_msec())
+	var instance: Dictionary = scene_model.create_instance(rid, kind, labels[kind], Vector2(float(project_data.get("width", 1920)) * 0.5, float(project_data.get("height", 1080)) * 0.5))
+	var result: Dictionary = scene_model.add_instance(scene, instance)
+	if not result.ok:
+		_set_status(str(result.get("error", "No se pudo añadir el objeto.")))
+		return
+	project_data["scenes"][selected_scene_index] = scene
+	selected_instance_id = str(instance.get("id", ""))
+	_refresh_scene_canvas()
+	scene_canvas.set_selected(selected_instance_id)
+	_save_project()
+	_set_status("Marcador añadido. En la etapa de bibliotecas se conectarán los recursos importados.")
+
+func _add_scene_character() -> void: _add_scene_object("character")
+func _add_scene_background() -> void: _add_scene_object("background")
+func _add_scene_element() -> void: _add_scene_object("element")
+func _add_scene_decoration() -> void: _add_scene_object("decoration")
+
+func _on_canvas_selection_changed(instance_id: String) -> void:
+	selected_instance_id = instance_id
+	_update_scene_inspector()
+	_refresh_layer_list()
+
+func _on_canvas_composition_changed() -> void:
+	if selected_scene_index < 0: return
+	project_data["scenes"][selected_scene_index] = _active_scene()
+	_update_scene_inspector()
+	_save_project()
+
+func _on_scene_transform_changed(value: float, key: String) -> void:
+	if scene_canvas_guard or selected_instance_id == "": return
+	var changes := {}
+	match key:
+		"x": changes["x"] = value
+		"y": changes["y"] = value
+		"sx": changes["scale_x"] = value
+		"sy": changes["scale_y"] = value
+		"rotation": changes["rotation"] = value
+		"depth": changes["depth"] = value
+	var scene := _active_scene()
+	var result: Dictionary = scene_model.update_transform(scene, selected_instance_id, changes)
+	if result.ok:
+		project_data["scenes"][selected_scene_index] = scene
+		scene_canvas.queue_redraw()
+		_save_project()
+
+func _on_scene_visibility_changed(value: bool) -> void:
+	if scene_canvas_guard or selected_instance_id == "": return
+	var scene := _active_scene()
+	var result: Dictionary = scene_model.update_transform(scene, selected_instance_id, {"visible": value})
+	if result.ok:
+		project_data["scenes"][selected_scene_index] = scene
+		scene_canvas.queue_redraw()
+		_save_project()
+
+func _on_layer_selected(index: int) -> void:
+	var objects: Array = _active_scene().get("objects", [])
+	if index < 0 or index >= objects.size(): return
+	selected_instance_id = str(objects[index].get("id", ""))
+	scene_canvas.set_selected(selected_instance_id)
+	_update_scene_inspector()
+
+func _move_selected_layer(offset: int) -> void:
+	if selected_instance_id == "": return
+	var scene := _active_scene()
+	var objects: Array = scene.get("objects", [])
+	var current := -1
+	for i in range(objects.size()):
+		if str(objects[i].get("id", "")) == selected_instance_id: current = i
+	if current < 0: return
+	var result: Dictionary = scene_model.reorder_instance(scene, selected_instance_id, current + offset)
+	if result.ok:
+		project_data["scenes"][selected_scene_index] = scene
+		_refresh_scene_canvas()
+		_save_project()
+func _raise_selected_layer() -> void: _move_selected_layer(1)
+func _lower_selected_layer() -> void: _move_selected_layer(-1)
+
+func _delete_selected_object() -> void:
+	if selected_instance_id == "": return
+	var scene := _active_scene()
+	var result: Dictionary = scene_model.remove_instance(scene, selected_instance_id)
+	if result.ok:
+		project_data["scenes"][selected_scene_index] = scene
+		selected_instance_id = ""
+		scene_canvas.set_selected("")
+		_refresh_scene_canvas()
+		_save_project()
+
+func _apply_scene_transition() -> void:
+	var scene := _active_scene()
+	if scene.is_empty(): return
+	var result: Dictionary = scene_model.set_transition(scene, transition_picker.get_item_text(transition_picker.selected), transition_duration.value)
+	if result.ok:
+		project_data["scenes"][selected_scene_index] = scene
+		_save_project()
+		_set_status("Transición guardada: " + str(scene.get("transitions", {}).get("type", "")))
+
+func _reset_scene_canvas() -> void:
+	if is_instance_valid(scene_canvas): scene_canvas.reset_view()
 func _refresh_scene_list() -> void:
 	if not is_instance_valid(scene_list):
 		return
