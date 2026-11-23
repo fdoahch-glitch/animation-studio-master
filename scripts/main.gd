@@ -28,6 +28,12 @@ var pose_controls: GridContainer
 var animation_speed_slider: HSlider
 var motion_intensity_slider: HSlider
 var custom_pose_name_input: LineEdit
+var joint_picker: OptionButton
+var joint_angle_slider: HSlider
+var joint_angle_spin: SpinBox
+var joint_undo_stack: Array[Dictionary] = []
+var joint_redo_stack: Array[Dictionary] = []
+var joint_editor_syncing := false
 var imported_character_data: Dictionary = {}
 var procedural_poses: Array = []
 var runtime_rig: Node2D
@@ -433,14 +439,49 @@ func _show_character_lab() -> void:
 	var joint_title := Label.new()
 	joint_title.text = "AJUSTE MANUAL DE ARTICULACIONES"
 	right.add_child(joint_title)
-	_add_joint_control(right, "Hombro izquierdo", "Pelvis/Spine/Chest/Shoulder_L", -120.0, 120.0)
-	_add_joint_control(right, "Codo izquierdo", "Pelvis/Spine/Chest/Shoulder_L/Elbow_L", -10.0, 150.0)
-	_add_joint_control(right, "Hombro derecho", "Pelvis/Spine/Chest/Shoulder_R", -120.0, 120.0)
-	_add_joint_control(right, "Codo derecho", "Pelvis/Spine/Chest/Shoulder_R/Elbow_R", -10.0, 150.0)
-	_add_joint_control(right, "Cadera izquierda", "Pelvis/Hip_L", -100.0, 100.0)
-	_add_joint_control(right, "Rodilla izquierda", "Pelvis/Hip_L/Knee_L", -5.0, 150.0)
-	_add_joint_control(right, "Cadera derecha", "Pelvis/Hip_R", -100.0, 100.0)
-	_add_joint_control(right, "Rodilla derecha", "Pelvis/Hip_R/Knee_R", -5.0, 150.0)
+	var joint_picker_row := HBoxContainer.new()
+	right.add_child(joint_picker_row)
+	var joint_picker_label := Label.new()
+	joint_picker_label.text = "Articulación"
+	joint_picker_label.custom_minimum_size.x = 145
+	joint_picker_row.add_child(joint_picker_label)
+	joint_picker = OptionButton.new()
+	joint_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var joint_options := [
+		["Pelvis", "pelvis"], ["Torso", "torso"], ["Cuello", "neck"], ["Cabeza", "head"],
+		["Hombro izquierdo", "shoulder_left"], ["Codo izquierdo", "elbow_left"], ["Muñeca izquierda", "wrist_left"],
+		["Hombro derecho", "shoulder_right"], ["Codo derecho", "elbow_right"], ["Muñeca derecha", "wrist_right"],
+		["Cadera izquierda", "hip_left"], ["Rodilla izquierda", "knee_left"], ["Tobillo izquierdo", "ankle_left"],
+		["Cadera derecha", "hip_right"], ["Rodilla derecha", "knee_right"], ["Tobillo derecho", "ankle_right"]
+	]
+	for option in joint_options:
+		joint_picker.add_item(str(option[0]))
+		joint_picker.set_item_metadata(joint_picker.item_count - 1, str(option[1]))
+	joint_picker.item_selected.connect(_on_joint_editor_selection_changed)
+	joint_picker_row.add_child(joint_picker)
+	var joint_angle_row := HBoxContainer.new()
+	right.add_child(joint_angle_row)
+	joint_angle_slider = HSlider.new()
+	joint_angle_slider.min_value = -180.0
+	joint_angle_slider.max_value = 180.0
+	joint_angle_slider.step = 1.0
+	joint_angle_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	joint_angle_slider.value_changed.connect(_on_joint_editor_angle_changed)
+	joint_angle_row.add_child(joint_angle_slider)
+	joint_angle_spin = SpinBox.new()
+	joint_angle_spin.min_value = -180.0
+	joint_angle_spin.max_value = 180.0
+	joint_angle_spin.step = 1.0
+	joint_angle_spin.suffix = "°"
+	joint_angle_spin.custom_minimum_size.x = 82
+	joint_angle_spin.value_changed.connect(_on_joint_editor_angle_changed)
+	joint_angle_row.add_child(joint_angle_spin)
+	var joint_action_row := HBoxContainer.new()
+	right.add_child(joint_action_row)
+	_add_button(joint_action_row, "Deshacer", _undo_joint_edit)
+	_add_button(joint_action_row, "Rehacer", _redo_joint_edit)
+	_add_button(joint_action_row, "Restablecer articulación", _reset_selected_joint)
+	_add_button(joint_action_row, "Restablecer todo", _reset_all_joints)
 	var position_title := Label.new()
 	position_title.text = "POSICIÓN DE PIVOTES (X / Y)"
 	right.add_child(position_title)
@@ -626,6 +667,8 @@ func _generate_character() -> void:
 func _build_runtime_character() -> void:
 	if rig_subviewport == null:
 		return
+	joint_undo_stack.clear()
+	joint_redo_stack.clear()
 	if is_instance_valid(ik_drag_overlay):
 		ik_drag_overlay.queue_free()
 		ik_drag_overlay = null
@@ -678,6 +721,8 @@ func _attach_ik_overlay() -> void:
 	ik_drag_overlay.configure(runtime_rig, rig_builder)
 
 func _build_imported_segment_rig() -> void:
+	joint_undo_stack.clear()
+	joint_redo_stack.clear()
 	var parts: Array = imported_character_data.get("parts", [])
 	if parts.is_empty():
 		_set_status("No hay piezas recortadas para construir el rig.")
@@ -729,6 +774,85 @@ func _add_pivot_offset_control(parent: Node, label_text: String, pivot_name: Str
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slider.value_changed.connect(_on_pivot_offset_changed.bind(pivot_name, axis))
 	row.add_child(slider)
+
+func _on_joint_editor_selection_changed(index: int) -> void:
+	if not is_instance_valid(runtime_rig) or not is_instance_valid(joint_picker):
+		return
+	var key := str(joint_picker.get_item_metadata(index))
+	var angles: Dictionary = rig_builder.capture_procedural_pose(runtime_rig)
+	var value := float(angles.get(key, 0.0))
+	joint_editor_syncing = true
+	joint_angle_slider.value = value
+	joint_angle_spin.value = value
+	joint_editor_syncing = false
+
+func _on_joint_editor_angle_changed(value: float) -> void:
+	if joint_editor_syncing or not is_instance_valid(runtime_rig) or not is_instance_valid(joint_picker):
+		return
+	var key := str(joint_picker.get_item_metadata(joint_picker.selected))
+	var before: Dictionary = rig_builder.capture_procedural_pose(runtime_rig)
+	joint_undo_stack.append(before.duplicate(true))
+	if joint_undo_stack.size() > 50:
+		joint_undo_stack.pop_front()
+	joint_redo_stack.clear()
+	joint_editor_syncing = true
+	joint_angle_slider.value = value
+	joint_angle_spin.value = value
+	joint_editor_syncing = false
+	var applied := rig_builder.apply_procedural_pose(runtime_rig, {key: value})
+	if applied == 0:
+		_set_status("Esta articulación no existe en el rig actual.")
+		return
+	_set_status("Articulación %s ajustada a %.0f°." % [joint_picker.get_item_text(joint_picker.selected), value])
+
+func _restore_joint_snapshot(snapshot: Dictionary) -> void:
+	if not is_instance_valid(runtime_rig):
+		return
+	rig_builder.stop_animation(runtime_rig)
+	rig_builder.apply_procedural_pose(runtime_rig, snapshot)
+	_on_joint_editor_selection_changed(joint_picker.selected if is_instance_valid(joint_picker) else 0)
+
+func _undo_joint_edit() -> void:
+	if joint_undo_stack.is_empty() or not is_instance_valid(runtime_rig):
+		return
+	joint_redo_stack.append(rig_builder.capture_procedural_pose(runtime_rig))
+	var snapshot: Dictionary = joint_undo_stack.pop_back()
+	_restore_joint_snapshot(snapshot)
+	_set_status("Último ajuste de articulación deshecho.")
+
+func _redo_joint_edit() -> void:
+	if joint_redo_stack.is_empty() or not is_instance_valid(runtime_rig):
+		return
+	joint_undo_stack.append(rig_builder.capture_procedural_pose(runtime_rig))
+	var snapshot: Dictionary = joint_redo_stack.pop_back()
+	_restore_joint_snapshot(snapshot)
+	_set_status("Ajuste de articulación rehecho.")
+
+func _reset_selected_joint() -> void:
+	if not is_instance_valid(runtime_rig) or not is_instance_valid(joint_picker):
+		return
+	var key := str(joint_picker.get_item_metadata(joint_picker.selected))
+	var before: Dictionary = rig_builder.capture_procedural_pose(runtime_rig)
+	joint_undo_stack.append(before.duplicate(true))
+	joint_redo_stack.clear()
+	rig_builder.stop_animation(runtime_rig)
+	if rig_builder.apply_procedural_pose(runtime_rig, {key: 0.0}) > 0:
+		_on_joint_editor_selection_changed(joint_picker.selected)
+		_set_status("Articulación restablecida a 0°.")
+
+func _reset_all_joints() -> void:
+	if not is_instance_valid(runtime_rig):
+		return
+	var before: Dictionary = rig_builder.capture_procedural_pose(runtime_rig)
+	joint_undo_stack.append(before.duplicate(true))
+	joint_redo_stack.clear()
+	var neutral: Dictionary = {}
+	for key in before.keys():
+		neutral[key] = 0.0
+	rig_builder.stop_animation(runtime_rig)
+	rig_builder.apply_procedural_pose(runtime_rig, neutral)
+	_on_joint_editor_selection_changed(joint_picker.selected if is_instance_valid(joint_picker) else 0)
+	_set_status("Todas las articulaciones se restablecieron a 0°.")
 
 func _on_pivot_offset_changed(value: float, pivot_name: String, axis: String) -> void:
 	if is_instance_valid(runtime_rig):
