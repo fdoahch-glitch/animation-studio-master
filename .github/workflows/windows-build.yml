@@ -50,7 +50,9 @@ jobs:
           New-Item -ItemType Directory -Force -Path build | Out-Null
           $godotExe = Join-Path $env:USERPROFILE "godot/Godot_v4.3-stable_win64.exe"
           if (-not (Test-Path $godotExe)) { throw "Godot executable not found: $godotExe" }
-          $exportProcess = Start-Process -FilePath $godotExe -ArgumentList @("--headless", "--verbose", "--path", ".", "--export-release", "Windows Desktop", "build/AnimationStudioMaster.exe") -Wait -PassThru
+          $exportProcess = Start-Process -FilePath $godotExe -ArgumentList @("--headless", "--verbose", "--path", ".", "--export-release", "Windows Desktop", "build/AnimationStudioMaster.exe") -Wait -PassThru -RedirectStandardOutput "build/godot-export.stdout.log" -RedirectStandardError "build/godot-export.stderr.log"
+          if (Test-Path "build/godot-export.stdout.log") { Get-Content "build/godot-export.stdout.log" | ForEach-Object { Write-Host $_ } }
+          if (Test-Path "build/godot-export.stderr.log") { Get-Content "build/godot-export.stderr.log" | ForEach-Object { Write-Host $_ } }
           if ($exportProcess.ExitCode -ne 0) {
             throw "Godot export command failed with exit code $($exportProcess.ExitCode)"
           }
