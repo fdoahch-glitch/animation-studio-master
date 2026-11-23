@@ -28,3 +28,8 @@ El botón de grabación inicia una cuenta regresiva de tres segundos antes de ac
 ## Selección de línea y cuenta regresiva
 
 La lista de diálogo permite elegir explícitamente la línea a la que se asociará una nueva toma, tanto de micrófono como importada. Si no hay una selección válida, se conserva el comportamiento de asociar a la última línea. La cuenta regresiva es una pequeña máquina de estados reutilizable y cubierta por pruebas.
+
+
+## Vista ambiental integrada en el lienzo
+
+El lienzo de composición y la vista previa del timeline aplican el color del cielo, energía ambiental, sol, capas de fondo parallax y efectos 2D de lluvia, nieve, niebla, polvo y viento. Las capas se enlazan con recursos de la biblioteca; la animación de clima solo procesa fotogramas cuando existe intensidad activa. Los keyframes ambientales se muestrean junto al cabezal del timeline. Prueba de estado de actualización: `tests/test_scene_canvas.gd`.

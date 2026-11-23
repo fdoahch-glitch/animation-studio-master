@@ -19,6 +19,9 @@ var pan_origin := Vector2.ZERO
 var grid_enabled := true
 var interaction_enabled := true
 var resource_textures: Dictionary = {}
+var environment_data: Dictionary = {}
+var weather_elapsed := 0.0
+var weather_redraw_accumulator := 0.0
 
 func set_scene_data(value: Dictionary, width: float, height: float) -> void:
 	scene_data = value
@@ -49,6 +52,81 @@ func set_resource_catalog(resources: Array) -> void:
 		if not active_ids.has(cached_id):
 			resource_textures.erase(cached_id)
 	queue_redraw()
+
+func set_environment_data(value: Dictionary) -> void:
+	environment_data = value.duplicate(true)
+	var weather := str(environment_data.get("weather", "clear"))
+	var intensity := clampf(float(environment_data.get("weather_intensity", 0.0)), 0.0, 1.0)
+	set_process(weather != "clear" and intensity > 0.001)
+	queue_redraw()
+
+func _process(delta: float) -> void:
+	weather_elapsed += delta
+	weather_redraw_accumulator += delta
+	if weather_redraw_accumulator >= 1.0 / 30.0:
+		weather_redraw_accumulator = 0.0
+		queue_redraw()
+
+func _environment_sky_color() -> Color:
+	var value: Variant = environment_data.get("sky_color", [0.35, 0.62, 0.9])
+	if value is Array and value.size() >= 3:
+		return Color(clampf(float(value[0]), 0.0, 1.0), clampf(float(value[1]), 0.0, 1.0), clampf(float(value[2]), 0.0, 1.0), 1.0)
+	return Color("#9bc7df")
+
+func _draw_environment_layers(frame: Rect2) -> void:
+	var layers: Array = environment_data.get("background_layers", [])
+	for layer in layers:
+		if not layer is Dictionary or not bool(layer.get("visible", true)):
+			continue
+		var texture: Texture2D = resource_textures.get(str(layer.get("resource_id", "")))
+		if not is_instance_valid(texture):
+			continue
+		var parallax := clampf(float(layer.get("parallax", 1.0)), 0.0, 2.0)
+		var layer_rect := frame
+		layer_rect.position += pan * (parallax - 1.0)
+		var opacity := clampf(float(layer.get("opacity", 1.0)), 0.0, 1.0)
+		draw_texture_rect(texture, layer_rect, false, Color(1.0, 1.0, 1.0, opacity))
+
+func _draw_environment_sun(frame: Rect2) -> void:
+	var energy := clampf(float(environment_data.get("sun_energy", 1.0)), 0.0, 1.5)
+	if energy <= 0.01:
+		return
+	var value: Variant = environment_data.get("sun_color", [1.0, 0.96, 0.86])
+	var sun_color := Color(1.0, 0.96, 0.86)
+	if value is Array and value.size() >= 3:
+		sun_color = Color(float(value[0]), float(value[1]), float(value[2]), 1.0)
+	draw_circle(frame.position + Vector2(frame.size.x * 0.82, frame.size.y * 0.18), 24.0 + energy * 12.0, Color(sun_color.r, sun_color.g, sun_color.b, clampf(energy * 0.24, 0.0, 0.36)))
+
+func _draw_environment_ambient(frame: Rect2) -> void:
+	var ambient := clampf(float(environment_data.get("ambient_energy", 1.0)), 0.0, 1.5)
+	if ambient < 0.99:
+		draw_rect(frame, Color(0.015, 0.025, 0.055, (1.0 - ambient) * 0.34), true)
+	elif ambient > 1.01:
+		draw_rect(frame, Color(1.0, 0.94, 0.78, (ambient - 1.0) * 0.10), true)
+
+func _draw_environment_weather(frame: Rect2) -> void:
+	var weather := str(environment_data.get("weather", "clear"))
+	var intensity := clampf(float(environment_data.get("weather_intensity", 0.0)), 0.0, 1.0)
+	if intensity <= 0.001:
+		return
+	if weather == "fog":
+		draw_rect(frame, Color(0.78, 0.84, 0.9, intensity * 0.34), true)
+		return
+	var count := int(round(110.0 * intensity))
+	for index in range(count):
+		var seed_x := float(index * 83 % 997) / 997.0
+		var seed_y := float(index * 137 % 991) / 991.0
+		var x := frame.position.x + fposmod(seed_x * frame.size.x + weather_elapsed * (220.0 if weather == "rain" else 28.0), maxf(1.0, frame.size.x))
+		var y := frame.position.y + fposmod(seed_y * frame.size.y + weather_elapsed * (640.0 if weather == "rain" else 46.0), maxf(1.0, frame.size.y))
+		match weather:
+			"rain":
+				draw_line(Vector2(x, y), Vector2(x - 5.0, y + 15.0), Color(0.72, 0.84, 0.98, 0.48), 1.2)
+			"snow":
+				draw_circle(Vector2(x, y), 1.0 + seed_x * 2.0, Color(0.96, 0.98, 1.0, 0.82))
+			"dust":
+				draw_circle(Vector2(x, y), 1.0 + seed_y * 2.0, Color(0.79, 0.66, 0.44, 0.30))
+			"wind":
+				draw_line(Vector2(x, y), Vector2(x + 24.0 + seed_y * 28.0, y - 1.0), Color(0.88, 0.93, 0.98, 0.28), 1.0)
 
 func _canvas_scale() -> float:
 	return minf(size.x / scene_width, size.y / scene_height) * zoom
@@ -84,7 +162,9 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color("#172536"), true)
 	var frame := _canvas_rect()
 	draw_rect(frame.grow(2), Color("#07111c"), true)
-	draw_rect(frame, Color("#f4f7fb"), true)
+	draw_rect(frame, _environment_sky_color(), true)
+	_draw_environment_layers(frame)
+	_draw_environment_sun(frame)
 	if grid_enabled and _canvas_scale() > 0.12:
 		var step := 100.0 * _canvas_scale()
 		var x := fposmod(frame.position.x, step)
@@ -158,6 +238,8 @@ func _draw() -> void:
 			for corner in [rect.position, Vector2(rect.end.x,rect.position.y), rect.end, Vector2(rect.position.x,rect.end.y)]:
 				draw_circle(corner, 4.0, Color.WHITE)
 				draw_arc(corner, 4.0, 0.0, TAU, 16, Color("#1688ff"), 1.5)
+	_draw_environment_ambient(frame)
+	_draw_environment_weather(frame)
 	draw_rect(frame, Color("#24384b"), false, 2.0)
 
 func _hit_test(screen_point: Vector2) -> String:

@@ -959,8 +959,10 @@ func _show_director_timeline() -> void:
 	scene_canvas.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scene_canvas.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scene_canvas.interaction_enabled = false
+	_ensure_environment()
 	scene_canvas.set_resource_catalog(project_data.get("resources", []))
 	scene_canvas.set_scene_data(_active_scene(), float(project_data.get("width", 1920)), float(project_data.get("height", 1080)))
+	scene_canvas.set_environment_data(active_environment)
 	preview_panel.add_child(scene_canvas)
 	var track_panel := VBoxContainer.new()
 	track_panel.custom_minimum_size.x = 220
@@ -1205,10 +1207,14 @@ func _on_director_playhead_changed(value: float) -> void:
 	var preview_scene: Dictionary = timeline_model.apply_tracks_to_scene(_active_scene(), _director_tracks(), seconds)
 	if is_instance_valid(scene_canvas):
 		scene_canvas.set_scene_data(preview_scene, float(project_data.get("width", 1920)), float(project_data.get("height", 1080)))
+		if active_environment.is_empty():
+			_ensure_environment()
+		scene_canvas.set_environment_data(environment_director.sample_environment(active_environment, seconds))
 	_refresh_director_timeline_view()
 
 func _show_scene_manager() -> void:
 	_clear_content()
+	_ensure_environment()
 	if scene_model == null:
 		scene_model = SCENE_COMPOSITION_MODEL.new()
 	var layout := HBoxContainer.new()
@@ -1256,6 +1262,7 @@ func _show_scene_manager() -> void:
 	scene_canvas.selection_changed.connect(_on_canvas_selection_changed)
 	scene_canvas.composition_changed.connect(_on_canvas_composition_changed)
 	scene_canvas.asset_dropped.connect(_on_canvas_asset_dropped)
+	scene_canvas.set_environment_data(active_environment)
 	frame.add_child(scene_canvas)
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size.x = 245
@@ -1359,6 +1366,9 @@ func _refresh_scene_canvas() -> void:
 	var scene := _active_scene()
 	scene_canvas.set_resource_catalog(project_data.get("resources", []))
 	scene_canvas.set_scene_data(scene, float(project_data.get("width", 1920)), float(project_data.get("height", 1080)))
+	if active_environment.is_empty():
+		_ensure_environment()
+	scene_canvas.set_environment_data(active_environment)
 	_refresh_layer_list()
 	_update_scene_inspector()
 	var transition: Dictionary = scene.get("transitions", {})
@@ -3720,6 +3730,8 @@ func _save_environment() -> void:
 		_set_status(str(result.error))
 		return
 	project_data["environments"]=[active_environment.duplicate(true)]
+	if is_instance_valid(scene_canvas):
+		scene_canvas.set_environment_data(active_environment)
 	_save_project()
 
 func _ensure_dialogue_script() -> void:
