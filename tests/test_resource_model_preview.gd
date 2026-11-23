@@ -15,15 +15,32 @@ func _run_test() -> void:
 	sample_root.add_child(mesh_instance)
 	var document := GLTFDocument.new()
 	var state := GLTFState.new()
-	assert(document.append_from_scene(sample_root, state) == OK, "Debe serializar la escena de prueba a glTF")
+	var append_error := document.append_from_scene(sample_root, state)
+	if append_error != OK:
+		push_error("No se pudo serializar la escena de prueba a glTF: " + error_string(append_error))
+		quit(1)
+		return
 	var path := "user://resource_model_preview_test.glb"
-	assert(document.write_to_filesystem(state, path) == OK, "Debe crear el GLB de prueba")
+	var write_error := document.write_to_filesystem(state, path)
+	if write_error != OK:
+		push_error("No se pudo crear el GLB de prueba: " + error_string(write_error))
+		quit(1)
+		return
 	sample_root.free()
 	var result: Dictionary = preview.load_model(path)
-	assert(result.get("ok", false), "Debe cargar el GLB en la vista previa: " + str(result.get("error", "")))
-	assert(preview.has_model(), "La vista previa debe conservar el modelo cargado")
+	if not bool(result.get("ok", false)):
+		push_error("No se pudo cargar el GLB en la vista previa: " + str(result.get("error", "")))
+		quit(1)
+		return
+	if not preview.has_model():
+		push_error("La vista previa no conservó el modelo cargado.")
+		quit(1)
+		return
 	preview.clear_model()
-	assert(not preview.has_model(), "La vista previa debe poder liberar el modelo")
+	if preview.has_model():
+		push_error("La vista previa no liberó el modelo.")
+		quit(1)
+		return
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	print("RESOURCE_MODEL_PREVIEW_TESTS_OK")
 	quit(0)
