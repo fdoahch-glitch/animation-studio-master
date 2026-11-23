@@ -8,6 +8,7 @@ const CHARACTER_SPATIAL_RIG_BUILDER = preload("res://scripts/character_spatial_r
 const CHARACTER_SPATIAL_ANIMATOR = preload("res://scripts/character_spatial_animator.gd")
 const IK_DRAG_OVERLAY = preload("res://scripts/ik_drag_overlay.gd")
 const ANIMATION_TIMELINE = preload("res://scripts/animation_timeline.gd")
+const VIDEO_TIMELINE = preload("res://scripts/video_timeline.gd")
 const CHARACTER_PACKAGE_IO = preload("res://scripts/character_package_io.gd")
 const PROJECT_DOCUMENT_IO = preload("res://scripts/project_document_io.gd")
 const SCENE_COMPOSITION_MODEL = preload("res://scripts/scene_composition_model.gd")
@@ -110,6 +111,15 @@ var timeline_playhead: HSlider
 var timeline_loop: CheckBox
 var timeline_name_input: LineEdit
 var timeline_time_input: SpinBox
+var video_timeline_model
+var video_track_list: ItemList
+var video_clip_list: ItemList
+var video_playhead: SpinBox
+var video_clip_start: SpinBox
+var video_clip_end: SpinBox
+var video_media_dialog: FileDialog
+var video_selected_track := -1
+var video_selected_clip := -1
 var texture_brightness: HSlider
 var texture_contrast: HSlider
 var texture_saturation: HSlider
@@ -402,7 +412,7 @@ func _show_workspace() -> void:
 	nav.custom_minimum_size.x = 190
 	nav.add_theme_constant_override("separation", 5)
 	layout.add_child(nav)
-	for section in ["Escenas","Personajes","Fondos","Elementos","Decoraciones","Tiempo y clima","Animación","Audio y doblaje","Exportar"]:
+	for section in ["Escenas","Personajes","Fondos","Elementos","Decoraciones","Tiempo y clima","Animación","Edición de vídeo","Audio y doblaje","Exportar"]:
 		_add_button(nav, section, _open_section.bind(section))
 	var main_panel := VBoxContainer.new()
 	main_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -439,6 +449,9 @@ func _open_section(section: String) -> void:
 		return
 	if section == "Animación":
 		_show_director_timeline()
+		return
+	if section == "Edición de vídeo":
+		_show_video_editor()
 		return
 	if section == "Tiempo y clima":
 		_show_environment_studio()
@@ -2841,6 +2854,221 @@ func _import_project_bundle(path: String) -> void:
 	_show_workspace()
 	_save_project()
 	_set_status("Proyecto portable importado · %d recursos restaurados." % int(result.asset_count))
+
+func _video_timeline() -> Dictionary:
+	if not project_data.has("video_timeline") or not project_data["video_timeline"] is Dictionary:
+		project_data["video_timeline"] = VIDEO_TIMELINE.new().create_timeline(int(project_data.get("fps", 30)))
+	return project_data["video_timeline"]
+
+func _show_video_editor() -> void:
+	_clear_content()
+	video_timeline_model = VIDEO_TIMELINE.new()
+	var page := VBoxContainer.new()
+	page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	page.add_theme_constant_override("separation", 8)
+	content.add_child(page)
+	_add_heading(page, "Editor de vídeo · Montaje multipista", "Organiza vídeo, audio, títulos, superposiciones y efectos en una línea de tiempo común.")
+	var toolbar := HBoxContainer.new()
+	page.add_child(toolbar)
+	_add_button(toolbar, "+ Vídeo", _video_add_track.bind("video"))
+	_add_button(toolbar, "+ Audio", _video_add_track.bind("audio"))
+	_add_button(toolbar, "+ Títulos", _video_add_track.bind("title"))
+	_add_button(toolbar, "+ Superposición", _video_add_track.bind("overlay"))
+	_add_button(toolbar, "+ Efectos", _video_add_track.bind("effect"))
+	var columns := HBoxContainer.new()
+	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	page.add_child(columns)
+	var track_panel := VBoxContainer.new()
+	track_panel.custom_minimum_size.x = 240
+	columns.add_child(track_panel)
+	var track_heading := Label.new()
+	track_heading.text = "PISTAS"
+	track_panel.add_child(track_heading)
+	video_track_list = ItemList.new()
+	video_track_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	video_track_list.item_selected.connect(_video_select_track)
+	track_panel.add_child(video_track_list)
+	var clip_panel := VBoxContainer.new()
+	clip_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	columns.add_child(clip_panel)
+	var clip_heading := Label.new()
+	clip_heading.text = "CLIPS DE LA PISTA"
+	clip_panel.add_child(clip_heading)
+	video_clip_list = ItemList.new()
+	video_clip_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	video_clip_list.item_selected.connect(_video_select_clip)
+	clip_panel.add_child(video_clip_list)
+	var edit_row := HBoxContainer.new()
+	page.add_child(edit_row)
+	video_playhead = SpinBox.new()
+	video_playhead.min_value = 0.0
+	video_playhead.max_value = 86400.0
+	video_playhead.step = 0.01
+	video_playhead.suffix = " s · cabezal"
+	edit_row.add_child(video_playhead)
+	video_clip_start = SpinBox.new()
+	video_clip_start.min_value = 0.0
+	video_clip_start.max_value = 86400.0
+	video_clip_start.step = 0.01
+	video_clip_start.prefix = "Inicio "
+	edit_row.add_child(video_clip_start)
+	video_clip_end = SpinBox.new()
+	video_clip_end.min_value = 0.04
+	video_clip_end.max_value = 86400.0
+	video_clip_end.step = 0.01
+	video_clip_end.prefix = "Fin "
+	edit_row.add_child(video_clip_end)
+	var actions := HBoxContainer.new()
+	page.add_child(actions)
+	_add_button(actions, "Importar medio a pista", _video_open_media_dialog)
+	_add_button(actions, "Mover al cabezal", _video_move_clip)
+	_add_button(actions, "Recortar", _video_trim_clip)
+	_add_button(actions, "Dividir en cabezal", _video_split_clip)
+	_add_button(actions, "Duplicar", _video_duplicate_clip)
+	_add_button(actions, "Eliminar clip", _video_remove_clip)
+	var footer := HBoxContainer.new()
+	page.add_child(footer)
+	_add_button(footer, "Guardar montaje", _save_project)
+	_add_button(footer, "Volver al estudio", _show_workspace)
+	video_media_dialog = FileDialog.new()
+	video_media_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	video_media_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	video_media_dialog.filters = PackedStringArray(["*.mp4, *.mov, *.mkv, *.webm, *.avi ; Vídeo", "*.wav, *.mp3, *.ogg, *.flac, *.m4a ; Audio", "*.png, *.jpg, *.jpeg, *.webp ; Imagen"])
+	video_media_dialog.file_selected.connect(_video_media_selected)
+	add_child(video_media_dialog)
+	_video_refresh_tracks()
+	if _video_timeline().get("tracks", []).is_empty():
+		_video_add_track("video")
+		_video_add_track("audio")
+	_set_status("Editor multipista listo. El montaje se guarda dentro del proyecto.")
+
+func _video_add_track(track_type: String) -> void:
+	var result: Dictionary = video_timeline_model.create_track(_video_timeline(), track_type)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "No se pudo crear la pista.")))
+		return
+	video_selected_track = _video_timeline().tracks.size() - 1
+	_video_refresh_tracks()
+	_save_project()
+
+func _video_refresh_tracks() -> void:
+	if not is_instance_valid(video_track_list):
+		return
+	video_track_list.clear()
+	var tracks: Array = _video_timeline().get("tracks", [])
+	for track in tracks:
+		video_track_list.add_item("%s · %s · %d clips" % [str(track.get("type", "")).to_upper(), str(track.get("name", "Pista")), track.get("clips", []).size()])
+	if not tracks.is_empty():
+		video_selected_track = clampi(video_selected_track, 0, tracks.size() - 1)
+		video_track_list.select(video_selected_track)
+		_video_refresh_clips()
+	else:
+		video_clip_list.clear()
+
+func _video_select_track(index: int) -> void:
+	video_selected_track = index
+	video_selected_clip = -1
+	_video_refresh_clips()
+
+func _video_refresh_clips() -> void:
+	if not is_instance_valid(video_clip_list):
+		return
+	video_clip_list.clear()
+	var tracks: Array = _video_timeline().get("tracks", [])
+	if video_selected_track < 0 or video_selected_track >= tracks.size():
+		return
+	for clip in tracks[video_selected_track].get("clips", []):
+		video_clip_list.add_item("%s · %.2f → %.2f s" % [str(clip.get("name", "Clip")), float(clip.get("start", 0.0)), float(clip.get("start", 0.0)) + float(clip.get("duration", 0.0))])
+
+func _video_select_clip(index: int) -> void:
+	video_selected_clip = index
+	var track: Dictionary = _video_selected_track_data()
+	var clips: Array = track.get("clips", [])
+	if index < 0 or index >= clips.size():
+		return
+	var clip: Dictionary = clips[index]
+	video_clip_start.value = float(clip.get("start", 0.0))
+	video_clip_end.value = float(clip.get("start", 0.0)) + float(clip.get("duration", 0.0))
+	video_playhead.value = float(clip.get("start", 0.0))
+
+func _video_selected_track_data() -> Dictionary:
+	var tracks: Array = _video_timeline().get("tracks", [])
+	if video_selected_track < 0 or video_selected_track >= tracks.size():
+		return {}
+	return tracks[video_selected_track]
+
+func _video_open_media_dialog() -> void:
+	if _video_selected_track_data().is_empty():
+		_set_status("Crea o selecciona una pista antes de importar medios.")
+		return
+	video_media_dialog.popup_centered_ratio(0.82)
+
+func _video_media_selected(path: String) -> void:
+	var track := _video_selected_track_data()
+	if track.is_empty():
+		return
+	var result: Dictionary = video_timeline_model.add_clip(track, path, video_playhead.value, 5.0)
+	if not result.get("ok", false):
+		_set_status(str(result.get("error", "No se pudo añadir el medio.")))
+		return
+	_video_refresh_tracks()
+	_save_project()
+	_set_status("Medio añadido al montaje. Ajusta su duración y posición en la pista.")
+
+func _video_move_clip() -> void:
+	var track := _video_selected_track_data()
+	var clips: Array = track.get("clips", [])
+	if video_selected_clip < 0 or video_selected_clip >= clips.size():
+		return
+	var result: Dictionary = video_timeline_model.move_clip(track, str(clips[video_selected_clip].id), video_clip_start.value)
+	if result.get("ok", false):
+		_video_refresh_tracks()
+		_save_project()
+
+func _video_trim_clip() -> void:
+	var track := _video_selected_track_data()
+	var clips: Array = track.get("clips", [])
+	if video_selected_clip < 0 or video_selected_clip >= clips.size():
+		return
+	var clip_id := str(clips[video_selected_clip].id)
+	var result: Dictionary = video_timeline_model.trim_clip(track, clip_id, video_clip_start.value, video_clip_end.value)
+	if result.get("ok", false):
+		_video_refresh_tracks()
+		_save_project()
+	else:
+		_set_status(str(result.get("error", "No se pudo recortar el clip.")))
+
+func _video_split_clip() -> void:
+	var track := _video_selected_track_data()
+	var clips: Array = track.get("clips", [])
+	if video_selected_clip < 0 or video_selected_clip >= clips.size():
+		return
+	var result: Dictionary = video_timeline_model.split_clip(track, str(clips[video_selected_clip].id), video_playhead.value)
+	if result.get("ok", false):
+		_video_refresh_tracks()
+		_save_project()
+	else:
+		_set_status(str(result.get("error", "No se pudo dividir el clip.")))
+
+func _video_duplicate_clip() -> void:
+	var track := _video_selected_track_data()
+	var clips: Array = track.get("clips", [])
+	if video_selected_clip < 0 or video_selected_clip >= clips.size():
+		return
+	var result: Dictionary = video_timeline_model.duplicate_clip(track, str(clips[video_selected_clip].id))
+	if result.get("ok", false):
+		_video_refresh_tracks()
+		_save_project()
+
+func _video_remove_clip() -> void:
+	var track := _video_selected_track_data()
+	var clips: Array = track.get("clips", [])
+	if video_selected_clip < 0 or video_selected_clip >= clips.size():
+		return
+	if video_timeline_model.remove_clip(track, str(clips[video_selected_clip].id)):
+		video_selected_clip = -1
+		_video_refresh_tracks()
+		_save_project()
 
 func _show_export_workspace() -> void:
 	_clear_content()
