@@ -32,7 +32,7 @@ var imported_character_data: Dictionary = {}
 var procedural_poses: Array = []
 var runtime_rig: Node2D
 var rig_subviewport: SubViewport
-var ik_drag_overlay: Control
+var ik_drag_overlay
 var root_ui: VBoxContainer
 var content: Control
 var status_label: Label
