@@ -7,6 +7,7 @@ const CHARACTER_PROCEDURAL_ANIMATOR = preload("res://scripts/character_procedura
 const CHARACTER_SPATIAL_RIG_BUILDER = preload("res://scripts/character_spatial_rig_builder.gd")
 const IK_DRAG_OVERLAY = preload("res://scripts/ik_drag_overlay.gd")
 const ANIMATION_TIMELINE = preload("res://scripts/animation_timeline.gd")
+const CHARACTER_PACKAGE_IO = preload("res://scripts/character_package_io.gd")
 const DEFAULT_PROJECT := {"name":"Mi primera animación","width":1920,"height":1080,"fps":60,"orientation":"Horizontal","visual_mode":"2D","background_mode":"Vacío"}
 
 var project_data: Dictionary = DEFAULT_PROJECT.duplicate(true)
@@ -36,6 +37,9 @@ var joint_undo_stack: Array[Dictionary] = []
 var joint_redo_stack: Array[Dictionary] = []
 var joint_editor_syncing := false
 var timeline_model
+var package_io
+var package_export_dialog: FileDialog
+var package_import_dialog: FileDialog
 var timeline_clip_picker: OptionButton
 var timeline_key_list: ItemList
 var timeline_duration: SpinBox
@@ -120,6 +124,7 @@ func _ready() -> void:
 	spatial_builder = CHARACTER_SPATIAL_RIG_BUILDER.new()
 	image_processor = CHARACTER_IMAGE_PROCESSOR.new()
 	procedural_animator = CHARACTER_PROCEDURAL_ANIMATOR.new()
+	package_io = CHARACTER_PACKAGE_IO.new()
 	_build_shell()
 	image_dialog = FileDialog.new()
 	image_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
@@ -127,6 +132,19 @@ func _ready() -> void:
 	image_dialog.filters = PackedStringArray(["*.png, *.jpg, *.jpeg, *.webp ; Imágenes de personaje"])
 	image_dialog.file_selected.connect(_on_character_image_selected)
 	add_child(image_dialog)
+	package_export_dialog = FileDialog.new()
+	package_export_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	package_export_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	package_export_dialog.filters = PackedStringArray(["*.json ; Paquete de personaje JSON"])
+	package_export_dialog.current_file = "personaje_animation_studio.json"
+	package_export_dialog.file_selected.connect(_export_character_package_to_path)
+	add_child(package_export_dialog)
+	package_import_dialog = FileDialog.new()
+	package_import_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	package_import_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	package_import_dialog.filters = PackedStringArray(["*.json ; Paquete de personaje JSON"])
+	package_import_dialog.file_selected.connect(_import_character_package_from_path)
+	add_child(package_import_dialog)
 	_show_wizard()
 
 func _build_shell() -> void:
@@ -550,6 +568,8 @@ func _show_character_lab() -> void:
 	_add_button(timeline_actions, "Reproducir clip", _play_timeline_clip)
 	_add_button(timeline_actions, "Detener", _stop_timeline_clip)
 	_add_button(timeline_actions, "Guardar clips", _save_timeline_clips)
+	_add_button(timeline_actions, "Exportar personaje JSON", _open_package_export_dialog)
+	_add_button(timeline_actions, "Importar paquete JSON", _open_package_import_dialog)
 	if timeline_model == null:
 		timeline_model = ANIMATION_TIMELINE.new()
 	_refresh_timeline_ui()
@@ -1158,6 +1178,73 @@ func _on_joint_slider_changed(value: float, joint_path: String) -> void:
 func _play_rig_animation(animation_name: String) -> void:
 	if is_instance_valid(runtime_rig):
 		rig_builder.play_animation(runtime_rig, animation_name, animation_speed_slider.value if is_instance_valid(animation_speed_slider) else 1.0)
+
+
+func _open_package_export_dialog() -> void:
+	if not is_instance_valid(package_export_dialog):
+		return
+	package_export_dialog.current_file = (str(generated_character.get("name", "personaje")).validate_filename() if not generated_character.is_empty() else "personaje") + "_animation_studio.json"
+	package_export_dialog.popup_centered(Vector2i(760, 520))
+
+func _open_package_import_dialog() -> void:
+	if is_instance_valid(package_import_dialog):
+		package_import_dialog.popup_centered(Vector2i(760, 520))
+
+func _export_character_package_to_path(path: String) -> void:
+	var character := generated_character.duplicate(true)
+	if character.is_empty() and not project_data.get("characters", []).is_empty():
+		character = project_data["characters"][-1].duplicate(true)
+	var angles: Dictionary = rig_builder.capture_procedural_pose(runtime_rig) if is_instance_valid(runtime_rig) else {}
+	var rig_type := str(runtime_rig.get_meta("rig_type", "2D_pivot_hierarchy")) if is_instance_valid(runtime_rig) else str(character.get("rig", {}).get("type", "not_built"))
+	var package: Dictionary = package_io.build_package(
+		character, rig_type, angles,
+		procedural_poses,
+		project_data.get("custom_procedural_poses", []),
+		project_data.get("animation_clips", []),
+		imported_character_data
+	)
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		_set_status("No se pudo crear el paquete JSON en la ubicación seleccionada.")
+		return
+	file.store_string(package_io.encode_package(package))
+	file.close()
+	_set_status("Paquete exportado: personaje, articulaciones, poses y clips. Copia también las imágenes fuente si usas texturas importadas.")
+
+func _import_character_package_from_path(path: String) -> void:
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		_set_status("No se pudo abrir el paquete seleccionado.")
+		return
+	var json_text := file.get_as_text()
+	file.close()
+	var decoded: Dictionary = package_io.decode_package(json_text)
+	if not bool(decoded.get("ok", false)):
+		_set_status(str(decoded.get("error", "Paquete inválido.")))
+		return
+	var package: Dictionary = decoded["package"]
+	generated_character = package.get("character", {}).duplicate(true)
+	procedural_poses = package.get("procedural_poses", []).duplicate(true)
+	project_data["custom_procedural_poses"] = package.get("custom_poses", []).duplicate(true)
+	project_data["animation_clips"] = package.get("animation_clips", []).duplicate(true)
+	project_data["imported_character_package"] = {
+		"rig_type": str(package.get("rig", {}).get("type", "")),
+		"joint_angles_degrees": package.get("rig", {}).get("joint_angles_degrees", {}).duplicate(true)
+	}
+	if not generated_character.is_empty():
+		if not project_data.has("characters"):
+			project_data["characters"] = []
+		project_data["characters"].append(generated_character.duplicate(true))
+		if is_instance_valid(character_preview):
+			character_preview.character_label = str(generated_character.get("name", "Personaje"))
+			character_preview.rig_data = generated_character.get("rig", {})
+			character_preview.queue_redraw()
+		if is_instance_valid(rig_subviewport):
+			_build_runtime_character()
+			if is_instance_valid(runtime_rig):
+				rig_builder.apply_procedural_pose(runtime_rig, project_data["imported_character_package"]["joint_angles_degrees"])
+	_save_project()
+	_set_status("Paquete importado: se recuperaron ficha, poses y clips. Las texturas externas deben copiarse aparte.")
 
 func _save_project() -> void:
 	var file := FileAccess.open("user://animation_studio_manager_project.json", FileAccess.WRITE)
