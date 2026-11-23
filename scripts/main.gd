@@ -836,6 +836,7 @@ func _show_director_timeline() -> void:
 	director_value_y_input.prefix = "Y "
 	director_value_y_input.visible = false
 	edit.add_child(director_value_y_input)
+	_on_director_property_selected(director_property_picker.selected)
 	director_easing_picker = OptionButton.new()
 	for easing in ["linear","ease_in","ease_out","ease_in_out","step"]:
 		director_easing_picker.add_item(easing)
@@ -932,8 +933,11 @@ func _on_director_timeline_frame_selected(frame: int) -> void:
 			director_value_input.value = float(sampled)
 
 func _on_director_property_selected(_index: int) -> void:
+	var is_position := director_property_picker.get_item_text(director_property_picker.selected) == "position"
 	if is_instance_valid(director_value_y_input):
-		director_value_y_input.visible = director_property_picker.get_item_text(director_property_picker.selected) == "position"
+		director_value_y_input.visible = is_position
+	if is_instance_valid(director_value_input):
+		director_value_input.prefix = "X " if is_position else "Valor "
 
 func _director_tracks() -> Array:
 	if not project_data.has("scene_animation_tracks"):
