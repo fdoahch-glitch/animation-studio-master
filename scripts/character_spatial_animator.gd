@@ -339,7 +339,7 @@ func _update_cycle_facial_expression(cycle_name: String, time: float) -> void:
 
 func _normalize_expression_name(value: String) -> String:
 	var normalized := value.to_lower()
-	for token in ["mixamorig", "blendshape", "blend_shape", "face", "facial", "mesh", "head", "brow", "eye", "mouth", "_", "-", " ", ".", ":", "|"]:
+	for token in ["mixamorig", "blendshape", "blend_shape", "face", "facial", "mesh", "head", "_", "-", " ", ".", ":", "|"]:
 		normalized = normalized.replace(token, "")
 	return normalized
 
