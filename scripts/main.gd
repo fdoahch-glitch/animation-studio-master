@@ -1754,6 +1754,10 @@ func _import_character_package_from_path(path: String) -> void:
 	project_data["custom_procedural_poses"] = package.get("custom_poses", []).duplicate(true)
 	project_data["animation_clips"] = package.get("animation_clips", []).duplicate(true)
 	project_data["spatial_procedural_poses"] = package.get("spatial_poses", []).duplicate(true)
+	project_data["spatial_custom_poses"] = []
+	for imported_pose in project_data["spatial_procedural_poses"]:
+		if bool(imported_pose.get("custom", false)):
+			project_data["spatial_custom_poses"].append(imported_pose.duplicate(true))
 	project_data["spatial_animation_clips"] = package.get("spatial_animation_clips", []).duplicate(true)
 	project_data["imported_character_package"] = {
 		"rig_type": str(package.get("rig", {}).get("type", "")),
