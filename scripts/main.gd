@@ -3,12 +3,18 @@ extends Control
 const CHARACTER_AI = preload("res://scripts/character_ai.gd")
 const CHARACTER_RIG_BUILDER = preload("res://scripts/character_rig_builder.gd")
 const CHARACTER_IMAGE_PROCESSOR = preload("res://scripts/character_image_processor.gd")
+const CHARACTER_AI_PROVIDER = preload("res://scripts/character_ai_provider.gd")
 const DEFAULT_PROJECT := {"name":"Mi primera animación","width":1920,"height":1080,"fps":60,"orientation":"Horizontal","visual_mode":"2D","background_mode":"Vacío"}
 
 var project_data: Dictionary = DEFAULT_PROJECT.duplicate(true)
 var ai
 var rig_builder
 var image_processor
+var ai_provider
+var ai_request: HTTPRequest
+var ai_endpoint_input: LineEdit
+var ai_key_input: LineEdit
+var imported_source_path := ""
 var image_dialog: FileDialog
 var imported_preview: TextureRect
 var image_result_output: RichTextLabel
@@ -81,6 +87,14 @@ func _ready() -> void:
 	ai = CHARACTER_AI.new()
 	rig_builder = CHARACTER_RIG_BUILDER.new()
 	image_processor = CHARACTER_IMAGE_PROCESSOR.new()
+	ai_provider = CHARACTER_AI_PROVIDER.new()
+	ai_provider.name = "CharacterAIProvider"
+	add_child(ai_provider)
+	ai_provider.request_completed.connect(_on_ai_segmentation_completed)
+	ai_provider.request_failed.connect(_on_ai_segmentation_failed)
+	ai_request = HTTPRequest.new()
+	ai_request.timeout = 120.0
+	add_child(ai_request)
 	ai.name = "CharacterAI"
 	add_child(ai)
 	_build_shell()
@@ -306,6 +320,17 @@ func _show_character_lab() -> void:
 	character_view = _add_option(form, "Vista previa", ["Frente","Perfil","Espalda","Tres cuartos"], 0)
 	character_view.item_selected.connect(_on_character_view_changed)
 	_add_button(form, "Importar imagen y preparar piezas", _open_character_image_dialog)
+	var ai_provider_title := Label.new()
+	ai_provider_title.text = "IA EXTERNA (OPCIONAL)"
+	form.add_child(ai_provider_title)
+	ai_endpoint_input = LineEdit.new()
+	ai_endpoint_input.placeholder_text = "Endpoint HTTPS /segment"
+	form.add_child(ai_endpoint_input)
+	ai_key_input = LineEdit.new()
+	ai_key_input.placeholder_text = "Clave API (no se guarda en el proyecto)"
+	ai_key_input.secret = true
+	form.add_child(ai_key_input)
+	_add_button(form, "Analizar piezas con IA conectada", _request_ai_segmentation)
 	_add_button(form, "Crear diseño base + esqueleto", _generate_character)
 	_add_button(form, "Preparar prompt para IA", _request_ai_character)
 	var right := VBoxContainer.new()
@@ -382,6 +407,7 @@ func _on_character_image_selected(path: String) -> void:
 		_set_status("La preparación de imagen no se completó.")
 		return
 	imported_character_data = result
+	imported_source_path = path
 	var preview_image := Image.new()
 	var load_error := preview_image.load(str(result.get("processed_image", "")))
 	if load_error == OK:
@@ -401,6 +427,47 @@ func _on_character_image_selected(path: String) -> void:
 	project_data["image_imports"].append(result)
 	_save_project()
 	_set_status("Imagen preparada. Revisa los recortes y corrige las zonas antes de animar.")
+
+func _request_ai_segmentation() -> void:
+	if imported_source_path == "":
+		_set_status("Primero importa una imagen de personaje.")
+		return
+	if not ai_provider.configure(ai_endpoint_input.text, ai_key_input.text):
+		_set_status("Endpoint de IA no válido. Usa HTTPS o localhost.")
+		return
+	var err: Error = ai_provider.request_segmentation(imported_source_path, ai_request, character_mode.get_item_text(character_mode.selected))
+	if err != OK:
+		_set_status("No se pudo iniciar la solicitud de IA. Código: " + str(err))
+	else:
+		_set_status("Solicitud enviada al proveedor de IA. Esperando segmentación...")
+
+func _on_ai_segmentation_completed(response: Dictionary) -> void:
+	var source := Image.new()
+	if source.load(imported_source_path) != OK:
+		_set_status("No se pudo volver a abrir la imagen original.")
+		return
+	var validation: Dictionary = ai_provider.validate_segmentation_result(response, source.get_size())
+	var accepted: Array[Dictionary] = validation.get("accepted", [])
+	if accepted.is_empty():
+		_set_status("La IA respondió, pero no entregó recortes válidos.")
+		image_result_output.text = "No se pudieron validar las regiones. Revisa el contrato del proveedor."
+		return
+	var saved := image_processor.save_provider_segments(imported_source_path, accepted)
+	var lines := PackedStringArray()
+	lines.append("SEGMENTACIÓN IA RECIBIDA")
+	lines.append("Piezas válidas: %d · rechazadas: %d" % [saved.size(), validation.get("rejected", []).size()])
+	for part in saved:
+		lines.append("• %s · confianza %.0f%% · %s" % [part.name, float(part.confidence) * 100.0, part.path])
+	lines.append("Los recortes se guardaron como archivos independientes. Revisa máscaras y pivotes antes de animar.")
+	image_result_output.text = "\n".join(lines)
+	imported_character_data["ai_segments"] = saved
+	_save_project()
+	_set_status("Segmentación IA recibida y recortes guardados.")
+
+func _on_ai_segmentation_failed(message: String) -> void:
+	_set_status("IA: " + message)
+	if is_instance_valid(image_result_output):
+		image_result_output.text = "Error del proveedor de IA: " + message
 
 func _generate_character() -> void:
 	var label := character_name.text.strip_edges()
