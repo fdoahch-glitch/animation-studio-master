@@ -1,0 +1,16 @@
+name: Roadmap supervisor
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  roadmap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate ten-stage roadmap and sequential progress
+        run: python3 scripts/roadmap_supervisor.py
