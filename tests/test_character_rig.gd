@@ -386,6 +386,36 @@ func _run_tests() -> void:
 		quit(1)
 		return
 
+	# El horneado del rig cuadrúpedo debe generar clips nativos sin borrar
+	# bibliotecas de animaciones originales que vengan con el modelo.
+	var quadruped_player := AnimationPlayer.new()
+	quadruped_player.name = "ProceduralAnimationPlayer"
+	quadruped_rig.add_child(quadruped_player)
+	var imported_library := AnimationLibrary.new()
+	var imported_walk := Animation.new()
+	imported_walk.length = 0.75
+	if imported_library.add_animation("walk_original", imported_walk) != OK:
+		push_error("No se pudo preparar la animación original de prueba.")
+		quit(1)
+		return
+	if quadruped_player.add_animation_library("imported", imported_library) != OK:
+		push_error("No se pudo registrar la biblioteca de animaciones originales.")
+		quit(1)
+		return
+	var quadruped_baked: int = quadruped_animator.bake_clips_to_animation_player(quadruped_rig, quadruped_clips)
+	if quadruped_baked != quadruped_clips.size():
+		push_error("No se hornearon todos los ciclos procedurales del cuadrúpedo.")
+		quit(1)
+		return
+	if not quadruped_player.has_animation("imported/walk_original"):
+		push_error("El horneado eliminó una animación original importada.")
+		quit(1)
+		return
+	if not quadruped_player.has_animation("procedural/walk") or not quadruped_player.has_animation("procedural/roar"):
+		push_error("Faltan ciclos horneados de locomoción o mandíbula.")
+		quit(1)
+		return
+
 	print("RIG_TEST: antes de exportar glTF")
 	var gltf_exporter := GLTFDocument.new()
 	var gltf_export_state := GLTFState.new()
