@@ -17,6 +17,8 @@ var rig_builder
 var spatial_builder
 var runtime_spatial_rig: Node3D
 var runtime_spatial_animator
+var runtime_imported_3d_animation_player: AnimationPlayer
+var imported_3d_model_path := ""
 var spatial_subviewport: SubViewport
 var spatial_container: SubViewportContainer
 var rig_2d_container: SubViewportContainer
@@ -24,6 +26,7 @@ var image_processor
 var procedural_animator
 var imported_source_path := ""
 var image_dialog: FileDialog
+var model_3d_dialog: FileDialog
 var imported_preview: TextureRect
 var image_result_output: RichTextLabel
 var build_segmented_button: Button
@@ -135,6 +138,12 @@ func _ready() -> void:
 	image_dialog.filters = PackedStringArray(["*.png, *.jpg, *.jpeg, *.webp ; Imágenes de personaje"])
 	image_dialog.file_selected.connect(_on_character_image_selected)
 	add_child(image_dialog)
+	model_3d_dialog = FileDialog.new()
+	model_3d_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	model_3d_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	model_3d_dialog.filters = PackedStringArray(["*.glb, *.gltf ; Modelos 3D glTF/GLB"])
+	model_3d_dialog.file_selected.connect(_on_3d_model_selected)
+	add_child(model_3d_dialog)
 	package_export_dialog = FileDialog.new()
 	package_export_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
 	package_export_dialog.access = FileDialog.ACCESS_FILESYSTEM
@@ -371,6 +380,7 @@ func _show_character_lab() -> void:
 	character_view = _add_option(form, "Vista previa", ["Frente","Perfil","Espalda","Tres cuartos"], 0)
 	character_view.item_selected.connect(_on_character_view_changed)
 	_add_button(form, "Importar imagen y preparar piezas", _open_character_image_dialog)
+	_add_button(form, "Importar modelo 3D (GLB / glTF)", _open_3d_model_dialog)
 	build_segmented_button = _add_button(form, "Construir rig con las piezas recortadas", _build_imported_segment_rig)
 	build_segmented_button.disabled = true
 	_add_button(form, "Generar poses y animaciones procedurales", _generate_procedural_pose_set)
@@ -694,6 +704,96 @@ func _apply_texture_adjustments() -> void:
 	project_data["image_imports"].append(result)
 	_save_project()
 	_set_status("Textura ajustada y recortes regenerados. Ya puedes reconstruir el rig.")
+
+
+func _open_3d_model_dialog() -> void:
+	if is_instance_valid(model_3d_dialog):
+		model_3d_dialog.popup_centered_ratio(0.82)
+
+func _on_3d_model_selected(path: String) -> void:
+	_load_3d_model_from_path(path, true)
+
+func _load_3d_model_from_path(path: String, update_status: bool = true) -> bool:
+	var document := GLTFDocument.new()
+	var state := GLTFState.new()
+	var parse_error := document.append_from_file(path, state)
+	if parse_error != OK:
+		if update_status:
+			_set_status("No se pudo importar el modelo glTF/GLB. Código: %d" % parse_error)
+		return false
+	var generated_scene := document.generate_scene(state)
+	if generated_scene == null:
+		if update_status:
+			_set_status("El archivo 3D se leyó, pero no se pudo construir la escena.")
+		return false
+	if is_instance_valid(runtime_rig):
+		runtime_rig.queue_free()
+		runtime_rig = null
+	if is_instance_valid(runtime_spatial_rig):
+		runtime_spatial_rig.queue_free()
+	runtime_spatial_animator = null
+	runtime_imported_3d_animation_player = null
+	var model_root: Node3D
+	if generated_scene is Node3D:
+		model_root = generated_scene as Node3D
+	else:
+		model_root = Node3D.new()
+		model_root.add_child(generated_scene)
+	model_root.name = "Imported3D_" + path.get_file().get_basename().validate_filename()
+	model_root.set_meta("rig_type", "3D_imported_skeleton")
+	spatial_subviewport.add_child(model_root)
+	runtime_spatial_rig = model_root
+	rig_2d_container.visible = false
+	spatial_container.visible = true
+	character_mode.select(2)
+	imported_3d_model_path = path
+	if generated_character.is_empty():
+		generated_character = {
+			"name": path.get_file().get_basename(),
+			"description": "Modelo 3D importado desde glTF/GLB",
+			"rig": {"type":"3D_imported_skeleton"}
+		}
+	var imported_skeleton := _find_skeleton_in_node(model_root)
+	runtime_imported_3d_animation_player = _find_animation_player_in_node(model_root)
+	if imported_skeleton != null:
+		runtime_spatial_animator = CHARACTER_SPATIAL_ANIMATOR.new()
+		runtime_spatial_animator.name = "Procedural3DAnimator"
+		model_root.add_child(runtime_spatial_animator)
+		runtime_spatial_animator.configure(imported_skeleton, runtime_imported_3d_animation_player)
+		runtime_spatial_animator.play_animation("idle")
+		if is_instance_valid(animation_controls):
+			for child in animation_controls.get_children():
+				child.queue_free()
+			_add_button(animation_controls, "Idle procedural", _play_rig_animation.bind("idle"))
+			for animation_name in runtime_imported_3d_animation_player.get_animation_list() if is_instance_valid(runtime_imported_3d_animation_player) else []:
+				_add_button(animation_controls, str(animation_name), _play_rig_animation.bind(str(animation_name)))
+		character_output.text = "Modelo 3D importado con Skeleton3D. Se conservan sus mallas, materiales y texturas; puedes reproducir sus animaciones originales y generar poses procedurales usando equivalencias de huesos humanoides."
+		if update_status:
+			_set_status("Modelo 3D con esqueleto importado. Animaciones originales disponibles y rig procedural conectado.")
+	else:
+		character_output.text = "Modelo 3D importado como escena estática. No se encontró Skeleton3D; las mallas y materiales se conservan, pero no se pueden generar poses de huesos."
+		if update_status:
+			_set_status("Modelo 3D importado, pero no contiene un Skeleton3D reconocible.")
+	_refresh_timeline_ui()
+	return true
+
+func _find_skeleton_in_node(node: Node) -> Skeleton3D:
+	if node is Skeleton3D:
+		return node as Skeleton3D
+	for child in node.get_children():
+		var found := _find_skeleton_in_node(child)
+		if found != null:
+			return found
+	return null
+
+func _find_animation_player_in_node(node: Node) -> AnimationPlayer:
+	if node is AnimationPlayer:
+		return node as AnimationPlayer
+	for child in node.get_children():
+		var found := _find_animation_player_in_node(child)
+		if found != null:
+			return found
+	return null
 
 func _open_character_image_dialog() -> void:
 	if image_dialog != null:
@@ -1048,6 +1148,8 @@ func _build_runtime_character() -> void:
 	if is_instance_valid(runtime_spatial_rig):
 		runtime_spatial_rig.queue_free()
 	runtime_spatial_animator = null
+	runtime_imported_3d_animation_player = null
+	imported_3d_model_path = ""
 	var label := str(generated_character.get("name", character_name.text if character_name != null else "Personaje"))
 	var selected_mode := character_mode.get_item_text(character_mode.selected)
 	if selected_mode == "3D esqueleto":
