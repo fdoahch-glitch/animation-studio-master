@@ -1,0 +1,31 @@
+extends SceneTree
+
+const MODEL = preload("res://scripts/scene_composition_model.gd")
+
+func _initialize() -> void:
+	var model = MODEL.new()
+	var scene := {"id":"scene_test","objects":[],"transitions":{}}
+	var actor: Dictionary = model.create_instance("char_01", "character", "Lía", Vector2(120, 240))
+	assert(not actor.is_empty(), "Debe crear una instancia de personaje")
+	var added: Dictionary = model.add_instance(scene, actor)
+	assert(added.ok and scene.objects.size() == 1, "Debe añadir la instancia")
+	var duplicate: Dictionary = model.add_instance(scene, actor)
+	assert(not duplicate.ok, "Debe rechazar IDs duplicados")
+	var moved: Dictionary = model.update_transform(scene, actor.id, {"x":300.0,"y":180.0,"scale_x":150.0,"rotation":-30.0})
+	assert(moved.ok, "Debe actualizar transformaciones")
+	var transform: Dictionary = scene.objects[0].transform
+	assert(transform.x == 300.0 and transform.y == 180.0)
+	assert(transform.scale_x == 100.0, "Debe limitar escalas inseguras")
+	assert(transform.rotation == 330.0, "Debe normalizar rotación")
+	var prop: Dictionary = model.create_instance("prop_01", "element", "Mesa")
+	assert(model.add_instance(scene, prop).ok)
+	assert(model.reorder_instance(scene, prop.id, 0).ok)
+	assert(scene.objects[0].id == prop.id, "Debe reordenar capas")
+	assert(model.set_transition(scene, "fade", 1.25).ok)
+	assert(scene.transitions.type == "fade" and scene.transitions.duration_seconds == 1.25)
+	assert(not model.set_transition(scene, "unknown", 1.0).ok)
+	assert(model.validate_scene(scene).ok)
+	assert(model.remove_instance(scene, actor.id).ok)
+	assert(scene.objects.size() == 1)
+	print("SCENE_COMPOSITION_TESTS_OK")
+	quit(0)
