@@ -8,7 +8,7 @@
 - Búsqueda local por nombre, archivo y etiquetas.
 - La biblioteca valida extensión/categoría, compatibilidad con el modo del proyecto y protege la eliminación para que solo afecte rutas dentro de su carpeta administrada.
 - La ficha de biblioteca muestra una vista previa de las imágenes importadas, junto con nombre, archivo, tamaño, etiquetas y modos compatibles.
-- Los modelos GLB/glTF muestran su información de catálogo y se pueden añadir a escenas como instancias vinculadas por ID; la vista previa 3D interactiva aún está pendiente.
+- Los modelos GLB/glTF se cargan en una vista previa 3D temporal y se pueden añadir a escenas como instancias vinculadas por ID.
 - Desde la ficha de biblioteca se puede añadir el recurso seleccionado a la escena como instancia vinculada por ID.
 
 La importación de glTF con dependencias externas no las empaqueta automáticamente; conserva las dependencias junto al modelo original o usa GLB autocontenido.
@@ -25,4 +25,4 @@ La importación de glTF con dependencias externas no las empaqueta automáticame
 
 ## Límites actuales
 
-La biblioteca muestra imágenes importadas en una vista previa 2D. La previsualización 3D interactiva de modelos GLB/glTF y la extracción automática de miniaturas 3D aún requieren implementación y validación visual. El timeline nuevo anima propiedades numéricas de instancias; rutas de movimiento, cámara multicapa y mezcla de pistas quedan para ampliación posterior.
+La biblioteca muestra imágenes importadas en una vista previa 2D y carga modelos GLB/glTF mediante GLTFDocument en una vista 3D con iluminación, encuadre automático, giro horizontal y zoom. La extracción y persistencia de miniaturas 3D aún requiere implementación y validación visual. El timeline nuevo anima propiedades numéricas de instancias; rutas de movimiento, cámara multicapa y mezcla de pistas quedan para ampliación posterior.

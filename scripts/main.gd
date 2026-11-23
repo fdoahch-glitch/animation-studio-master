@@ -16,6 +16,7 @@ const SCENE_COMPOSITION_MODEL = preload("res://scripts/scene_composition_model.g
 const SCENE_CANVAS = preload("res://scripts/scene_canvas.gd")
 const SCENE_ASSET_BUTTON = preload("res://scripts/scene_asset_button.gd")
 const RESOURCE_LIBRARY = preload("res://scripts/resource_library.gd")
+const RESOURCE_MODEL_PREVIEW = preload("res://scripts/resource_model_preview.gd")
 const ANIMATION_RETARGETER = preload("res://scripts/animation_retargeter.gd")
 const ENVIRONMENT_DIRECTOR = preload("res://scripts/environment_director.gd")
 const DIALOGUE_STUDIO = preload("res://scripts/dialogue_studio.gd")
@@ -93,6 +94,7 @@ var resource_library
 var resource_list: ItemList
 var resource_preview: TextureRect
 var resource_preview_info: Label
+var resource_model_preview: Control
 var resource_category := "character"
 var selected_resource_id := ""
 var resource_file_dialog: FileDialog
@@ -615,6 +617,11 @@ func _show_resource_library(category: String) -> void:
 	resource_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	resource_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	details.add_child(resource_preview)
+	resource_model_preview = RESOURCE_MODEL_PREVIEW.new()
+	resource_model_preview.custom_minimum_size = Vector2(260, 220)
+	resource_model_preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	resource_model_preview.visible = false
+	details.add_child(resource_model_preview)
 	resource_preview_info = Label.new()
 	resource_preview_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	resource_preview_info.text = "Selecciona un recurso para ver su información."
@@ -689,6 +696,9 @@ func _show_resource_preview(resource: Dictionary) -> void:
 	var extension := str(resource.get("extension", "")).to_lower()
 	var path := str(resource.get("path", ""))
 	if extension in RESOURCE_LIBRARY.IMAGE_EXTENSIONS:
+		resource_preview.visible = true
+		resource_model_preview.visible = false
+		resource_model_preview.clear_model()
 		if not FileAccess.file_exists(path):
 			resource_preview_info.text = "No se encuentra el archivo de imagen importado."
 			return
@@ -707,7 +717,13 @@ func _show_resource_preview(resource: Dictionary) -> void:
 		]
 		return
 	if extension in RESOURCE_LIBRARY.MODEL_EXTENSIONS:
-		resource_preview_info.text = "%s\nModelo 3D %s · %d bytes\nEl archivo está catalogado y disponible para vincularlo a escenas. La previsualización 3D interactiva sigue en desarrollo." % [
+		resource_preview.visible = false
+		resource_model_preview.visible = true
+		var preview_result: Dictionary = resource_model_preview.load_model(path)
+		if not bool(preview_result.get("ok", false)):
+			resource_preview_info.text = "No se pudo abrir la vista previa 3D: " + str(preview_result.get("error", "Error de importación."))
+			return
+		resource_preview_info.text = "%s\\nVista previa 3D · %s · %d bytes\\nArrastra horizontalmente para girar el modelo y usa la rueda para acercar o alejar." % [
 			str(resource.get("name", "Modelo 3D")),
 			extension.to_upper(),
 			int(resource.get("bytes", 0))
