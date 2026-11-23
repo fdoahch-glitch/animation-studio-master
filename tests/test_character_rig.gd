@@ -221,6 +221,28 @@ func _run_tests() -> void:
 		push_error("El clip 3D no aplicó las rotaciones de sus fotogramas clave.")
 		quit(1)
 		return
+	var gltf_exporter := GLTFDocument.new()
+	var gltf_export_state := GLTFState.new()
+	if gltf_exporter.append_from_scene(spatial_rig, gltf_export_state) != OK:
+		push_error("No se pudo preparar el rig 3D para exportación glTF.")
+		quit(1)
+		return
+	var glb_buffer: PackedByteArray = gltf_exporter.generate_buffer(gltf_export_state)
+	if glb_buffer.is_empty():
+		push_error("La exportación glTF no generó datos binarios.")
+		quit(1)
+		return
+	var gltf_importer := GLTFDocument.new()
+	var gltf_import_state := GLTFState.new()
+	if gltf_importer.append_from_buffer(glb_buffer, "", gltf_import_state) != OK:
+		push_error("No se pudo reimportar el buffer GLB generado.")
+		quit(1)
+		return
+	var gltf_roundtrip_scene := gltf_importer.generate_scene(gltf_import_state)
+	if gltf_roundtrip_scene == null or gltf_roundtrip_scene.find_child("Skeleton3D", true, false) == null:
+		push_error("El ciclo glTF no conservó el Skeleton3D.")
+		quit(1)
+		return
 
 	print("PASS: rig 2D, animaciones base y procedurales, poses, IK, preparación de imagen, rig de sprites y Skeleton3D.")
 	quit(0)
