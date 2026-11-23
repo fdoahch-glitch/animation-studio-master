@@ -32,5 +32,5 @@ jobs:
         run: godot --headless --path . --script res://tests/test_scene_composition.gd
       - name: Test project document persistence
         run: godot --headless --path . --script res://tests/test_project_document.gd
-      - name: Test project document persistence
-        run: godot --headless --path . --script res://tests/test_project_document.gd
+      - name: Test interactive scene canvas
+        run: godot --headless --path . --script res://tests/test_scene_canvas.gd
