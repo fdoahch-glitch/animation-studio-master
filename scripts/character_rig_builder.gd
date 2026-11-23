@@ -244,7 +244,8 @@ func build_segmented_sprite_rig(parts: Array, joints: Dictionary, source_size: V
 	var parent_map := {
 		"pelvis": "",
 		"torso": "pelvis",
-		"head": "torso",
+		"neck": "torso",
+		"head": "neck",
 		"shoulder_left": "torso",
 		"elbow_left": "shoulder_left",
 		"wrist_left": "elbow_left",
@@ -258,7 +259,7 @@ func build_segmented_sprite_rig(parts: Array, joints: Dictionary, source_size: V
 		"knee_right": "hip_right",
 		"ankle_right": "knee_right"
 	}
-	var order := ["pelvis", "torso", "head", "shoulder_left", "elbow_left", "wrist_left", "shoulder_right", "elbow_right", "wrist_right", "hip_left", "knee_left", "ankle_left", "hip_right", "knee_right", "ankle_right"]
+	var order := ["pelvis", "torso", "neck", "head", "shoulder_left", "elbow_left", "wrist_left", "shoulder_right", "elbow_right", "wrist_right", "hip_left", "knee_left", "ankle_left", "hip_right", "knee_right", "ankle_right"]
 	var pivots: Dictionary = {}
 	var global_joint_points: Dictionary = {}
 	for pivot_key in order:
@@ -291,8 +292,12 @@ func build_segmented_sprite_rig(parts: Array, joints: Dictionary, source_size: V
 
 func _part_pivot_key(part_name: String) -> String:
 	var name := part_name.to_lower()
-	if name.contains("head"):
+	if name.contains("head") or name.contains("hair"):
 		return "head"
+	if name.contains("neck"):
+		return "neck"
+	if name.contains("clothing") or name.contains("accessory"):
+		return "torso"
 	if name.contains("torso") or name.contains("chest"):
 		return "torso"
 	if name.contains("pelvis"):
@@ -392,7 +397,8 @@ func _segmented_pivot_path(pivot_name: String) -> String:
 	var paths := {
 		"pelvis": "Pivot_pelvis",
 		"torso": "Pivot_pelvis/Pivot_torso",
-		"head": "Pivot_pelvis/Pivot_torso/Pivot_head",
+		"neck": "Pivot_pelvis/Pivot_torso/Pivot_neck",
+		"head": "Pivot_pelvis/Pivot_torso/Pivot_neck/Pivot_head",
 		"shoulder_left": "Pivot_pelvis/Pivot_torso/Pivot_shoulder_left",
 		"elbow_left": "Pivot_pelvis/Pivot_torso/Pivot_shoulder_left/Pivot_elbow_left",
 		"wrist_left": "Pivot_pelvis/Pivot_torso/Pivot_shoulder_left/Pivot_elbow_left/Pivot_wrist_left",
