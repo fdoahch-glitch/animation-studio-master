@@ -1,0 +1,64 @@
+name: Windows desktop build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-windows:
+    name: Build Windows x64 executable
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Godot 4.3 and export templates
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.3.0
+          use-dotnet: false
+          include-templates: true
+
+      - name: Verify Godot installation
+        shell: pwsh
+        run: |
+          godot --version
+          if (-not (Test-Path "$env:APPDATA\Godot\export_templates\4.3.stable")) {
+            throw "Godot 4.3 export templates were not installed."
+          }
+
+      - name: Import project resources
+        shell: pwsh
+        run: godot --headless --editor --path . --quit
+
+      - name: Export Windows x64 executable
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path build | Out-Null
+          godot --headless --path . --export-release "Windows Desktop" "build/AnimationStudioMaster.exe"
+          if (-not (Test-Path "build/AnimationStudioMaster.exe")) {
+            throw "Godot finished without producing AnimationStudioMaster.exe"
+          }
+          $size = (Get-Item "build/AnimationStudioMaster.exe").Length
+          if ($size -lt 100000) {
+            throw "The generated executable is unexpectedly small ($size bytes)."
+          }
+          Write-Host "Executable created: $size bytes"
+
+      - name: Upload Windows executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnimationStudioMaster-Windows-x64
+          path: build/AnimationStudioMaster.exe
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
