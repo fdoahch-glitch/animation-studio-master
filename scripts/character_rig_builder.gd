@@ -47,6 +47,7 @@ func _segment(parent: Node2D, pivot_name: String, pivot_position: Vector2, end_p
 	var pivot := Node2D.new()
 	pivot.name = pivot_name
 	pivot.position = pivot_position
+	pivot.set_meta("base_position", pivot_position)
 	parent.add_child(pivot)
 
 	var line := Line2D.new()
@@ -286,6 +287,8 @@ func build_segmented_sprite_rig(parts: Array, joints: Dictionary, source_size: V
 		var pivot := Node2D.new()
 		pivot.name = "Pivot_" + pivot_key
 		pivot.position = record.joint - parent_point
+		pivot.set_meta("base_position", pivot.position)
+		pivot.set_meta("user_offset", Vector2.ZERO)
 		parent_node.add_child(pivot)
 		pivots[pivot_key] = pivot
 		global_joint_points[pivot_key] = record.joint
@@ -466,3 +469,34 @@ func add_ai_animation_set(rig: Node2D, clips: Array) -> int:
 			library.add_animation(clip_name, animation)
 			added += 1
 	return added
+
+func set_pivot_offset(rig: Node2D, pivot_name: String, axis: String, value: float) -> bool:
+	var pivot := rig.find_child("Pivot_" + pivot_name, true, false) as Node2D
+	if pivot == null:
+		var paths := {
+			"pelvis": "Pelvis",
+			"torso": "Pelvis/Spine",
+			"head": "Pelvis/Spine/Chest/Neck/Head",
+			"shoulder_left": "Pelvis/Spine/Chest/Shoulder_L",
+			"elbow_left": "Pelvis/Spine/Chest/Shoulder_L/Elbow_L",
+			"shoulder_right": "Pelvis/Spine/Chest/Shoulder_R",
+			"elbow_right": "Pelvis/Spine/Chest/Shoulder_R/Elbow_R",
+			"hip_left": "Pelvis/Hip_L",
+			"knee_left": "Pelvis/Hip_L/Knee_L",
+			"hip_right": "Pelvis/Hip_R",
+			"knee_right": "Pelvis/Hip_R/Knee_R"
+		}
+		pivot = rig.get_node_or_null(NodePath(str(paths.get(pivot_name, "")))) as Node2D
+	if pivot == null:
+		return false
+	var base: Vector2 = pivot.get_meta("base_position", pivot.position)
+	var offset: Vector2 = pivot.get_meta("user_offset", Vector2.ZERO)
+	if axis == "x":
+		offset.x = clampf(value, -100.0, 100.0)
+	elif axis == "y":
+		offset.y = clampf(value, -100.0, 100.0)
+	else:
+		return false
+	pivot.set_meta("user_offset", offset)
+	pivot.position = base + offset
+	return true
