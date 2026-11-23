@@ -17,7 +17,7 @@ func _run() -> void:
 		return
 	print("IMAGE_TEST_SOURCE_OK")
 
-	var adjusted_path: String = processor.create_adjusted_texture(source_path, 0.05, 1.1, 1.15)
+	var adjusted_path: String = processor.create_adjusted_texture(source_path, 1.05, 1.1, 1.15)
 	if not _check(not adjusted_path.is_empty(), "No se pudo generar la textura ajustada"):
 		return
 	if not _check(FileAccess.file_exists(source_path) and FileAccess.file_exists(adjusted_path), "Debe conservar el original y crear la textura ajustada"):
@@ -28,7 +28,7 @@ func _run() -> void:
 	if not _check(adjusted_image.load(adjusted_path) == OK, "No se pudo releer la textura ajustada"):
 		return
 	print("IMAGE_TEST_COLORS corner=", adjusted_image.get_pixel(0, 0), " subject=", adjusted_image.get_pixel(30, 30))
-	var result: Dictionary = processor.process_character_image(adjusted_path, 0.03)
+	var result: Dictionary = processor.process_character_image(adjusted_path, 0.16)
 	if not _check(result.get("ok", false), "Falló el procesamiento: " + str(result.get("error", ""))):
 		return
 	print("IMAGE_TEST_PROCESS_OK")
