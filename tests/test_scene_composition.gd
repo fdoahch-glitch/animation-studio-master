@@ -26,6 +26,29 @@ func _initialize() -> void:
 	assert(scene.transitions.type == "fade" and scene.transitions.duration_seconds == 1.25)
 	assert(not model.set_transition(scene, "unknown", 1.0).ok)
 	assert(model.validate_scene(scene).ok)
+
+	var missing_resource := actor.duplicate(true)
+	missing_resource["resource_id"] = "  "
+	var invalid_resource_scene := {"objects": [missing_resource], "transitions": {}}
+	assert(not model.validate_scene(invalid_resource_scene).ok, "Debe rechazar instancias sin recurso vinculado")
+
+	var invalid_transform := actor.duplicate(true)
+	invalid_transform["transform"]["x"] = INF
+	var invalid_transform_scene := {"objects": [invalid_transform], "transitions": {}}
+	assert(not model.validate_scene(invalid_transform_scene).ok, "Debe rechazar coordenadas infinitas")
+
+	var invalid_scale := actor.duplicate(true)
+	invalid_scale["transform"]["scale_y"] = 0.0
+	var invalid_scale_scene := {"objects": [invalid_scale], "transitions": {}}
+	assert(not model.validate_scene(invalid_scale_scene).ok, "Debe rechazar escalas nulas")
+
+	var invalid_visibility := actor.duplicate(true)
+	invalid_visibility["transform"]["visible"] = "yes"
+	var invalid_visibility_scene := {"objects": [invalid_visibility], "transitions": {}}
+	assert(not model.validate_scene(invalid_visibility_scene).ok, "Debe exigir visibilidad booleana")
+
+	assert(not model.validate_scene({"objects": [], "transitions": {"type": "teleport", "duration_seconds": 1.0}}).ok, "Debe rechazar transiciones desconocidas")
+	assert(not model.validate_scene({"objects": [], "transitions": {"type": "fade", "duration_seconds": INF}}).ok, "Debe rechazar duraciones no finitas")
 	assert(model.remove_instance(scene, actor.id).ok)
 	assert(scene.objects.size() == 1)
 	print("SCENE_COMPOSITION_TESTS_OK")
