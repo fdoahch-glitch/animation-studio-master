@@ -107,8 +107,7 @@ func capture_pose() -> Dictionary:
 	for index in range(skeleton.get_bone_count()):
 		var name := skeleton.get_bone_name(index)
 		var euler := skeleton.get_bone_pose_rotation(index).get_euler() * (180.0 / PI)
-		if euler.length_squared() > 0.0001:
-			result[name] = [snappedf(euler.x, 0.01), snappedf(euler.y, 0.01), snappedf(euler.z, 0.01)]
+		result[name] = [snappedf(euler.x, 0.01), snappedf(euler.y, 0.01), snappedf(euler.z, 0.01)]
 	return result
 
 func play_animation(animation_name: String, custom_speed: float = 1.0, intensity: float = 1.0) -> bool:
