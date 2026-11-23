@@ -8,14 +8,18 @@ Estudio visual de animación por escenas, desarrollado con Godot 4.x y orientado
 - Modos 2D, 2.5D, 3D e Híbrido.
 - Secciones de Escenas, Personajes, Fondos, Elementos, Decoraciones, Tiempo y clima, Animación, Audio y doblaje y Exportar.
 - Estudio de personajes con ficha, estilo y tipo de rig.
-- Constructor de rig 2D editable en tiempo de ejecución: pivotes jerárquicos, segmentos visuales y articulaciones.
+- Constructor de rig 2D editable en tiempo de ejecución, con pivotes y controles manuales de articulaciones.
+- Importación de imagen, eliminación local aproximada de fondo plano y exportación de recortes anatómicos proporcionales.
+- Ensamblado de rig 2D desde piezas recortadas y puntos articulares entregados por un proveedor IA.
+- Adaptador HTTP configurable para segmentación con máscaras, puntos articulares, generación de vistas y propuestas de poses.
+- Constructor de esqueleto 3D con Skeleton3D y piezas geométricas de referencia; utilidad de planos 2.5D.
 - Animaciones base reproducibles desde el estudio: reposo, caminar, correr, saltar, hablar y saludar.
 - Vista previa real del rig dentro de un SubViewport y controles para probar cada ciclo.
 - Selector de vistas de referencia: frente, perfil, espalda y tres cuartos.
-- Generación de prompt para un proveedor de IA externo.
+- Seis ciclos de animación 2D base y controles de ajuste manual de articulaciones.
 
 ## Estado honesto de IA
-El módulo actual ya construye un rig 2D procedural editable con jerarquía de pivotes, segmentos visuales y seis ciclos de animación que se pueden reproducir en el estudio. Todavía no segmenta automáticamente una ilustración importada, no calcula pesos de deformación de sprites ni genera imágenes o modelos 3D mediante un modelo de IA. Esas capacidades requieren incorporar modelos de segmentación/generación y un adaptador de inferencia; el proyecto no incluye claves API ni envía imágenes a servicios externos por defecto. El rig actual es una base funcional para validar la estructura y el flujo de animación, no un sistema completo de producción.
+El programa incorpora preparación local de imágenes, rigs 2D por piezas, animaciones base, pivotes editables, un constructor Skeleton3D segmentado y un adaptador HTTP para conectar un servicio de IA. El adaptador puede solicitar segmentación, máscaras, puntos articulares, vistas de giro y poses. **No se incluye un modelo IA ni un servidor de inferencia**: para obtener segmentación semántica y generación real se debe configurar un endpoint compatible según `docs/AI_PROVIDER_CONTRACT.md`. Sin ese servicio, el procesamiento local solo elimina fondos planos conectados a los bordes y propone recortes proporcionales aproximados. El rig 3D actual usa piezas geométricas ancladas a huesos; todavía no hace skinning de una malla artística ni contiene ciclos de animación 3D. El rig 2D usa sprites recortados y pivotes; puede requerir revisión manual de máscaras, pivotes y solapamientos.
 
 ## Abrir y ejecutar
 1. Instala Godot 4.x desde https://godotengine.org/download/.
@@ -34,3 +38,5 @@ La compilación del ejecutable todavía no se ha ejecutado ni verificado en CI.
 ## Documentación
 - Diseño funcional: docs/PRODUCT_BLUEPRINT.md
 - Núcleo de personajes e IA: docs/CHARACTER_AI_DESIGN.md
+- Rig en tiempo real: docs/RIG_RUNTIME.md
+- Contrato del proveedor IA: docs/AI_PROVIDER_CONTRACT.md
