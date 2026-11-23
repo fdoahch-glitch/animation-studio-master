@@ -87,7 +87,7 @@ func request_pose_generation(description: String, rig_type: String, http_request
 		"character_description": description,
 		"rig_type": rig_type,
 		"requested_poses": ["idle", "walk", "run", "jump", "talk", "wave", "sit", "turn"],
-		"requested_outputs": ["joint_angles", "keyframes", "duration", "loop"]
+		"requested_outputs": ["poses", "animations", "joint_angles", "keyframes", "duration", "loop"]
 	}
 	return _post_json(http_request, payload)
 
@@ -120,8 +120,8 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 	if task == "character_turnaround_generation" and not parsed.has("views"):
 		request_failed.emit("Respuesta de vistas sin views.")
 		return
-	if task == "character_pose_generation" and not parsed.has("poses"):
-		request_failed.emit("Respuesta de poses sin poses.")
+	if task == "character_pose_generation" and not parsed.has("poses") and not parsed.has("animations"):
+		request_failed.emit("Respuesta de poses sin poses ni animations.")
 		return
 	request_completed.emit(parsed)
 
