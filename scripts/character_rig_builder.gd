@@ -36,6 +36,10 @@ func build_runtime_rig(character_name: String = "Personaje", scale_factor: float
 	var leg_r := _segment(pelvis, "Hip_R", Vector2(11, 18), Vector2(2, 39), 15.0, DARK)
 	_segment(leg_r, "Knee_R", Vector2(2, 39), Vector2(-2, 38), 12.0, DARK)
 
+	set_joint_limits(rig, NodePath("Pelvis/Spine/Chest/Shoulder_L/Elbow_L"), -10.0, 150.0)
+	set_joint_limits(rig, NodePath("Pelvis/Spine/Chest/Shoulder_R/Elbow_R"), -10.0, 150.0)
+	set_joint_limits(rig, NodePath("Pelvis/Hip_L/Knee_L"), -5.0, 150.0)
+	set_joint_limits(rig, NodePath("Pelvis/Hip_R/Knee_R"), -5.0, 150.0)
 	_add_animation_player(rig)
 	return rig
 
