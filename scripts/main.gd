@@ -314,8 +314,11 @@ func _show_character_lab() -> void:
 	rig_subviewport.size = Vector2i(420,280)
 	rig_subviewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	rig_subviewport.transparent_bg = false
-	rig_subviewport.add_theme_color_override("background_color", Color("#f4f7fb"))
 	rig_container.add_child(rig_subviewport)
+	var rig_background := ColorRect.new()
+	rig_background.color = Color("#f4f7fb")
+	rig_background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	rig_subviewport.add_child(rig_background)
 	var animation_controls := GridContainer.new()
 	animation_controls.columns = 3
 	right.add_child(animation_controls)
