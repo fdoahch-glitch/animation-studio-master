@@ -4,6 +4,7 @@ class_name VideoTimelineView
 signal track_selected(track_index: int)
 signal clip_selected(track_index: int, clip_index: int)
 signal clip_moved(track_index: int, clip_id: String, new_start: float)
+signal clip_trimmed(track_index: int, clip_id: String, new_start: float, new_end: float)
 signal time_selected(seconds: float)
 
 const HEADER_HEIGHT := 30.0
@@ -20,9 +21,12 @@ var dragging := false
 var drag_changed := false
 var drag_track := -1
 var drag_clip_id := ""
+var drag_mode := "move"
 var drag_origin := 0.0
+var drag_original_end := 0.0
 var drag_offset := 0.0
 var drag_preview_start := 0.0
+var drag_preview_end := 0.0
 
 func configure(value: Dictionary, current_time: float = 0.0, active_track: int = -1, active_clip: int = -1) -> void:
 	timeline = value.duplicate(true)
@@ -64,9 +68,18 @@ func _draw() -> void:
 		var clip_index := 0
 		for clip in track.get("clips", []):
 			var start := float(clip.get("start", 0.0))
+			var finish := start + float(clip.get("duration", 0.1))
 			if dragging and track_index == drag_track and str(clip.get("id", "")) == drag_clip_id:
-				start = drag_preview_start
-			var rect := Rect2(_time_x(start), y + 5.0, maxf(8.0, float(clip.get("duration", 0.1)) * PIXELS_PER_SECOND), ROW_HEIGHT - 10.0)
+				if drag_mode == "move":
+					start = drag_preview_start
+					finish = start + float(clip.get("duration", 0.1))
+				elif drag_mode == "left":
+					start = drag_preview_start
+					finish = drag_original_end
+				else:
+					start = drag_origin
+					finish = drag_preview_end
+			var rect := Rect2(_time_x(start), y + 5.0, maxf(8.0, (finish - start) * PIXELS_PER_SECOND), ROW_HEIGHT - 10.0)
 			var color := _track_color(str(track.get("type", "")))
 			if track_index == selected_track and clip_index == selected_clip:
 				draw_rect(rect.grow(2.0), Color("#f7d774"), false, 2.0)
@@ -103,8 +116,14 @@ func _gui_input(event: InputEvent) -> void:
 				drag_track = row
 				drag_clip_id = str(clip.get("id", ""))
 				drag_origin = float(clip.get("start", 0.0))
+				drag_original_end = drag_origin + float(clip.get("duration", 0.1))
 				drag_preview_start = drag_origin
-				drag_offset = _x_time(event.position.x) - drag_origin
+				drag_preview_end = drag_original_end
+				var local_time := _x_time(event.position.x)
+				var left_distance := absf(event.position.x - _time_x(drag_origin))
+				var right_distance := absf(event.position.x - _time_x(drag_original_end))
+				drag_mode = "left" if left_distance <= 8.0 else ("right" if right_distance <= 8.0 else "move")
+				drag_offset = local_time - drag_origin
 				accept_event()
 				return
 			time_selected.emit(_x_time(event.position.x))
@@ -113,19 +132,29 @@ func _gui_input(event: InputEvent) -> void:
 			return
 		if dragging:
 			if drag_changed:
-				clip_moved.emit(drag_track, drag_clip_id, drag_preview_start)
+				if drag_mode == "move":
+					clip_moved.emit(drag_track, drag_clip_id, drag_preview_start)
+				else:
+					clip_trimmed.emit(drag_track, drag_clip_id, drag_preview_start, drag_preview_end)
 			dragging = false
 			drag_changed = false
 			drag_track = -1
 			drag_clip_id = ""
+			drag_mode = "move"
 			queue_redraw()
 			accept_event()
 			return
 	if event is InputEventMouseMotion and dragging:
-		var next_start := maxf(0.0, _x_time(event.position.x) - drag_offset)
-		if absf(next_start - drag_origin) >= 0.02:
-			drag_changed = true
-		drag_preview_start = next_start
+		var pointer_time := _x_time(event.position.x)
+		if drag_mode == "move":
+			drag_preview_start = maxf(0.0, pointer_time - drag_offset)
+			drag_changed = absf(drag_preview_start - drag_origin) >= 0.02
+		elif drag_mode == "left":
+			drag_preview_start = clampf(pointer_time, 0.0, drag_original_end - 0.04)
+			drag_changed = absf(drag_preview_start - drag_origin) >= 0.02
+		else:
+			drag_preview_end = maxf(drag_origin + 0.04, pointer_time)
+			drag_changed = absf(drag_preview_end - drag_original_end) >= 0.02
 		queue_redraw()
 		accept_event()
 

@@ -3307,6 +3307,7 @@ func _show_video_editor() -> void:
 	video_timeline_view.custom_minimum_size = Vector2(700, 180)
 	video_timeline_view.clip_selected.connect(_video_on_timeline_clip_selected)
 	video_timeline_view.clip_moved.connect(_video_on_timeline_clip_moved)
+	video_timeline_view.clip_trimmed.connect(_video_on_timeline_clip_trimmed)
 	video_timeline_view.track_selected.connect(_video_select_track)
 	video_timeline_view.time_selected.connect(_video_on_timeline_time_selected)
 	timeline_scroll.add_child(video_timeline_view)
@@ -3444,6 +3445,29 @@ func _video_on_timeline_clip_moved(track_index: int, clip_id: String, new_start:
 	_video_refresh_tracks()
 	_save_project()
 	_set_status("Clip movido a %.2f s · ajuste a %d FPS." % [snapped_start, fps])
+
+func _video_on_timeline_clip_trimmed(track_index: int, clip_id: String, new_start: float, new_end: float) -> void:
+	var tracks: Array = _video_timeline().get("tracks", [])
+	if track_index < 0 or track_index >= tracks.size():
+		return
+	var fps := maxi(1, int(_video_timeline().get("fps", 30)))
+	var snapped_start: float = video_timeline_model.snap_time(new_start, fps)
+	var snapped_end: float = video_timeline_model.snap_time(new_end, fps)
+	if snapped_end - snapped_start < VIDEO_TIMELINE.MIN_CLIP_DURATION:
+		snapped_end = snapped_start + VIDEO_TIMELINE.MIN_CLIP_DURATION
+	var result: Dictionary = video_timeline_model.trim_clip(tracks[track_index], clip_id, snapped_start, snapped_end)
+	if not bool(result.get("ok", false)):
+		_set_status(str(result.get("error", "No se pudo recortar el clip.")))
+		return
+	video_selected_track = track_index
+	var clips: Array = tracks[track_index].get("clips", [])
+	for index in range(clips.size()):
+		if str(clips[index].get("id", "")) == clip_id:
+			video_selected_clip = index
+			break
+	_video_refresh_tracks()
+	_save_project()
+	_set_status("Recorte aplicado · %.2f–%.2f s · %d FPS." % [snapped_start, snapped_end, fps])
 
 func _video_select_track(index: int) -> void:
 	video_selected_track = index

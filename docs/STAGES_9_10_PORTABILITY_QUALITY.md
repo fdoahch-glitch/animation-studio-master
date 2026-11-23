@@ -12,4 +12,4 @@ El auditor no mide FPS/GPU en vivo ni sustituye un perfilador del dispositivo. L
 
 ## Timeline visual multipista
 
-`scripts/video_timeline_view.gd` presenta pistas y clips en una escala temporal desplazable horizontalmente. Permite seleccionar pistas/clips, mover el cabezal al pulsar la regla y arrastrar clips entre tiempos sin perder el desplazamiento del punto de agarre. La vista se sincroniza con el modelo de montaje y el documento del proyecto. Prueba de interacción: `tests/test_video_timeline_view.gd`.
+`scripts/video_timeline_view.gd` presenta pistas y clips en una escala temporal desplazable horizontalmente. Permite seleccionar pistas/clips, mover el cabezal al pulsar la regla, arrastrar clips entre tiempos sin perder el desplazamiento del punto de agarre y recortar arrastrando los bordes izquierdo/derecho. Los movimientos y recortes se ajustan al FPS del proyecto. La vista se sincroniza con el modelo de montaje y el documento del proyecto. Prueba de interacción: `tests/test_video_timeline_view.gd`.
