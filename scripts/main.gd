@@ -1014,7 +1014,7 @@ func _generate_spatial_pose_set() -> void:
 
 func _apply_generated_pose(pose: Dictionary) -> void:
 	if is_instance_valid(runtime_spatial_animator) and not is_instance_valid(runtime_rig):
-		var applied_3d := runtime_spatial_animator.apply_pose(pose)
+		var applied_3d: int = runtime_spatial_animator.apply_pose(pose)
 		_set_status("Pose 3D «%s» aplicada en %d huesos." % [str(pose.get("name", "Pose")), applied_3d])
 		return
 	if not is_instance_valid(runtime_rig):
@@ -1022,7 +1022,7 @@ func _apply_generated_pose(pose: Dictionary) -> void:
 		return
 	rig_builder.stop_animation(runtime_rig)
 	var angles: Dictionary = pose.get("joint_angles", {})
-	var applied := rig_builder.apply_procedural_pose(runtime_rig, angles)
+	var applied: int = rig_builder.apply_procedural_pose(runtime_rig, angles)
 	_set_status("Pose «%s» aplicada en %d articulaciones." % [str(pose.get("name", "Pose")), applied])
 
 
@@ -1096,7 +1096,7 @@ func _refresh_timeline_keys() -> void:
 	timeline_key_list.clear()
 	var clip := _active_timeline_clip()
 	for frame in clip.get("keyframes", []):
-		var count := frame.get("bone_rotations_degrees", frame.get("joint_angles", {})).size()
+		var count: int = frame.get("bone_rotations_degrees", frame.get("joint_angles", {})).size()
 		timeline_key_list.add_item("%.2f s · %d articulaciones" % [float(frame.get("time", 0.0)), count])
 
 func _on_timeline_playhead_changed(value: float) -> void:
@@ -1400,7 +1400,7 @@ func _on_joint_editor_angle_changed(value: float) -> void:
 	joint_angle_spin.value = value
 	joint_editor_syncing = false
 	if is_instance_valid(runtime_rig):
-		var applied := rig_builder.apply_procedural_pose(runtime_rig, {key: value})
+		var applied: int = rig_builder.apply_procedural_pose(runtime_rig, {key: value})
 		if applied == 0:
 			_set_status("Esta articulación no existe en el rig actual.")
 			return
