@@ -170,10 +170,11 @@ func save_provider_segments(source_path: String, segments: Array[Dictionary]) ->
 			var mask_error := mask.load_png_from_buffer(Marshalls.base64_to_raw(mask_data))
 			if mask_error == OK and mask.get_size() == crop.get_size():
 				mask.convert(Image.FORMAT_RGBA8)
+				var mask_uses_alpha := mask.detect_alpha()
 				for py in range(crop.get_height()):
 					for px in range(crop.get_width()):
 						var mask_color := mask.get_pixel(px, py)
-						var mask_alpha := maxf(mask_color.a, maxf(mask_color.r, maxf(mask_color.g, mask_color.b)))
+						var mask_alpha := mask_color.a if mask_uses_alpha else (mask_color.r * 0.299 + mask_color.g * 0.587 + mask_color.b * 0.114)
 						var pixel := crop.get_pixel(px, py)
 						pixel.a *= mask_alpha
 						crop.set_pixel(px, py, pixel)
