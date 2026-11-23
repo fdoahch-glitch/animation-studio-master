@@ -5,7 +5,7 @@ class_name CharacterProceduralAnimator
 
 const JOINTS := ["head", "torso", "shoulder_left", "elbow_left", "shoulder_right", "elbow_right", "hip_left", "knee_left", "hip_right", "knee_right"]
 
-func generate_pose_library() -> Dictionary:
+func generate_pose_library(intensity: float = 1.0) -> Dictionary:
 	var poses: Array[Dictionary] = [
 		_pose("Reposo", {"head": 0, "torso": 0, "shoulder_left": 8, "shoulder_right": -8}),
 		_pose("Atención", {"head": -8, "torso": -3, "shoulder_left": 12, "shoulder_right": -12, "elbow_left": 18, "elbow_right": 18}),
@@ -50,7 +50,17 @@ func generate_pose_library() -> Dictionary:
 	clips.append(_cycle("Asustarse", 1.1, "fear", false))
 	clips.append(_cycle("Pensar", 2.0, "think", true))
 	clips.append(_cycle("Deslizarse", 1.0, "slide", false))
-	return {"poses": poses, "animations": clips}
+	var strength := clampf(intensity, 0.25, 2.0)
+	for pose in poses:
+		var pose_angles: Dictionary = pose.get("joint_angles", {})
+		for joint in pose_angles.keys():
+			pose_angles[joint] = float(pose_angles[joint]) * strength
+	for clip in clips:
+		for frame in clip.get("keyframes", []):
+			var frame_angles: Dictionary = frame.get("joint_angles", {})
+			for joint in frame_angles.keys():
+				frame_angles[joint] = float(frame_angles[joint]) * strength
+	return {"poses": poses, "animations": clips, "intensity": strength}
 
 func _pose(label: String, angles: Dictionary) -> Dictionary:
 	return {"name": label, "joint_angles": angles.duplicate(true)}
