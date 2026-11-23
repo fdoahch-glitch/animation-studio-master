@@ -15,7 +15,7 @@ Animation Studio Master es un creador de animaciones por escenas desarrollado co
 - Herramientas de referencia y rig 3D, auditoría de esqueletos y retargeting básico de poses.
 - Paquetes portables .asbundle, paquetes de personaje JSON y exportación de spritesheet PNG.
 - Modelos de dirección ambiental, presets horarios, clima, capas parallax y keyframes ambientales.
-- Guiones, subtítulos temporizados, registro de tomas de audio importadas y estimación básica de visemas.
+- Guiones, subtítulos temporizados, grabación directa de micrófono a WAV, registro de tomas importadas y estimación básica de visemas.
 - Auditoría de recursos, rutas faltantes y presupuestos de rendimiento.
 - Herramientas audiovisuales multipista heredadas, conservadas como módulo secundario.
 
@@ -25,7 +25,7 @@ Animation Studio Master es un creador de animaciones por escenas desarrollado co
 - El rig 3D de referencia no realiza todavía skinning automático de mallas artísticas.
 - El retargeting actual se centra en equivalencias y transferencia de poses; no convierte de forma completa clips AnimationPlayer ni resuelve todo el root motion y los offsets de bind pose.
 - El sistema ambiental conserva parámetros y perfiles; la conexión completa a luces, partículas y render final requiere trabajo adicional.
-- El doblaje admite tomas importadas; la captura directa de micrófono, monitorización y sincronización labial fonética completa siguen pendientes.
+- La grabación directa de micrófono guarda tomas WAV y las vincula a líneas del guion; la monitorización avanzada y la sincronización labial fonética completa siguen pendientes.
 - El paquete portable de proyecto no sustituye una exportación final de vídeo.
 - La exportación profesional de vídeo MP4 con codecs acelerados y fallback CPU todavía no está certificada ni debe anunciarse como disponible.
 - El instalador Windows y la prueba de instalación limpia aún requieren implementación y validación.

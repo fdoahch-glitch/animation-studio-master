@@ -165,6 +165,9 @@ var dialogue_studio
 var active_environment: Dictionary = {}
 var active_script: Dictionary = {}
 var dialogue_line_list: ItemList
+var microphone_player: AudioStreamPlayer
+var microphone_record_effect: AudioEffectRecord
+var microphone_bus_name := "MicRecord"
 
 class CharacterPreview:
 	extends Control
@@ -3551,10 +3554,12 @@ func _show_dialogue_studio() -> void:
 	dialogue_line_list.custom_minimum_size.y=180
 	page.add_child(dialogue_line_list)
 	_refresh_dialogue_lines()
+	_add_button(page,"Iniciar grabación de micrófono",_start_microphone_recording)
+	_add_button(page,"Detener y registrar toma WAV",_stop_microphone_recording)
 	_add_button(page,"Registrar toma de audio importada",_register_dialogue_take)
 	_add_button(page,"Validar y guardar guion",_save_dialogue_script)
 	var note=Label.new()
-	note.text="La captura directa del micrófono, cuenta regresiva y monitorización aún requieren integración y pruebas específicas en Android y Windows."
+	note.text="La grabación directa guarda tomas WAV en el almacenamiento del proyecto. Requiere permiso del sistema y entrada de audio habilitada; comprueba el micrófono en el dispositivo de destino."
 	note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	page.add_child(note)
 	_add_button(page,"Volver",_show_workspace)
@@ -3563,6 +3568,76 @@ func _refresh_dialogue_lines() -> void:
 	if not is_instance_valid(dialogue_line_list): return
 	dialogue_line_list.clear()
 	for line in active_script.get("lines",[]): dialogue_line_list.add_item("[%0.2f–%0.2f] %s: %s" % [float(line.start),float(line.end),str(line.speaker),str(line.text)])
+
+func _start_microphone_recording() -> void:
+	if active_script.get("lines", []).is_empty():
+		_set_status("Crea primero una línea de diálogo para vincular la grabación.")
+		return
+	if is_instance_valid(microphone_record_effect) and microphone_record_effect.is_recording_active():
+		_set_status("La grabación de micrófono ya está activa.")
+		return
+	var bus_index := AudioServer.get_bus_index(microphone_bus_name)
+	if bus_index < 0:
+		AudioServer.add_bus()
+		bus_index = AudioServer.bus_count - 1
+		AudioServer.set_bus_name(bus_index, microphone_bus_name)
+		AudioServer.set_bus_send(bus_index, "Master")
+	if not is_instance_valid(microphone_record_effect):
+		microphone_record_effect = AudioEffectRecord.new()
+		AudioServer.add_bus_effect(bus_index, microphone_record_effect)
+	microphone_record_effect.set_recording_active(true)
+	if is_instance_valid(microphone_player):
+		microphone_player.queue_free()
+	microphone_player = AudioStreamPlayer.new()
+	microphone_player.stream = AudioStreamMicrophone.new()
+	microphone_player.bus = microphone_bus_name
+	add_child(microphone_player)
+	microphone_player.play()
+	_set_status("Grabando micrófono… habla y pulsa Detener para guardar la toma WAV.")
+
+func _stop_microphone_recording() -> void:
+	if not is_instance_valid(microphone_record_effect) or not microphone_record_effect.is_recording_active():
+		_set_status("No hay una grabación de micrófono activa.")
+		return
+	microphone_record_effect.set_recording_active(false)
+	var recording: AudioStreamWAV = microphone_record_effect.get_recording()
+	if is_instance_valid(microphone_player):
+		microphone_player.stop()
+		microphone_player.queue_free()
+		microphone_player = null
+	if recording == null or recording.data.is_empty():
+		_set_status("La grabación está vacía. Revisa el permiso del micrófono y la entrada de audio del sistema.")
+		return
+	var folder := "user://animation_studio_recordings"
+	var directory_error := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(folder))
+	if directory_error != OK and directory_error != ERR_ALREADY_EXISTS:
+		_set_status("No se pudo crear la carpeta de grabaciones.")
+		return
+	var path := folder.path_join("voice_take_%d.wav" % Time.get_ticks_msec())
+	var save_error := recording.save_to_wav(path)
+	if save_error != OK:
+		_set_status("No se pudo guardar la grabación WAV: " + error_string(save_error))
+		return
+	var lines: Array = active_script.get("lines", [])
+	if lines.is_empty():
+		_set_status("La grabación se guardó, pero no hay una línea de diálogo para vincularla: " + path)
+		return
+	var line_id := str(lines[-1].get("id", ""))
+	var take_number := 1
+	for existing_take in active_script.get("audio_tracks", []):
+		if str(existing_take.get("line_id", "")) == line_id:
+			take_number = maxi(take_number, int(existing_take.get("take_number", 0)) + 1)
+	var duration := recording.get_length()
+	if duration <= 0.0:
+		var bytes_per_sample := 2 if recording.format == AudioStreamWAV.FORMAT_16_BITS else 1
+		var channels := 2 if recording.stereo else 1
+		duration = float(recording.data.size()) / float(maxi(1, recording.mix_rate * channels * bytes_per_sample))
+	var result: Dictionary = dialogue_studio.add_take(active_script, line_id, path, duration, take_number, "Grabación directa de micrófono")
+	if not bool(result.get("ok", false)):
+		_set_status("WAV guardado, pero no se pudo vincular a la línea: " + str(result.get("error", "")))
+		return
+	_save_dialogue_script()
+	_set_status("Toma %d guardada y vinculada · %.2f s · %s" % [take_number, duration, path])
 
 func _register_dialogue_take() -> void:
 	if active_script.get("lines", []).is_empty():

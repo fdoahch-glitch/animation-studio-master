@@ -13,3 +13,8 @@
 
 ## Estado y límites
 Ambas etapas permanecen `partial`. La aceptación de etapas 2–6 no está cerrada en el roadmap; la regla secuencial impide declararlas completas. Los módulos 7–8 se añaden como trabajo preparatorio verificable, sin falsear el gate.
+
+
+## Grabación directa de voz
+
+El estudio de diálogos habilita la entrada de audio de Godot y crea un bus dedicado `MicRecord` con `AudioEffectRecord`. El botón de inicio reproduce una fuente `AudioStreamMicrophone`; detener guarda la toma como WAV en `user://animation_studio_recordings/` y la vincula a la última línea del guion como una toma numerada. La grabación requiere un micrófono disponible y permiso del sistema operativo. La captura física debe verificarse en Windows y en cada dispositivo Android de destino; CI solo valida el guardado y la lectura de WAV.
