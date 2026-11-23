@@ -858,12 +858,24 @@ func _append_imported_3d_animation_buttons() -> void:
 			var key := str(animation_name)
 			if key.to_upper() == "RESET":
 				continue
-			_add_button(animation_controls, "Original: " + key, _play_imported_3d_animation.bind(key))
-	var baked_player := runtime_spatial_rig.get_node_or_null("ProceduralAnimationPlayer") as AnimationPlayer if is_instance_valid(runtime_spatial_rig) else null
+			var label := "Original: " + key
+			if not _animation_button_exists(label):
+				_add_button(animation_controls, label, _play_imported_3d_animation.bind(key))
+	var baked_player: AnimationPlayer = runtime_spatial_rig.get_node_or_null("ProceduralAnimationPlayer") as AnimationPlayer if is_instance_valid(runtime_spatial_rig) else null
 	if is_instance_valid(baked_player):
 		for animation_name in baked_player.get_animation_list():
 			var key := str(animation_name)
-			_add_button(animation_controls, "GLB: " + key, _play_baked_3d_animation.bind(key))
+			var label := "GLB: " + key
+			if not _animation_button_exists(label):
+				_add_button(animation_controls, label, _play_baked_3d_animation.bind(key))
+
+func _animation_button_exists(label: String) -> bool:
+	if not is_instance_valid(animation_controls):
+		return false
+	for child in animation_controls.get_children():
+		if child is Button and child.text == label:
+			return true
+	return false
 
 func _play_baked_3d_animation(animation_name: String) -> void:
 	if not is_instance_valid(runtime_spatial_rig):
