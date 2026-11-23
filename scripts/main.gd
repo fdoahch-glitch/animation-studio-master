@@ -745,11 +745,24 @@ func _show_resource_preview(resource: Dictionary) -> void:
 		resource_animation_controls.visible = not animation_names.is_empty()
 		if not animation_names.is_empty():
 			resource_animation_picker.select(0)
-		resource_preview_info.text = "%s\\nVista previa 3D · %s · %d bytes · %d animaciones\\nArrastra horizontalmente para girar el modelo y usa la rueda para acercar o alejar." % [
+		var skeleton_summaries: Array = resource_model_preview.get_skeleton_summaries()
+		var skeleton_text := "Sin Skeleton3D detectado."
+		if not skeleton_summaries.is_empty():
+			var summary_parts: Array[String] = []
+			for skeleton_summary in skeleton_summaries:
+				summary_parts.append("%s: %d huesos · humanoide %d%% · cuadrúpedo %d%%" % [
+					str(skeleton_summary.get("name", "Skeleton3D")),
+					int(skeleton_summary.get("bone_count", 0)),
+					int(round(float(skeleton_summary.get("humanoid_coverage", 0.0)) * 100.0)),
+					int(round(float(skeleton_summary.get("quadruped_coverage", 0.0)) * 100.0))
+				])
+			skeleton_text = "Esqueletos: " + "; ".join(PackedStringArray(summary_parts))
+		resource_preview_info.text = "%s\\nVista previa 3D · %s · %d bytes · %d animaciones\\n%s\\nArrastra horizontalmente para girar el modelo y usa la rueda para acercar o alejar." % [
 			str(resource.get("name", "Modelo 3D")),
 			extension.to_upper(),
 			int(resource.get("bytes", 0)),
-			animation_names.size()
+			animation_names.size(),
+			skeleton_text
 		]
 		return
 	resource_animation_controls.visible = false

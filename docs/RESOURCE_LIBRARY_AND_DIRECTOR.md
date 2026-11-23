@@ -8,7 +8,7 @@
 - Búsqueda local por nombre, archivo y etiquetas.
 - La biblioteca valida extensión/categoría, compatibilidad con el modo del proyecto y protege la eliminación para que solo afecte rutas dentro de su carpeta administrada.
 - La ficha de biblioteca muestra una vista previa de las imágenes importadas, junto con nombre, archivo, tamaño, etiquetas y modos compatibles.
-- Los modelos GLB/glTF se cargan en una vista previa 3D temporal; cuando incluyen AnimationPlayer, la ficha permite seleccionar, reproducir y detener sus clips. También se pueden añadir a escenas como instancias vinculadas por ID.
+- Los modelos GLB/glTF se cargan en una vista previa 3D temporal; cuando incluyen AnimationPlayer, la ficha permite seleccionar, reproducir y detener sus clips. También informa el número de huesos y la cobertura anatómica estimada humanoide/cuadrúpeda de cada Skeleton3D detectado. También se pueden añadir a escenas como instancias vinculadas por ID.
 - Desde la ficha de biblioteca se puede añadir el recurso seleccionado a la escena como instancia vinculada por ID.
 
 La importación de glTF con dependencias externas no las empaqueta automáticamente; conserva las dependencias junto al modelo original o usa GLB autocontenido.

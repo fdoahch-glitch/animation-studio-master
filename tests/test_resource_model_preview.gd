@@ -6,6 +6,14 @@ func _initialize() -> void:
 	mesh_instance.name = "PreviewMesh"
 	mesh_instance.mesh = BoxMesh.new()
 	source_root.add_child(mesh_instance)
+	var skeleton := Skeleton3D.new()
+	skeleton.name = "Skeleton3D"
+	var root_bone := skeleton.add_bone("Root")
+	var pelvis_bone := skeleton.add_bone("Pelvis")
+	skeleton.set_bone_parent(pelvis_bone, root_bone)
+	var spine_bone := skeleton.add_bone("Spine")
+	skeleton.set_bone_parent(spine_bone, pelvis_bone)
+	source_root.add_child(skeleton)
 	var player := AnimationPlayer.new()
 	player.name = "AnimationPlayer"
 	source_root.add_child(player)
@@ -53,6 +61,12 @@ func _initialize() -> void:
 	var animation_players := generated.find_children("*", "AnimationPlayer", true, false)
 	if animation_players.is_empty():
 		push_error("La escena GLB importada no conserva su AnimationPlayer.")
+		generated.free()
+		quit(1)
+		return
+	var imported_skeletons := generated.find_children("*", "Skeleton3D", true, false)
+	if imported_skeletons.is_empty() or (imported_skeletons[0] as Skeleton3D).get_bone_count() < 3:
+		push_error("La escena GLB importada no conserva su Skeleton3D.")
 		generated.free()
 		quit(1)
 		return

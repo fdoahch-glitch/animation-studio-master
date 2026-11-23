@@ -2,6 +2,7 @@ extends SubViewportContainer
 class_name ResourceModelPreview
 
 const VIEWPORT_SIZE := Vector2i(512, 384)
+const RIG_BUILDER = preload("res://scripts/character_spatial_rig_builder.gd")
 
 var preview_viewport: SubViewport
 var preview_world: Node3D
@@ -73,6 +74,32 @@ func load_model(path: String) -> Dictionary:
 
 func has_model() -> bool:
 	return is_instance_valid(model_pivot) and not loaded_path.is_empty()
+
+func get_skeleton_summaries() -> Array:
+	var summaries: Array = []
+	if not is_instance_valid(model_pivot):
+		return summaries
+	var builder = RIG_BUILDER.new()
+	var skeletons := model_pivot.find_children("*", "Skeleton3D", true, false)
+	for candidate in skeletons:
+		var skeleton := candidate as Skeleton3D
+		if skeleton == null:
+			continue
+		var bone_names: Array[String] = []
+		for bone_index in range(skeleton.get_bone_count()):
+			bone_names.append(skeleton.get_bone_name(bone_index))
+		var humanoid_report: Dictionary = builder.validate_skeleton(skeleton, "humanoid")
+		var quadruped_report: Dictionary = builder.validate_skeleton(skeleton, "quadruped")
+		summaries.append({
+			"name": skeleton.name,
+			"bone_count": skeleton.get_bone_count(),
+			"bone_names": bone_names,
+			"humanoid_coverage": float(humanoid_report.get("coverage", 0.0)),
+			"quadruped_coverage": float(quadruped_report.get("coverage", 0.0)),
+			"humanoid_missing": humanoid_report.get("missing", []),
+			"quadruped_missing": quadruped_report.get("missing", [])
+		})
+	return summaries
 
 func get_animation_names() -> PackedStringArray:
 	if not is_instance_valid(animation_player):
