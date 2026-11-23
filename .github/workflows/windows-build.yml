@@ -41,8 +41,8 @@ jobs:
         run: |
           $godotExe = Join-Path $env:USERPROFILE "godot/Godot_v4.3-stable_win64.exe"
           if (-not (Test-Path $godotExe)) { throw "Godot executable not found: $godotExe" }
-          & $godotExe --headless --editor --path . --quit
-          if ($LASTEXITCODE -ne 0) { throw "Godot import failed with exit code $LASTEXITCODE" }
+          $importProcess = Start-Process -FilePath $godotExe -ArgumentList @("--headless", "--editor", "--path", ".", "--quit") -Wait -PassThru
+          if ($importProcess.ExitCode -ne 0) { throw "Godot import failed with exit code $($importProcess.ExitCode)" }
 
       - name: Export Windows x64 executable
         shell: pwsh
@@ -50,10 +50,9 @@ jobs:
           New-Item -ItemType Directory -Force -Path build | Out-Null
           $godotExe = Join-Path $env:USERPROFILE "godot/Godot_v4.3-stable_win64.exe"
           if (-not (Test-Path $godotExe)) { throw "Godot executable not found: $godotExe" }
-          & $godotExe --headless --verbose --path . --export-release "Windows Desktop" "build/AnimationStudioMaster.exe"
-          $exportExit = $LASTEXITCODE
-          if ($exportExit -ne 0) {
-            throw "Godot export command failed with exit code $exportExit"
+          $exportProcess = Start-Process -FilePath $godotExe -ArgumentList @("--headless", "--verbose", "--path", ".", "--export-release", "Windows Desktop", "build/AnimationStudioMaster.exe") -Wait -PassThru
+          if ($exportProcess.ExitCode -ne 0) {
+            throw "Godot export command failed with exit code $($exportProcess.ExitCode)"
           }
           Get-ChildItem -Force build | Format-Table Name, Length
           if (-not (Test-Path "build/AnimationStudioMaster.exe")) {
