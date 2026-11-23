@@ -363,6 +363,17 @@ func _show_character_lab() -> void:
 	right.add_child(animation_controls)
 	for animation_name in ["idle","walk","run","jump","talk","wave"]:
 		_add_button(animation_controls, animation_name.capitalize(), _play_rig_animation.bind(animation_name))
+	var joint_title := Label.new()
+	joint_title.text = "AJUSTE MANUAL DE ARTICULACIONES"
+	right.add_child(joint_title)
+	_add_joint_control(right, "Hombro izquierdo", "Pelvis/Spine/Chest/Shoulder_L", -120.0, 120.0)
+	_add_joint_control(right, "Codo izquierdo", "Pelvis/Spine/Chest/Shoulder_L/Elbow_L", -10.0, 150.0)
+	_add_joint_control(right, "Hombro derecho", "Pelvis/Spine/Chest/Shoulder_R", -120.0, 120.0)
+	_add_joint_control(right, "Codo derecho", "Pelvis/Spine/Chest/Shoulder_R/Elbow_R", -10.0, 150.0)
+	_add_joint_control(right, "Cadera izquierda", "Pelvis/Hip_L", -100.0, 100.0)
+	_add_joint_control(right, "Rodilla izquierda", "Pelvis/Hip_L/Knee_L", -5.0, 150.0)
+	_add_joint_control(right, "Cadera derecha", "Pelvis/Hip_R", -100.0, 100.0)
+	_add_joint_control(right, "Rodilla derecha", "Pelvis/Hip_R/Knee_R", -5.0, 150.0)
 	imported_preview = TextureRect.new()
 	imported_preview.custom_minimum_size = Vector2(420, 220)
 	imported_preview.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
@@ -496,6 +507,27 @@ func _build_runtime_character() -> void:
 	runtime_rig.position = Vector2(210, 145)
 	rig_subviewport.add_child(runtime_rig)
 	rig_builder.play_animation(runtime_rig, "idle")
+
+func _add_joint_control(parent: Node, label_text: String, joint_path: String, minimum: float, maximum: float) -> void:
+	var row := HBoxContainer.new()
+	parent.add_child(row)
+	var label := Label.new()
+	label.text = label_text
+	label.custom_minimum_size.x = 145
+	row.add_child(label)
+	var slider := HSlider.new()
+	slider.min_value = minimum
+	slider.max_value = maximum
+	slider.step = 1.0
+	slider.value = 0.0
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.value_changed.connect(_on_joint_slider_changed.bind(joint_path))
+	row.add_child(slider)
+
+func _on_joint_slider_changed(value: float, joint_path: String) -> void:
+	if is_instance_valid(runtime_rig):
+		rig_builder.stop_animation(runtime_rig)
+		rig_builder.set_joint_rotation(runtime_rig, NodePath(joint_path), value)
 
 func _play_rig_animation(animation_name: String) -> void:
 	if is_instance_valid(runtime_rig):
