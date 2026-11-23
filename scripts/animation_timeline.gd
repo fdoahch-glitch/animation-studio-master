@@ -55,6 +55,34 @@ func remove_property_keyframe(track: Dictionary, time: float, tolerance := 0.000
 	track["keyframes"] = frames
 	return {"ok": true, "track": track, "removed_index": match_index}
 
+func apply_tracks_to_scene(scene: Dictionary, tracks: Array, time: float) -> Dictionary:
+	var preview: Dictionary = scene.duplicate(true)
+	if not _is_finite_number(time):
+		return preview
+	var objects: Array = preview.get("objects", [])
+	for track in tracks:
+		if not track is Dictionary:
+			continue
+		var sampled: Variant = sample_track(track, time)
+		if sampled == null:
+			continue
+		var target_id := str(track.get("target_id", ""))
+		var property := str(track.get("property", "x"))
+		for object_index in range(objects.size()):
+			var object: Dictionary = objects[object_index]
+			if str(object.get("id", "")) != target_id:
+				continue
+			var transform: Dictionary = object.get("transform", {}).duplicate(true)
+			if property == "position" and sampled is Array and sampled.size() >= 2:
+				transform["x"] = sampled[0]
+				transform["y"] = sampled[1]
+			else:
+				transform[property] = sampled
+			object["transform"] = transform
+			objects[object_index] = object
+	preview["objects"] = objects
+	return preview
+
 func sample_track(track: Dictionary, time: float) -> Variant:
 	var frames: Array = track.get("keyframes", [])
 	if frames.is_empty():

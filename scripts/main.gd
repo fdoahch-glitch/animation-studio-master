@@ -847,10 +847,29 @@ func _show_director_timeline() -> void:
 	_add_button(edit, "Añadir / actualizar keyframe", _director_add_keyframe)
 	_add_button(edit, "Eliminar keyframe actual", _director_delete_keyframe_at_frame)
 	_add_button(edit, "Eliminar pista", _director_delete_track)
+	var preview_row := HBoxContainer.new()
+	preview_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	page.add_child(preview_row)
+	var preview_panel := PanelContainer.new()
+	preview_panel.custom_minimum_size = Vector2(420, 220)
+	preview_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	preview_row.add_child(preview_panel)
+	scene_canvas = SCENE_CANVAS.new()
+	scene_canvas.custom_minimum_size = Vector2(420, 220)
+	scene_canvas.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scene_canvas.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scene_canvas.interaction_enabled = false
+	scene_canvas.set_resource_catalog(project_data.get("resources", []))
+	scene_canvas.set_scene_data(_active_scene(), float(project_data.get("width", 1920)), float(project_data.get("height", 1080)))
+	preview_panel.add_child(scene_canvas)
+	var track_panel := VBoxContainer.new()
+	track_panel.custom_minimum_size.x = 220
+	preview_row.add_child(track_panel)
 	director_track_list = ItemList.new()
-	director_track_list.custom_minimum_size.y = 72
+	director_track_list.custom_minimum_size = Vector2(220, 220)
+	director_track_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	director_track_list.item_selected.connect(_on_director_track_selected)
-	page.add_child(director_track_list)
+	track_panel.add_child(director_track_list)
 	director_timeline_view = ANIMATION_TIMELINE_VIEW.new()
 	director_timeline_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	director_timeline_view.custom_minimum_size = Vector2(420, 190)
@@ -878,6 +897,7 @@ func _show_director_timeline() -> void:
 	_add_button(footer, "Volver", _show_workspace)
 	_refresh_director_tracks()
 	_refresh_director_timeline_view()
+	_on_director_playhead_changed(float(director_playhead.value))
 
 func _toggle_director_playback() -> void:
 	if director_playing:
@@ -1045,28 +1065,9 @@ func _on_director_playhead_changed(value: float) -> void:
 	if is_instance_valid(director_time_input):
 		director_time_input.value = int(value)
 	var seconds: float = timeline_model.frame_to_seconds(int(value), fps)
-	var scene := _active_scene()
-	var tracks := _director_tracks()
-	for track in tracks:
-		var sampled: Variant = timeline_model.sample_track(track, seconds)
-		if sampled == null:
-			continue
-		for object_index in range(scene.get("objects",[]).size()):
-			var object: Dictionary = scene["objects"][object_index]
-			if str(object.get("id","")) != str(track.get("target_id","")):
-				continue
-			var transform: Dictionary = object.get("transform",{}).duplicate(true)
-			var property := str(track.get("property", "x"))
-			if property == "position" and sampled is Array and sampled.size() >= 2:
-				transform["x"] = sampled[0]
-				transform["y"] = sampled[1]
-			else:
-				transform[property] = sampled
-			object["transform"] = transform
-			scene["objects"][object_index] = object
-	project_data["scenes"][selected_scene_index] = scene
+	var preview_scene: Dictionary = timeline_model.apply_tracks_to_scene(_active_scene(), _director_tracks(), seconds)
 	if is_instance_valid(scene_canvas):
-		_refresh_scene_canvas()
+		scene_canvas.set_scene_data(preview_scene, float(project_data.get("width", 1920)), float(project_data.get("height", 1080)))
 	_refresh_director_timeline_view()
 
 func _show_scene_manager() -> void:

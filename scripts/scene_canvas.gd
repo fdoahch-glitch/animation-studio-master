@@ -17,6 +17,7 @@ var drag_origin := Vector2.ZERO
 var drag_object_origin := Vector2.ZERO
 var pan_origin := Vector2.ZERO
 var grid_enabled := true
+var interaction_enabled := true
 var resource_textures: Dictionary = {}
 
 func set_scene_data(value: Dictionary, width: float, height: float) -> void:
@@ -181,6 +182,8 @@ func _hit_test(screen_point: Vector2) -> String:
 	return ""
 
 func _gui_input(event: InputEvent) -> void:
+	if not interaction_enabled:
+		return
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
 			_zoom_at(event.position, 1.12)

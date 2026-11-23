@@ -17,6 +17,7 @@ La importación de glTF con dependencias externas no las empaqueta automáticame
 
 - Pistas dirigidas a una instancia de escena y una propiedad: posición XY combinada, X, Y, escala X/Y, rotación o profundidad.
 - La pista de posición XY interpola ambos ejes en un único conjunto de keyframes para construir trayectorias.
+- El timeline incluye un lienzo de previsualización no editable; el muestreo aplica las pistas sobre una copia temporal de la escena y nunca sobrescribe las transformaciones base del proyecto.
 - Keyframes ordenados por tiempo; al guardar en el mismo instante se reemplaza la clave anterior.
 - Curvas: lineal, ease-in, ease-out, ease-in-out y step.
 - Muestreo interpolado para previsualizar el valor en el playhead.

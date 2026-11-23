@@ -17,6 +17,10 @@ func _initialize() -> void:
 	assert(timeline.insert_property_keyframe(position_track, 2.0, [100.0, 50.0], "linear").ok)
 	var position_sample: Variant = timeline.sample_track(position_track, 1.0)
 	assert(position_sample is Array and is_equal_approx(float(position_sample[0]), 50.0) and is_equal_approx(float(position_sample[1]), 30.0), "La trayectoria XY debe interpolar ambos ejes")
+	var original_scene := {"id":"scene_preview","objects":[{"id":"object_1","transform":{"x":5.0,"y":10.0,"scale_x":1.0,"scale_y":1.0}}]}
+	var preview_scene: Dictionary = timeline.apply_tracks_to_scene(original_scene, [position_track], 1.0)
+	assert(is_equal_approx(float(preview_scene.objects[0].transform.x), 50.0) and is_equal_approx(float(preview_scene.objects[0].transform.y), 30.0), "La vista previa debe aplicar la posición animada")
+	assert(is_equal_approx(float(original_scene.objects[0].transform.x), 5.0) and is_equal_approx(float(original_scene.objects[0].transform.y), 10.0), "La vista previa no debe modificar el proyecto original")
 	var eased := timeline.create_track("track_ease", "Escala", "object_1", "scale_x")
 	timeline.insert_property_keyframe(eased, 0.0, 0.0, "ease_in")
 	timeline.insert_property_keyframe(eased, 2.0, 100.0, "linear")
