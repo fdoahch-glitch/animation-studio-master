@@ -19,3 +19,5 @@ jobs:
         run: godot --headless --editor --path . --quit
       - name: Run project headlessly
         run: godot --headless --path . --quit-after 3
+      - name: Test character rig pipeline
+        run: godot --headless --path . --script res://tests/test_character_rig.gd
