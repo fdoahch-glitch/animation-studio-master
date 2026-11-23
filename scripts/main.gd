@@ -4,11 +4,17 @@ const CHARACTER_AI = preload("res://scripts/character_ai.gd")
 const CHARACTER_RIG_BUILDER = preload("res://scripts/character_rig_builder.gd")
 const CHARACTER_IMAGE_PROCESSOR = preload("res://scripts/character_image_processor.gd")
 const CHARACTER_AI_PROVIDER = preload("res://scripts/character_ai_provider.gd")
+const CHARACTER_SPATIAL_RIG_BUILDER = preload("res://scripts/character_spatial_rig_builder.gd")
 const DEFAULT_PROJECT := {"name":"Mi primera animación","width":1920,"height":1080,"fps":60,"orientation":"Horizontal","visual_mode":"2D","background_mode":"Vacío"}
 
 var project_data: Dictionary = DEFAULT_PROJECT.duplicate(true)
 var ai
 var rig_builder
+var spatial_builder
+var runtime_spatial_rig: Node3D
+var spatial_subviewport: SubViewport
+var spatial_container: SubViewportContainer
+var rig_2d_container: SubViewportContainer
 var image_processor
 var ai_provider
 var ai_request: HTTPRequest
@@ -86,6 +92,7 @@ class CharacterPreview:
 func _ready() -> void:
 	ai = CHARACTER_AI.new()
 	rig_builder = CHARACTER_RIG_BUILDER.new()
+	spatial_builder = CHARACTER_SPATIAL_RIG_BUILDER.new()
 	image_processor = CHARACTER_IMAGE_PROCESSOR.new()
 	ai_provider = CHARACTER_AI_PROVIDER.new()
 	ai_provider.name = "CharacterAIProvider"
@@ -344,7 +351,8 @@ func _show_character_lab() -> void:
 	var rig_title := Label.new()
 	rig_title.text = "RIG 2D EDITABLE · VISTA EN TIEMPO REAL"
 	right.add_child(rig_title)
-	var rig_container := SubViewportContainer.new()
+	rig_2d_container = SubViewportContainer.new()
+	var rig_container := rig_2d_container
 	rig_container.custom_minimum_size = Vector2(420,280)
 	rig_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	rig_container.stretch = true
@@ -354,6 +362,25 @@ func _show_character_lab() -> void:
 	rig_subviewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	rig_subviewport.transparent_bg = false
 	rig_container.add_child(rig_subviewport)
+	spatial_container = SubViewportContainer.new()
+	spatial_container.custom_minimum_size = Vector2(420, 280)
+	spatial_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	spatial_container.stretch = true
+	spatial_container.visible = false
+	right.add_child(spatial_container)
+	spatial_subviewport = SubViewport.new()
+	spatial_subviewport.size = Vector2i(420, 280)
+	spatial_subviewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	spatial_subviewport.own_world_3d = true
+	spatial_container.add_child(spatial_subviewport)
+	var spatial_camera := Camera3D.new()
+	spatial_camera.position = Vector3(0, 1.2, 3.6)
+	spatial_camera.look_at(Vector3(0, 1.1, 0), Vector3.UP)
+	spatial_camera.current = true
+	spatial_subviewport.add_child(spatial_camera)
+	var spatial_light := DirectionalLight3D.new()
+	spatial_light.rotation_degrees = Vector3(-25, -25, 0)
+	spatial_subviewport.add_child(spatial_light)
 	var rig_background := ColorRect.new()
 	rig_background.color = Color("#f4f7fb")
 	rig_background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -504,11 +531,40 @@ func _build_runtime_character() -> void:
 		return
 	if is_instance_valid(runtime_rig):
 		runtime_rig.queue_free()
+	if is_instance_valid(runtime_spatial_rig):
+		runtime_spatial_rig.queue_free()
 	var label := str(generated_character.get("name", character_name.text if character_name != null else "Personaje"))
-	runtime_rig = rig_builder.build_runtime_rig(label, 1.0)
-	runtime_rig.position = Vector2(210, 145)
-	rig_subviewport.add_child(runtime_rig)
-	rig_builder.play_animation(runtime_rig, "idle")
+	var selected_mode := character_mode.get_item_text(character_mode.selected)
+	if selected_mode == "3D esqueleto":
+		rig_2d_container.visible = false
+		spatial_container.visible = true
+		runtime_spatial_rig = spatial_builder.build_humanoid_3d(label)
+		spatial_subviewport.add_child(runtime_spatial_rig)
+		character_output.text = "Rig espacial 3D creado con Skeleton3D y piezas geométricas ancladas a huesos. Es una estructura de referencia; falta skinning de mallas artísticas y clips de animación 3D."
+	elif selected_mode == "2.5D por planos":
+		rig_2d_container.visible = false
+		spatial_container.visible = true
+		if imported_preview != null and imported_preview.texture != null:
+			runtime_spatial_rig = Node3D.new()
+			runtime_spatial_rig.name = "Character_2_5D"
+			runtime_spatial_rig.add_child(spatial_builder.create_2_5d_plane(imported_preview.texture, "CharacterPlane", 0.0))
+			spatial_subviewport.add_child(runtime_spatial_rig)
+			character_output.text = "Plano 2.5D creado desde la imagen importada. La profundidad y el parallax se pueden ampliar con más capas."
+		else:
+			rig_2d_container.visible = true
+			spatial_container.visible = false
+			runtime_rig = rig_builder.build_runtime_rig(label, 1.0)
+			runtime_rig.position = Vector2(210, 145)
+			rig_subviewport.add_child(runtime_rig)
+			rig_builder.play_animation(runtime_rig, "idle")
+			character_output.text = "Importa una imagen para crear el plano 2.5D; se muestra temporalmente el rig 2D."
+	else:
+		rig_2d_container.visible = true
+		spatial_container.visible = false
+		runtime_rig = rig_builder.build_runtime_rig(label, 1.0)
+		runtime_rig.position = Vector2(210, 145)
+		rig_subviewport.add_child(runtime_rig)
+		rig_builder.play_animation(runtime_rig, "idle")
 
 func _add_joint_control(parent: Node, label_text: String, joint_path: String, minimum: float, maximum: float) -> void:
 	var row := HBoxContainer.new()
