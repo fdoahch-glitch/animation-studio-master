@@ -16,7 +16,7 @@ Descargas: https://github.com/fdoahch-glitch/animation-studio-master/releases
 - Guarda el proyecto editable en formato .amsproj con esquema versionado.
 - Usa Biblioteca de recursos para importar imágenes, audio y modelos 3D.
 - Los paquetes .asbundle incluyen manifiesto, documento, recursos de biblioteca, tomas de voz y medios usados por clips de vídeo.
-- Al importar un .asbundle se validan versión, nombres, límites y rutas; los paths de los recursos se actualizan a la carpeta restaurada.
+- Al importar un .asbundle se validan versión, nombres, límites, rutas, tamaño y SHA-256 de cada recurso; los paths se actualizan a la carpeta restaurada.
 - Conserva una copia de seguridad antes de importar un paquete sobre una carpeta con trabajo previo.
 
 ## Personajes 2D y 3D
