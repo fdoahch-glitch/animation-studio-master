@@ -102,15 +102,28 @@ func validate_resource(resource: Dictionary) -> Dictionary:
 	for key in ["id", "name", "category", "path", "extension"]:
 		if str(resource.get(key, "")).strip_edges().is_empty():
 			return {"ok": false, "error": "Falta el campo obligatorio: " + key}
-	if not CATEGORIES.has(str(resource.category)):
+	var category := str(resource.get("category", ""))
+	if not CATEGORIES.has(category):
 		return {"ok": false, "error": "Categoría inválida."}
-	if not supported_extensions(str(resource.category)).has(str(resource.extension).to_lower()):
+	var extension := str(resource.get("extension", "")).to_lower().trim_prefix(".")
+	if not supported_extensions(category).has(extension):
 		return {"ok": false, "error": "La extensión no corresponde a la categoría."}
+	var path := str(resource.get("path", ""))
+	var managed_prefix := "user://animation_studio_assets/" + category + "/"
+	if not path.begins_with(managed_prefix) or path.contains("\\\\"):
+		return {"ok": false, "error": "La ruta no pertenece a la carpeta de su categoría."}
+	var filename := path.get_file()
+	if filename.is_empty() or filename == "." or filename == ".." or path.trim_prefix(managed_prefix).contains("/"):
+		return {"ok": false, "error": "La ruta del recurso no es válida."}
+	if filename.get_extension().to_lower() != extension:
+		return {"ok": false, "error": "La extensión declarada no coincide con el archivo."}
 	return {"ok": true}
 
 func is_compatible(resource: Dictionary, visual_mode: String) -> bool:
-	var modes: Array = resource.get("compatible_modes", ["2D", "2.5D", "3D", "Híbrido"])
-	return modes.has(visual_mode) or visual_mode == "Híbrido"
+	var modes_value: Variant = resource.get("compatible_modes", ["2D", "2.5D", "3D", "Híbrido"])
+	if not modes_value is Array:
+		return visual_mode == "Híbrido"
+	return modes_value.has(visual_mode) or visual_mode == "Híbrido"
 
 func _clean_tags(tags: Array) -> Array:
 	var result: Array = []
