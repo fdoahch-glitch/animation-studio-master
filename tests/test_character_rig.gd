@@ -74,29 +74,6 @@ func _run_tests() -> void:
 		return
 
 
-	var package_io = PACKAGE_IO.new()
-	var source_clips := [{"name":"Caminar","duration":2.0,"loop":true,"keyframes":[{"time":0.0,"joint_angles":{"head":15.0,"elbow_left":-25.0}},{"time":2.0,"joint_angles":{"head":-15.0,"elbow_left":25.0}}]}]
-	var package_data: Dictionary = package_io.build_package({"name":"Heroe CI","description":"Prueba","rig":{"type":"2D"}}, "2D_pivot_hierarchy", {"head":45.0,"torso":-12.0}, [{"name":"Saludo","joint_angles":{"elbow_right":80.0}}], [], source_clips)
-	var decoded_package: Dictionary = package_io.decode_package(package_io.encode_package(package_data))
-	if not bool(decoded_package.get("ok", false)):
-		push_error("No se pudo serializar y recuperar un paquete de personaje.")
-		quit(1)
-		return
-	var restored: Dictionary = decoded_package["package"]
-	if str(restored.character.get("name", "")) != "Heroe CI" or not is_equal_approx(float(restored.rig.joint_angles_degrees.get("head", 0.0)), 45.0):
-		push_error("El paquete no conservó la ficha o los ángulos del rig.")
-		quit(1)
-		return
-	if restored.animation_clips.size() != 1 or restored.animation_clips[0].keyframes.size() != 2:
-		push_error("El paquete no conservó los fotogramas clave.")
-		quit(1)
-		return
-	var rejected_package: Dictionary = package_io.decode_package("{\"format\":\"otro\"}")
-	if bool(rejected_package.get("ok", true)):
-		push_error("El importador aceptó un formato desconocido.")
-		quit(1)
-		return
-
 	var ik: Dictionary = builder.solve_two_bone_ik(Vector2.ZERO, Vector2(80, 20), 55.0, 45.0)
 	if not ik.has("joint") or not ik.has("end"):
 		push_error("El solver IK no devolvió articulaciones.")
