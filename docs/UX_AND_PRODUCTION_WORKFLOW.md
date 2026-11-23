@@ -19,6 +19,9 @@ El asistente inicial configura nombre, resolución, FPS, orientación y modo vis
 7. **Exportación:** preparar el proyecto y acceder a los formatos que estén realmente implementados y validados.
 
 ## Mejoras de usabilidad aplicadas
+- Timeline visual con regla de fotogramas, pistas legibles, keyframes y cabezal de reproducción.
+- Selección del fotograma haciendo clic y reproducción/pausa a la velocidad de FPS configurada.
+- Entrada de tiempo basada en fotogramas enteros, convertida automáticamente a segundos.
 - Timeline visual con regla de fotogramas, pistas y keyframes identificables; selección del fotograma haciendo clic.
 - Entrada de tiempo basada en fotogramas enteros, convertida a segundos según los FPS del proyecto.
 
