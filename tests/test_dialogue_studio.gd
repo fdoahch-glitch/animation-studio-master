@@ -46,10 +46,15 @@ func _initialize():
  viseme_wav.stereo = false
  viseme_wav.format = AudioStreamWAV.FORMAT_16_BITS
  viseme_wav.data = pcm
- var pcm_visemes: Array = studio.build_viseme_track_from_wav(viseme_wav, 1.0, 30.0)
+ var wav_path := "user://dialogue_viseme_test.wav"
+ assert(viseme_wav.save_to_wav(wav_path) == OK, "Debe escribir el WAV PCM de prueba")
+ var loaded_wav: AudioStreamWAV = AudioStreamWAV.load_from_file(wav_path)
+ assert(loaded_wav != null and not loaded_wav.data.is_empty(), "Debe poder volver a abrir el WAV PCM")
+ var pcm_visemes: Array = studio.build_viseme_track_from_wav(loaded_wav, 1.0, 30.0)
  assert(pcm_visemes.size()==3 and pcm_visemes[0].viseme=="sil" and pcm_visemes[2].viseme=="A", "Debe generar visemas temporizados desde PCM WAV")
  assert(studio.attach_viseme_track(script,line.line.id,pcm_visemes).ok, "Debe asociar visemas a la línea")
  assert(script.lines[0].has("visemes") or script.lines[1].has("visemes"), "La línea debe conservar su pista de visemas")
+ DirAccess.remove_absolute(ProjectSettings.globalize_path(wav_path))
  assert(not studio.add_line(script,"","",0,1).ok)
  print("DIALOGUE_STUDIO_TESTS_OK")
  quit(0)
