@@ -33,7 +33,7 @@ func _run_tests() -> void:
 		push_error("No se pudieron instalar los ciclos procedurales en el rig.")
 		quit(1)
 		return
-	if not builder.play_animation(procedural_rig, "ai_caminar"):
+	if not builder.play_animation(procedural_rig, "proc_caminar"):
 		push_error("No se pudo reproducir el ciclo procedural Caminar.")
 		quit(1)
 		return
