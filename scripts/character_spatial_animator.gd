@@ -12,7 +12,8 @@ var motion_intensity := 1.0
 var playing := false
 var active_clip: Dictionary = {}
 
-const CYCLE_NAMES := ["idle", "walk", "run", "jump", "wave", "talk", "dance", "sneak"]
+const HUMANOID_CYCLE_NAMES := ["idle", "walk", "run", "jump", "wave", "talk", "dance", "sneak"]
+const QUADRUPED_CYCLE_NAMES := ["idle", "walk", "run", "jump", "roar", "tail_sway", "stomp", "look_around"]
 
 func configure(target_skeleton: Skeleton3D, target_animation_player: AnimationPlayer = null) -> void:
 	skeleton = target_skeleton
@@ -23,6 +24,8 @@ func configure(target_skeleton: Skeleton3D, target_animation_player: AnimationPl
 
 func generate_pose_library(intensity: float = 1.0) -> Array:
 	var factor := clampf(intensity, 0.5, 1.75)
+	if _is_quadruped():
+		return _generate_quadruped_pose_library(factor)
 	var definitions := [
 		["Neutral", {"Head":[0,0,0],"Chest":[0,0,0]}],
 		["Saludo", {"Shoulder_R":[0,0,-65],"Elbow_R":[0,0,85],"Wrist_R":[0,0,18],"Head":[0,0,8]}],
@@ -56,7 +59,7 @@ func generate_pose_library(intensity: float = 1.0) -> Array:
 
 func generate_animation_library(intensity: float = 1.0) -> Array:
 	var factor := clampf(intensity, 0.5, 1.75)
-	var definitions := [
+	var definitions: Array = [
 		{"name":"idle","duration":2.4,"loop":true},
 		{"name":"walk","duration":1.1,"loop":true},
 		{"name":"run","duration":0.62,"loop":true},
@@ -66,6 +69,17 @@ func generate_animation_library(intensity: float = 1.0) -> Array:
 		{"name":"dance","duration":2.0,"loop":true},
 		{"name":"sneak","duration":1.5,"loop":true}
 	]
+	if _is_quadruped():
+		definitions = [
+			{"name":"idle","duration":2.4,"loop":true},
+			{"name":"walk","duration":1.2,"loop":true},
+			{"name":"run","duration":0.72,"loop":true},
+			{"name":"jump","duration":1.25,"loop":false},
+			{"name":"roar","duration":1.8,"loop":false},
+			{"name":"tail_sway","duration":2.0,"loop":true},
+			{"name":"stomp","duration":1.1,"loop":false},
+			{"name":"look_around","duration":2.2,"loop":true}
+		]
 	var result: Array = []
 	for definition in definitions:
 		var duration := float(definition.duration)
@@ -119,7 +133,8 @@ func capture_pose() -> Dictionary:
 
 func play_animation(animation_name: String, custom_speed: float = 1.0, intensity: float = 1.0) -> bool:
 	var key := animation_name.to_lower().strip_edges()
-	if not CYCLE_NAMES.has(key) or not is_instance_valid(skeleton):
+	var available_cycles := QUADRUPED_CYCLE_NAMES if _is_quadruped() else HUMANOID_CYCLE_NAMES
+	if not available_cycles.has(key) or not is_instance_valid(skeleton):
 		return false
 	_stop_imported_animation()
 	current_cycle = key
@@ -390,6 +405,82 @@ func bake_clips_to_animation_player(root: Node3D, clips: Array, player_name: Str
 	var add_error := animation_player.add_animation_library("procedural", library)
 	return baked_count if add_error == OK else 0
 
+
+func _is_quadruped() -> bool:
+	return is_instance_valid(skeleton) and skeleton.find_bone("Tail_01") >= 0
+
+func _generate_quadruped_pose_library(factor: float) -> Array:
+	var definitions := [
+		["Neutral", {"Chest":[0,0,0]}],
+		["Caminar", {"FrontHip_L":[0,0,22],"FrontHip_R":[0,0,-22],"BackHip_L":[0,0,-22],"BackHip_R":[0,0,22]}],
+		["Correr", {"FrontHip_L":[0,0,38],"FrontHip_R":[0,0,-38],"BackHip_L":[0,0,-38],"BackHip_R":[0,0,38],"FrontKnee_L":[0,0,28],"BackKnee_R":[0,0,28]}],
+		["Salto", {"FrontHip_L":[0,0,35],"FrontHip_R":[0,0,35],"BackHip_L":[0,0,-30],"BackHip_R":[0,0,-30],"FrontKnee_L":[0,0,-35],"FrontKnee_R":[0,0,-35]}],
+		["Rugido", {"Neck":[0,0,-25],"Head":[0,0,-18],"Chest":[0,0,-8]}],
+		["Cola izquierda", {"Tail_01":[0,0,14],"Tail_02":[0,0,22],"Tail_03":[0,0,28],"Tail_04":[0,0,32]}],
+		["Cola derecha", {"Tail_01":[0,0,-14],"Tail_02":[0,0,-22],"Tail_03":[0,0,-28],"Tail_04":[0,0,-32]}],
+		["Pisotón", {"BackHip_L":[0,0,28],"BackKnee_L":[0,0,-42],"BackAnkle_L":[0,0,15]}],
+		["Mirar arriba", {"Neck":[0,0,18],"Head":[0,0,22]}],
+		["Mirar abajo", {"Neck":[0,0,-12],"Head":[0,0,-25]}],
+		["Agacharse", {"Chest":[0,0,-18],"FrontHip_L":[0,0,-20],"FrontHip_R":[0,0,-20],"BackKnee_L":[0,0,25],"BackKnee_R":[0,0,25]}],
+		["Equilibrio", {"Tail_01":[0,0,10],"Tail_02":[0,0,18],"FrontHip_L":[0,0,-15],"FrontHip_R":[0,0,-15]}],
+		["Paso frontal", {"FrontHip_L":[0,0,42],"FrontKnee_L":[0,0,-25]}],
+		["Paso trasero", {"BackHip_L":[0,0,42],"BackKnee_L":[0,0,-25]}],
+		["Cuello extendido", {"Neck":[0,0,28],"Head":[0,0,10]}],
+		["Cola elevada", {"Tail_01":[0,0,20],"Tail_02":[0,0,28],"Tail_03":[0,0,30]}],
+		["Cabeza girada", {"Head":[0,25,8],"Neck":[0,12,4]}],
+		["Descanso", {"Chest":[0,0,-4],"Head":[0,0,-6],"Tail_01":[0,0,4],"Tail_02":[0,0,6]}]
+	]
+	var result: Array = []
+	for definition in definitions:
+		result.append({"name":str(definition[0]),"bone_rotations_degrees":_scale_pose(definition[1],factor),"custom":false})
+	return result
+
+func _sample_quadruped_cycle(name: String, time: float, factor: float) -> Dictionary:
+	var frequency := 1.0
+	var amplitude := 1.0
+	if name == "run":
+		frequency = 2.0
+		amplitude = 1.5
+	elif name == "sneak":
+		frequency = 0.65
+		amplitude = 0.65
+	var phase := time * TAU * frequency
+	var swing_a := sin(phase)
+	var swing_b := sin(phase + PI)
+	var secondary := sin(phase * 2.0)
+	var pose := {}
+	match name:
+		"idle":
+			pose = {"Chest":Vector3(0,0,1.5 * swing_a),"Head":Vector3(0,0,1.8 * swing_b),"Tail_01":Vector3(0,0,3.0 * swing_a),"Tail_02":Vector3(0,0,5.0 * swing_b),"Tail_03":Vector3(0,0,7.0 * swing_a)}
+		"walk", "run":
+			pose = {
+				"FrontHip_L":Vector3(0,0,22.0 * swing_a * amplitude),
+				"FrontHip_R":Vector3(0,0,22.0 * swing_b * amplitude),
+				"FrontKnee_L":Vector3(0,0,30.0 * maxf(0.0,-swing_a) * amplitude),
+				"FrontKnee_R":Vector3(0,0,30.0 * maxf(0.0,-swing_b) * amplitude),
+				"BackHip_L":Vector3(0,0,-24.0 * swing_b * amplitude),
+				"BackHip_R":Vector3(0,0,-24.0 * swing_a * amplitude),
+				"BackKnee_L":Vector3(0,0,35.0 * maxf(0.0,swing_b) * amplitude),
+				"BackKnee_R":Vector3(0,0,35.0 * maxf(0.0,swing_a) * amplitude),
+				"Tail_01":Vector3(0,0,6.0 * sin(phase * 0.5)),
+				"Tail_02":Vector3(0,0,10.0 * sin(phase * 0.5 + 0.4)),
+				"Tail_03":Vector3(0,0,12.0 * sin(phase * 0.5 + 0.8)),
+				"Neck":Vector3(0,0,3.0 * swing_a)
+			}
+		"jump":
+			var jump_height := sin(clampf(time / 1.25,0.0,1.0) * PI)
+			pose = {"FrontHip_L":Vector3(0,0,38.0 * jump_height),"FrontHip_R":Vector3(0,0,38.0 * jump_height),"FrontKnee_L":Vector3(0,0,-32.0 * jump_height),"FrontKnee_R":Vector3(0,0,-32.0 * jump_height),"BackHip_L":Vector3(0,0,-28.0 * jump_height),"BackHip_R":Vector3(0,0,-28.0 * jump_height),"BackKnee_L":Vector3(0,0,35.0 * jump_height),"BackKnee_R":Vector3(0,0,35.0 * jump_height),"Tail_01":Vector3(0,0,16.0 * jump_height),"Tail_02":Vector3(0,0,20.0 * jump_height)}
+		"roar":
+			pose = {"Neck":Vector3(0,0,-25.0 + 3.0 * swing_a),"Head":Vector3(0,0,-18.0 + 5.0 * swing_b),"Chest":Vector3(0,0,-8.0),"Tail_01":Vector3(0,0,8.0 * swing_a),"Tail_02":Vector3(0,0,12.0 * swing_b)}
+		"tail_sway":
+			pose = {"Tail_01":Vector3(0,0,16.0 * swing_a),"Tail_02":Vector3(0,0,22.0 * sin(phase - 0.35)),"Tail_03":Vector3(0,0,28.0 * sin(phase - 0.7)),"Tail_04":Vector3(0,0,32.0 * sin(phase - 1.0))}
+		"stomp":
+			var stomp := maxf(0.0, sin(phase))
+			pose = {"BackHip_L":Vector3(0,0,32.0 * stomp),"BackKnee_L":Vector3(0,0,-48.0 * stomp),"BackAnkle_L":Vector3(0,0,18.0 * stomp),"Chest":Vector3(0,0,-4.0 * stomp)}
+		"look_around":
+			pose = {"Neck":Vector3(0,0,10.0 * swing_a),"Head":Vector3(0,0,18.0 * swing_b),"Tail_01":Vector3(0,0,4.0 * secondary)}
+	return _scale_runtime_pose(pose, factor)
+
 func _stop_imported_animation() -> void:
 	if is_instance_valid(imported_animation_player):
 		imported_animation_player.stop()
@@ -443,6 +534,8 @@ func _find_bone_index(requested_name: String) -> int:
 	return -1
 
 func _sample_cycle(name: String, time: float, factor: float) -> Dictionary:
+	if _is_quadruped():
+		return _sample_quadruped_cycle(name, time, factor)
 	var frequency := 1.0
 	var amplitude := 1.0
 	if name == "run":
