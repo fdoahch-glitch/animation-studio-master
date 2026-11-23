@@ -3,6 +3,7 @@ extends SceneTree
 const RIG_BUILDER = preload("res://scripts/character_rig_builder.gd")
 const IMAGE_PROCESSOR = preload("res://scripts/character_image_processor.gd")
 const SPATIAL_BUILDER = preload("res://scripts/character_spatial_rig_builder.gd")
+const PROCEDURAL_ANIMATOR = preload("res://scripts/character_procedural_animator.gd")
 
 func _initialize() -> void:
 	call_deferred("_run_tests")
@@ -13,6 +14,27 @@ func _run_tests() -> void:
 	root.add_child(procedural_rig)
 	if not builder.play_animation(procedural_rig, "walk"):
 		push_error("No se pudo reproducir la animación walk del rig 2D.")
+		quit(1)
+		return
+
+	var animator = PROCEDURAL_ANIMATOR.new()
+	var library: Dictionary = animator.generate_pose_library()
+	var poses: Array = library.get("poses", [])
+	var clips: Array = library.get("animations", [])
+	if poses.size() < 10 or clips.size() < 10:
+		push_error("El generador procedural no creó suficientes poses y ciclos.")
+		quit(1)
+		return
+	if builder.apply_procedural_pose(procedural_rig, poses[1].get("joint_angles", {})) < 1:
+		push_error("No se pudo aplicar una pose procedural al rig estándar.")
+		quit(1)
+		return
+	if builder.add_ai_animation_set(procedural_rig, clips) < 10:
+		push_error("No se pudieron instalar los ciclos procedurales en el rig.")
+		quit(1)
+		return
+	if not builder.play_animation(procedural_rig, "ai_caminar"):
+		push_error("No se pudo reproducir el ciclo procedural Caminar.")
 		quit(1)
 		return
 
@@ -59,5 +81,5 @@ func _run_tests() -> void:
 		quit(1)
 		return
 
-	print("PASS: rig 2D, animaciones base, IK, preparación de imagen, rig de sprites y Skeleton3D.")
+	print("PASS: rig 2D, animaciones base y procedurales, poses, IK, preparación de imagen, rig de sprites y Skeleton3D.")
 	quit(0)
