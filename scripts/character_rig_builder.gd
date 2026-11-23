@@ -226,32 +226,66 @@ func build_segmented_sprite_rig(parts: Array, joints: Dictionary, source_size: V
 	var source_center := Vector2(source_size) * 0.5
 	var scale_factor := minf(target_size.x / maxf(float(source_size.x), 1.0), target_size.y / maxf(float(source_size.y), 1.0))
 	rig.scale = Vector2.ONE * scale_factor
+
+	var records: Dictionary = {}
 	for part in parts:
 		var part_path := str(part.get("path", ""))
 		var part_name := str(part.get("name", "part"))
 		var rect_data: Array = part.get("rect", [])
 		if part_path == "" or rect_data.size() != 4:
 			continue
-		var part_image := Image.new()
-		if part_image.load(part_path) != OK:
-			continue
-		part_image.convert(Image.FORMAT_RGBA8)
-		var texture := ImageTexture.create_from_image(part_image)
 		var rect := Rect2(Vector2(float(rect_data[0]), float(rect_data[1])), Vector2(float(rect_data[2]), float(rect_data[3])))
 		var pivot_key := _part_pivot_key(part_name)
 		var joint_point := _resolve_joint_point(joints, pivot_key, rect)
-		var pivot := rig.get_node_or_null("Pivot_" + pivot_key) as Node2D
-		if pivot == null:
-			pivot = Node2D.new()
-			pivot.name = "Pivot_" + pivot_key
-			pivot.position = joint_point - source_center
-			rig.add_child(pivot)
-		var sprite := Sprite2D.new()
-		sprite.name = "Sprite_" + part_name.validate_filename()
-		sprite.texture = texture
-		sprite.centered = true
-		sprite.position = rect.get_center() - joint_point
-		pivot.add_child(sprite)
+		if not records.has(pivot_key):
+			records[pivot_key] = {"joint": joint_point, "parts": []}
+		records[pivot_key].parts.append({"path": part_path, "name": part_name, "rect": rect})
+
+	var parent_map := {
+		"pelvis": "",
+		"torso": "pelvis",
+		"head": "torso",
+		"shoulder_left": "torso",
+		"elbow_left": "shoulder_left",
+		"wrist_left": "elbow_left",
+		"shoulder_right": "torso",
+		"elbow_right": "shoulder_right",
+		"wrist_right": "elbow_right",
+		"hip_left": "pelvis",
+		"knee_left": "hip_left",
+		"ankle_left": "knee_left",
+		"hip_right": "pelvis",
+		"knee_right": "hip_right",
+		"ankle_right": "knee_right"
+	}
+	var order := ["pelvis", "torso", "head", "shoulder_left", "elbow_left", "wrist_left", "shoulder_right", "elbow_right", "wrist_right", "hip_left", "knee_left", "ankle_left", "hip_right", "knee_right", "ankle_right"]
+	var pivots: Dictionary = {}
+	var global_joint_points: Dictionary = {}
+	for pivot_key in order:
+		if not records.has(pivot_key):
+			continue
+		var record: Dictionary = records[pivot_key]
+		var parent_key := str(parent_map.get(pivot_key, ""))
+		var parent_node: Node2D = rig if parent_key == "" or not pivots.has(parent_key) else pivots[parent_key]
+		var parent_point: Vector2 = Vector2.ZERO if parent_key == "" or not global_joint_points.has(parent_key) else global_joint_points[parent_key]
+		var pivot := Node2D.new()
+		pivot.name = "Pivot_" + pivot_key
+		pivot.position = record.joint - parent_point
+		parent_node.add_child(pivot)
+		pivots[pivot_key] = pivot
+		global_joint_points[pivot_key] = record.joint
+		for part_record in record.parts:
+			var part_image := Image.new()
+			if part_image.load(str(part_record.path)) != OK:
+				continue
+			part_image.convert(Image.FORMAT_RGBA8)
+			var sprite := Sprite2D.new()
+			sprite.name = "Sprite_" + str(part_record.name).validate_filename()
+			sprite.texture = ImageTexture.create_from_image(part_image)
+			sprite.centered = true
+			sprite.position = part_record.rect.get_center() - record.joint
+			pivot.add_child(sprite)
+
 	_add_segmented_animation_player(rig)
 	return rig
 
