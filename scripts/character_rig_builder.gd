@@ -453,7 +453,7 @@ func add_procedural_animation_set(rig: Node2D, clips: Array) -> int:
 	for clip in clips:
 		if not clip is Dictionary:
 			continue
-		var clip_name := "ai_" + str(clip.get("name", "generated")).validate_filename().to_lower()
+		var clip_name := "proc_" + str(clip.get("name", "generated")).validate_filename().to_lower()
 		var duration := clampf(float(clip.get("duration", 1.0)), 0.05, 60.0)
 		var keyframes: Array = clip.get("keyframes", [])
 		if keyframes.is_empty():
