@@ -49,12 +49,22 @@
         "orden de capas y transiciones configurables",
         "validación estructural de composición"
       ],
-      "acceptance": [],
-      "tests": [
-        "tests/test_scene_composition.gd: creación, duplicación, transformación, límites, rotación, orden de capas, transiciones y eliminación (ejecución CI pendiente)."
+      "acceptance": [
+        "El usuario puede crear, duplicar, eliminar y reordenar escenas.",
+        "El lienzo se ajusta a la resolución del proyecto y admite zoom y desplazamiento de cámara.",
+        "Los botones de la paleta permiten crear personajes, fondos, elementos y decoraciones; los botones se pueden arrastrar y soltar sobre una posición del lienzo.",
+        "El usuario puede seleccionar objetos con mouse o toque, moverlos y modificar posición, escala, rotación, profundidad y visibilidad.",
+        "El inspector muestra capas, permite reordenar y eliminar instancias y edita nombre, duración, notas y transición.",
+        "Los cambios de composición, transformaciones y transiciones se guardan en el documento del proyecto.",
+        "Las pruebas headless cubren conversión de coordenadas, zoom, reinicio de cámara y el contrato de arrastrar/soltar."
       ],
-      "commit": null,
-      "notes": "CRUD de escenas ya existente. En esta iteración se añadió un modelo de composición reutilizable con instancias, transformaciones, capas y transiciones. Falta integrar el lienzo visual, selección/arrastre en viewport, inspector contextual y cámara antes del cierre."
+      "tests": [
+        "tests/test_scene_composition.gd: creación, duplicación, transformación, límites, rotación, orden de capas, transiciones y eliminación.",
+        "tests/test_scene_canvas.gd: encuadre, coordenadas, zoom, selección, reinicio y colocación por arrastrar/soltar.",
+        "GitHub Actions run 45113736021: validación en curso para el conjunto completo de pruebas."
+      ],
+      "commit": "2be07a0e21501543555f18c886de8aefb000f7b5",
+      "notes": "Lienzo e inspector integrados en scripts/main.gd y scripts/scene_canvas.gd; paleta con botones arrastrables en scripts/scene_asset_button.gd; documentación en docs/SCENE_COMPOSITION.md. Los objetos de la paleta son marcadores vectoriales builtin, no recursos importados: la biblioteca y la importación real pertenecen a la etapa 3. La aceptación visual en dispositivo real sigue pendiente; no marcar como done hasta CI verde en el commit final y evidencia manual."
     },
     {
       "id": 3,
