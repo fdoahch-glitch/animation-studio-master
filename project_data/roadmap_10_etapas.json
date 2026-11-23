@@ -61,7 +61,7 @@
       "tests": [
         "tests/test_scene_composition.gd: creación, duplicación, transformación, límites, rotación, orden de capas, transiciones y eliminación.",
         "tests/test_scene_canvas.gd: encuadre, coordenadas, zoom, selección, reinicio y colocación por arrastrar/soltar.",
-        "GitHub Actions run 45113736021: validación en curso para el conjunto completo de pruebas."
+        "GitHub Actions run 45113875895: reintento de validación del commit 4888a37; aceptación visual manual sigue pendiente."
       ],
       "commit": "2be07a0e21501543555f18c886de8aefb000f7b5",
       "notes": "Lienzo e inspector integrados en scripts/main.gd y scripts/scene_canvas.gd; paleta con botones arrastrables en scripts/scene_asset_button.gd; documentación en docs/SCENE_COMPOSITION.md. Los objetos de la paleta son marcadores vectoriales builtin, no recursos importados: la biblioteca y la importación real pertenecen a la etapa 3. La aceptación visual en dispositivo real sigue pendiente; no marcar como done hasta CI verde en el commit final y evidencia manual."
@@ -75,10 +75,19 @@
         "importación, clasificación, miniaturas y metadatos",
         "instancias reutilizables y compatibilidad por modo"
       ],
-      "acceptance": [],
-      "tests": [],
-      "commit": null,
-      "notes": ""
+      "acceptance": [
+        "La biblioteca permite importar y catalogar recursos por personajes, fondos, elementos y decoraciones.",
+        "Se admiten PNG, JPG, JPEG y WebP; GLB/glTF en personajes, elementos y decoraciones.",
+        "Cada recurso conserva ID, nombre, archivo de origen, extensión, tamaño, etiquetas, modo visual, compatibilidad y ruta administrada.",
+        "La búsqueda filtra por nombre, archivo y etiquetas; se puede añadir un recurso compatible a una escena como instancia vinculada.",
+        "La eliminación solo puede afectar archivos dentro de la carpeta administrada de la biblioteca."
+      ],
+      "tests": [
+        "tests/test_resource_library.gd: categorías, extensiones, validación, búsqueda y compatibilidad.",
+        "GitHub Actions run 45165437236: validación completa del modelo de biblioteca y timeline."
+      ],
+      "commit": "968d98b841ab6cd43202da406a32dfa7fc3ed975",
+      "notes": "Modelo y UI de biblioteca implementados en scripts/resource_library.gd y scripts/main.gd. El lienzo carga y cachea texturas de imágenes importadas en scripts/scene_canvas.gd. GLB/glTF se catalogan y copian; la previsualización 3D y el manejo automático de dependencias externas aún no están certificados. Estado pending por la regla secuencial: etapa 2 no está formalmente cerrada."
     },
     {
       "id": 4,
@@ -90,10 +99,19 @@
         "IK y editor de articulaciones",
         "timeline, keyframes, curvas y exportación de spritesheet"
       ],
-      "acceptance": [],
-      "tests": [],
-      "commit": null,
-      "notes": "Motor procedural y herramientas 2D implementados; falta validación visual integral con recursos reales."
+      "acceptance": [
+        "El timeline de dirección crea pistas vinculadas a instancias y propiedades numéricas de escena.",
+        "Cada pista admite keyframes ordenados y reemplazo de una clave en el mismo instante.",
+        "El muestreo interpola valores y admite curvas linear, ease_in, ease_out, ease_in_out y step.",
+        "Las pistas se guardan separadas por ID de escena dentro del documento del proyecto.",
+        "El timeline de poses 2D/3D existente sigue disponible y no es reemplazado."
+      ],
+      "tests": [
+        "tests/test_timeline_tracks.gd: creación de pistas, keyframes, interpolación, easing, step y validación.",
+        "GitHub Actions run 45165437236: validación completa del modelo de biblioteca y timeline."
+      ],
+      "commit": "968d98b841ab6cd43202da406a32dfa7fc3ed975",
+      "notes": "Se añadió timeline de dirección por instancia y propiedad con curvas de interpolación, además del timeline de poses existente. Aún faltan rutas de movimiento, cámara, mezcla de pistas y aceptación visual integral. Se conserva status partial y no se inicia formalmente la etapa siguiente hasta cerrar la etapa 2."
     },
     {
       "id": 5,
