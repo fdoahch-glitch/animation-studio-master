@@ -5,6 +5,7 @@ const CHARACTER_RIG_BUILDER = preload("res://scripts/character_rig_builder.gd")
 const CHARACTER_IMAGE_PROCESSOR = preload("res://scripts/character_image_processor.gd")
 const CHARACTER_PROCEDURAL_ANIMATOR = preload("res://scripts/character_procedural_animator.gd")
 const CHARACTER_SPATIAL_RIG_BUILDER = preload("res://scripts/character_spatial_rig_builder.gd")
+const CHARACTER_SPATIAL_ANIMATOR = preload("res://scripts/character_spatial_animator.gd")
 const IK_DRAG_OVERLAY = preload("res://scripts/ik_drag_overlay.gd")
 const ANIMATION_TIMELINE = preload("res://scripts/animation_timeline.gd")
 const CHARACTER_PACKAGE_IO = preload("res://scripts/character_package_io.gd")
@@ -15,6 +16,7 @@ var blueprint_builder
 var rig_builder
 var spatial_builder
 var runtime_spatial_rig: Node3D
+var runtime_spatial_animator
 var spatial_subviewport: SubViewport
 var spatial_container: SubViewportContainer
 var rig_2d_container: SubViewportContainer
@@ -731,8 +733,16 @@ func _on_character_image_selected(path: String) -> void:
 func _generate_procedural_pose_set() -> void:
 	if not is_instance_valid(runtime_rig):
 		var selected_mode := character_mode.get_item_text(character_mode.selected)
-		if selected_mode == "3D esqueleto" or (selected_mode == "2.5D por planos" and imported_preview.texture != null):
-			_set_status("El generador actual trabaja con rigs 2D y 2D segmentados. Cambia el tipo de rig a 2D esquelético o Híbrido.")
+		if selected_mode == "3D esqueleto":
+			if not is_instance_valid(runtime_spatial_rig):
+				_generate_character()
+			if is_instance_valid(runtime_spatial_animator):
+				_generate_spatial_pose_set()
+			else:
+				_set_status("No se pudo inicializar el animador del esqueleto 3D.")
+			return
+		if selected_mode == "2.5D por planos" and imported_preview.texture != null:
+			_set_status("El plano 2.5D no tiene articulaciones independientes. Usa el modo 3D esqueleto o un rig 2D.")
 			return
 		_generate_character()
 	if procedural_animator == null:
@@ -786,7 +796,41 @@ func _generate_procedural_pose_set() -> void:
 		image_result_output.text = "\n".join(lines)
 	_set_status("Generador procedural: %d poses y %d animaciones guardadas." % [procedural_poses.size(), clips.size()])
 
+func _generate_spatial_pose_set() -> void:
+	if not is_instance_valid(runtime_spatial_animator):
+		return
+	var intensity := motion_intensity_slider.value if is_instance_valid(motion_intensity_slider) else 1.0
+	procedural_poses = runtime_spatial_animator.generate_pose_library(intensity)
+	var clips: Array = runtime_spatial_animator.generate_animation_library(intensity)
+	if not procedural_poses.is_empty():
+		runtime_spatial_animator.apply_pose(procedural_poses[0])
+	if is_instance_valid(pose_controls):
+		for child in pose_controls.get_children():
+			child.queue_free()
+		for pose in procedural_poses:
+			_add_button(pose_controls, str(pose.get("name", "Pose")), _apply_generated_pose.bind(pose))
+	if is_instance_valid(animation_controls):
+		for child in animation_controls.get_children():
+			child.queue_free()
+		for clip in clips:
+			_add_button(animation_controls, str(clip.get("name", "Animación")).capitalize(), _play_rig_animation.bind(str(clip.get("name", ""))))
+	project_data["spatial_animation_clips"] = clips
+	project_data["spatial_pose_sets"] = project_data.get("spatial_pose_sets", [])
+	project_data["spatial_pose_sets"].append({
+		"character": str(generated_character.get("name", "Personaje 3D")),
+		"poses": procedural_poses,
+		"animations": clips,
+		"intensity": intensity,
+		"generator": "spatial_procedural_v1"
+	})
+	_save_project()
+	_set_status("Animación 3D procedural: %d poses y %d ciclos creados." % [procedural_poses.size(), clips.size()])
+
 func _apply_generated_pose(pose: Dictionary) -> void:
+	if is_instance_valid(runtime_spatial_animator) and not is_instance_valid(runtime_rig):
+		var applied_3d := runtime_spatial_animator.apply_pose(pose)
+		_set_status("Pose 3D «%s» aplicada en %d huesos." % [str(pose.get("name", "Pose")), applied_3d])
+		return
 	if not is_instance_valid(runtime_rig):
 		_set_status("Primero crea el esqueleto del personaje.")
 		return
@@ -975,6 +1019,7 @@ func _build_runtime_character() -> void:
 		runtime_rig.queue_free()
 	if is_instance_valid(runtime_spatial_rig):
 		runtime_spatial_rig.queue_free()
+	runtime_spatial_animator = null
 	var label := str(generated_character.get("name", character_name.text if character_name != null else "Personaje"))
 	var selected_mode := character_mode.get_item_text(character_mode.selected)
 	if selected_mode == "3D esqueleto":
@@ -982,7 +1027,12 @@ func _build_runtime_character() -> void:
 		spatial_container.visible = true
 		runtime_spatial_rig = spatial_builder.build_humanoid_3d(label)
 		spatial_subviewport.add_child(runtime_spatial_rig)
-		character_output.text = "Rig espacial 3D creado con Skeleton3D y piezas geométricas ancladas a huesos. Es una estructura de referencia; falta skinning de mallas artísticas y clips de animación 3D."
+		var spatial_skeleton := runtime_spatial_rig.get_node_or_null("Skeleton3D") as Skeleton3D
+		runtime_spatial_animator = CHARACTER_SPATIAL_ANIMATOR.new()
+		runtime_spatial_animator.name = "Procedural3DAnimator"
+		runtime_spatial_rig.add_child(runtime_spatial_animator)
+		runtime_spatial_animator.configure(spatial_skeleton)
+		character_output.text = "Rig espacial 3D creado con Skeleton3D, articulaciones independientes y animación procedural local. Genera poses y ciclos desde el botón de animación."
 	elif selected_mode == "2.5D por planos":
 		rig_2d_container.visible = false
 		spatial_container.visible = true
@@ -1185,8 +1235,13 @@ func _on_joint_slider_changed(value: float, joint_path: String) -> void:
 		rig_builder.set_joint_rotation(runtime_rig, NodePath(joint_path), value)
 
 func _play_rig_animation(animation_name: String) -> void:
+	var speed := animation_speed_slider.value if is_instance_valid(animation_speed_slider) else 1.0
+	var intensity := motion_intensity_slider.value if is_instance_valid(motion_intensity_slider) else 1.0
 	if is_instance_valid(runtime_rig):
-		rig_builder.play_animation(runtime_rig, animation_name, animation_speed_slider.value if is_instance_valid(animation_speed_slider) else 1.0)
+		rig_builder.play_animation(runtime_rig, animation_name, speed)
+	elif is_instance_valid(runtime_spatial_animator):
+		if runtime_spatial_animator.play_animation(animation_name, speed, intensity):
+			_set_status("Reproduciendo animación 3D «%s»." % animation_name.capitalize())
 
 
 
