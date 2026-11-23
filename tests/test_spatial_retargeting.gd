@@ -50,7 +50,7 @@ func _initialize() -> void:
  var converted_clip_result: Dictionary = retargeter.retarget_animation_clip(clip, clip_profile, Vector3.ONE, Vector3(0.0, 5.0, 0.0))
  assert(converted_clip_result.ok and converted_clip_result.mapped_bone_count == 2, "Debe convertir clips completos usando equivalencias canónicas")
  assert(converted_clip_result.clip.keyframes[0].bone_rotations_degrees.has("Pelvis"), "Debe renombrar el hueso de origen al hueso destino")
- assert(is_equal_approx(float(converted.clip.keyframes[0].bone_rotations_degrees.Pelvis[1]), 15.0), "Debe conservar la escala y aplicar el offset de rotación")
+ assert(is_equal_approx(float(converted_clip_result.clip.keyframes[0].bone_rotations_degrees.Pelvis[1]), 15.0), "Debe conservar la escala y aplicar el offset de rotación")
  assert(converted_clip_result.unmapped_bones.has("Head"), "Debe informar huesos sin equivalencia")
  assert(clip.keyframes[0].bone_rotations_degrees.has("Pelvis"), "El retargeting no debe modificar el clip original")
  var retargeted_animator = ANIMATOR.new()
