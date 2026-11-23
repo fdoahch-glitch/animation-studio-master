@@ -55,6 +55,48 @@ func request_segmentation(image_path: String, http_request: HTTPRequest, visual_
 		http_request.request_completed.connect(_on_request_completed)
 	return http_request.request(endpoint, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
 
+func request_turnaround_generation(description: String, style: String, http_request: HTTPRequest, reference_image_path: String = "") -> Error:
+	if not is_configured():
+		request_failed.emit("Configura primero un endpoint de IA.")
+		return ERR_UNCONFIGURED
+	var payload := {
+		"task": "character_turnaround_generation",
+		"schema_version": 1,
+		"description": description,
+		"art_style": style,
+		"views": ["front", "profile", "back", "three_quarter"],
+		"consistency": "same character identity, anatomy, costume, palette and proportions",
+		"output_format": "png_base64"
+	}
+	if reference_image_path != "":
+		var reference := Image.new()
+		if reference.load(reference_image_path) == OK:
+			reference.convert(Image.FORMAT_RGBA8)
+			payload["reference_image_base64"] = Marshalls.raw_to_base64(reference.save_png_to_buffer())
+	return _post_json(http_request, payload)
+
+func request_pose_generation(description: String, rig_type: String, http_request: HTTPRequest) -> Error:
+	if not is_configured():
+		request_failed.emit("Configura primero un endpoint de IA.")
+		return ERR_UNCONFIGURED
+	var payload := {
+		"task": "character_pose_generation",
+		"schema_version": 1,
+		"character_description": description,
+		"rig_type": rig_type,
+		"requested_poses": ["idle", "walk", "run", "jump", "talk", "wave", "sit", "turn"],
+		"requested_outputs": ["joint_angles", "keyframes", "duration", "loop"]
+	}
+	return _post_json(http_request, payload)
+
+func _post_json(http_request: HTTPRequest, payload: Dictionary) -> Error:
+	var headers := PackedStringArray(["Content-Type: application/json"])
+	if api_key != "":
+		headers.append("Authorization: Bearer " + api_key)
+	if not http_request.request_completed.is_connected(_on_request_completed):
+		http_request.request_completed.connect(_on_request_completed)
+	return http_request.request(endpoint, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
+
 func _on_request_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	if result != HTTPRequest.RESULT_SUCCESS:
 		request_failed.emit("Falló la conexión con el proveedor de IA. Código: " + str(result))
@@ -66,8 +108,18 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 	if not parsed is Dictionary:
 		request_failed.emit("Respuesta inválida: se esperaba un objeto JSON.")
 		return
-	if int(parsed.get("schema_version", 0)) != 1 or not parsed.has("segments"):
-		request_failed.emit("Respuesta incompatible. Se requiere schema_version 1 y segments.")
+	if int(parsed.get("schema_version", 0)) != 1:
+		request_failed.emit("Respuesta incompatible: schema_version debe ser 1.")
+		return
+	var task := str(parsed.get("task", "character_part_segmentation"))
+	if task == "character_part_segmentation" and not parsed.has("segments"):
+		request_failed.emit("Respuesta de segmentación sin segments.")
+		return
+	if task == "character_turnaround_generation" and not parsed.has("views"):
+		request_failed.emit("Respuesta de vistas sin views.")
+		return
+	if task == "character_pose_generation" and not parsed.has("poses"):
+		request_failed.emit("Respuesta de poses sin poses.")
 		return
 	request_completed.emit(parsed)
 
