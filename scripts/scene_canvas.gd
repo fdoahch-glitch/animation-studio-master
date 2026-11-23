@@ -91,8 +91,31 @@ func _draw() -> void:
 			"decoration": fill = Color("#6ca66b")
 			"element": fill = Color("#d59b58")
 		draw_set_transform(center, deg_to_rad(float(transform.get("rotation",0.0))), Vector2.ONE)
-		draw_rect(Rect2(-extent * 0.5, extent), fill, true)
-		draw_rect(Rect2(-extent * 0.5, extent), Color("#23384d"), false, 2.0)
+		var local_rect := Rect2(-extent * 0.5, extent)
+		match kind:
+			"background":
+				draw_rect(local_rect, fill, true)
+				draw_line(Vector2(-extent.x * 0.5, extent.y * 0.18), Vector2(extent.x * 0.5, extent.y * 0.18), Color("#5b927b"), maxf(2.0, 3.0 * scale_value))
+				draw_circle(Vector2(extent.x * 0.31, -extent.y * 0.28), extent.y * 0.07, Color("#f6d879"))
+			"character":
+				draw_line(Vector2(0, -extent.y * 0.08), Vector2(-extent.x * 0.18, extent.y * 0.30), Color("#263c54"), maxf(5.0, extent.x * 0.07))
+				draw_line(Vector2(0, -extent.y * 0.08), Vector2(extent.x * 0.18, extent.y * 0.30), Color("#263c54"), maxf(5.0, extent.x * 0.07))
+				draw_line(Vector2(-extent.x * 0.12, -extent.y * 0.17), Vector2(-extent.x * 0.34, extent.y * 0.05), fill.lightened(0.15), maxf(4.0, extent.x * 0.055))
+				draw_line(Vector2(extent.x * 0.12, -extent.y * 0.17), Vector2(extent.x * 0.34, extent.y * 0.05), fill.lightened(0.15), maxf(4.0, extent.x * 0.055))
+				draw_rect(Rect2(-extent.x * 0.18, -extent.y * 0.22, extent.x * 0.36, extent.y * 0.43), fill, true)
+				draw_circle(Vector2(0, -extent.y * 0.34), extent.x * 0.19, Color("#e8b48b"))
+				draw_circle(Vector2(-extent.x * 0.06, -extent.y * 0.36), maxf(2.0, extent.x * 0.025), Color("#26384a"))
+				draw_circle(Vector2(extent.x * 0.06, -extent.y * 0.36), maxf(2.0, extent.x * 0.025), Color("#26384a"))
+			"decoration":
+				draw_rect(Rect2(-extent.x * 0.07, extent.y * 0.03, extent.x * 0.14, extent.y * 0.43), Color("#795438"), true)
+				draw_circle(Vector2(0, -extent.y * 0.12), extent.x * 0.32, fill)
+				draw_circle(Vector2(-extent.x * 0.18, -extent.y * 0.02), extent.x * 0.22, fill.lightened(0.12))
+				draw_circle(Vector2(extent.x * 0.18, -extent.y * 0.02), extent.x * 0.22, fill.lightened(0.08))
+			_:
+				draw_rect(local_rect, fill, true)
+				draw_rect(local_rect.grow(-extent.x * 0.12), fill.lightened(0.2), false, maxf(1.0, 2.0 * scale_value))
+				draw_circle(Vector2.ZERO, minf(extent.x, extent.y) * 0.12, Color("#fff1c7"))
+		draw_rect(local_rect, Color("#23384d"), false, 2.0)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		var label := str(item.get("name", kind))
 		draw_string(ThemeDB.fallback_font, Vector2(rect.position.x, rect.position.y - 7), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color("#1d3044"))
