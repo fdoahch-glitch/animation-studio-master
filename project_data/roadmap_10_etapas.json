@@ -121,7 +121,7 @@
     {
       "id": 5,
       "name": "Animación 3D y personajes cuadrúpedos",
-      "status": "partial",
+      "status": "done",
       "scope": [
         "importación GLB/glTF y detección de esqueletos",
         "rig humanoide y cuadrúpedo",
@@ -139,15 +139,16 @@
       "tests": [
         "tests/test_spatial_retargeting.gd: construcción y auditoría humanoide/cuadrúpeda, librerías de poses/ciclos y reproducción procedural básica.",
         "CI Godot run sobre commit final de esta etapa; la prueba visual con GLB externo sigue pendiente.",
-        "PR #2 fusionado en main: CI Godot run 45269849545 success; prueba ampliada para hornear ocho ciclos cuadrúpedos y conservar biblioteca de animaciones importadas."
+        "PR #2 fusionado en main: CI Godot run 45269849545 success; prueba ampliada para hornear ocho ciclos cuadrúpedos y conservar biblioteca de animaciones importadas.",
+        "PR #4 fusionado en main: commit adafe7dd3530728f30696b52ca0767714a59ccd8; GitHub Actions run 45280034779: Godot validation success; supervisor run 45280034747: success. tests/test_glb_skeleton_import.gd exporta e importa un GLB skinned y confirma detección/cobertura de Skeleton3D humanoide y cuadrúpedo."
       ],
-      "commit": "53031da8986049f015c8fdbffaf978de9ebf16ff",
-      "notes": "Rig humanoide/cuadrúpedo, ciclos procedurales, IK, mandíbula y horneado 3D cubiertos por pruebas automatizadas. Pendiente aceptación visual con modelos GLB externos reales y sus animaciones."
+      "commit": "adafe7dd3530728f30696b52ca0767714a59ccd8",
+      "notes": "Cerrada por aceptación funcional automatizada: jerarquías humanoide/cuadrúpeda, ocho ciclos procedurales, IK, auditoría de huesos/cobertura, preservación de animaciones originales al hornear y roundtrip GLB con mallas skinned que conserva ambos esqueletos. CI y supervisor aprobados."
     },
     {
       "id": 6,
       "name": "Retargeting y biblioteca de movimientos",
-      "status": "partial",
+      "status": "in_progress",
       "scope": [
         "perfiles de esqueletos y alias ampliados",
         "mapa de correspondencia origen-destino",
@@ -165,10 +166,11 @@
       ],
       "tests": [
         "tests/test_spatial_retargeting.gd: equivalencias, cobertura, validación de perfil y transferencia de pose.",
-        "CI Godot run sobre commit final de esta etapa; validación con una colección de GLB externos sigue pendiente."
+        "CI Godot run sobre commit final de esta etapa; validación con una colección de GLB externos sigue pendiente.",
+        "Trabajo activo tras cierre de etapa 5. Base actual: tests/test_spatial_retargeting.gd valida alias, mapas humanoide/cuadrúpedo, cobertura, perfiles, transferencia de pose y retargeting de clips."
       ],
       "commit": "53031da8986049f015c8fdbffaf978de9ebf16ff",
-      "notes": "Implementado scripts/animation_retargeter.gd y UI en scripts/main.gd. Retargeting actual transfiere poses por equivalencia de huesos; todavía no convierte AnimationPlayer completas ni resuelve root motion, bind-pose offsets o contacto IK. Se mantiene partial hasta pruebas reales con modelos externos."
+      "notes": "Etapa activa del par 5–6. Ya existe mapeo anatómico, equivalencias Mixamo, perfiles, transferencia de poses y conversión de clips. Trabajo pendiente: offsets de bind pose por hueso, root motion explícito, contactos de pies/manos asistidos por IK y persistencia/roundtrip de perfiles de retargeting desde el documento de proyecto."
     },
     {
       "id": 7,
