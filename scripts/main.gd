@@ -701,6 +701,17 @@ func _delete_selected_resource() -> void:
 	var resource := _find_project_resource(selected_resource_id)
 	if resource.is_empty():
 		return
+	if scene_model == null:
+		scene_model = SCENE_COMPOSITION_MODEL.new()
+	var references: Array = scene_model.find_resource_references(project_data.get("scenes", []), selected_resource_id)
+	if not references.is_empty():
+		var scene_names: Array[String] = []
+		for reference in references:
+			var label := str(reference.get("scene_name", "Escena"))
+			if not scene_names.has(label):
+				scene_names.append(label)
+		_set_status("No se puede eliminar «%s»: está utilizado en %d objeto(s) de %s. Retira primero esas instancias de las escenas." % [resource.get("name", "Recurso"), references.size(), ", ".join(scene_names)])
+		return
 	var result: Dictionary = resource_library.remove_resource(resource)
 	if not bool(result.get("ok",false)):
 		_set_status(str(result.get("error","No se pudo eliminar el recurso.")))

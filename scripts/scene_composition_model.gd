@@ -84,6 +84,24 @@ func set_transition(scene: Dictionary, transition_type: String, duration: float,
 	}
 	return {"ok": true, "scene": scene}
 
+func find_resource_references(scenes: Array, resource_id: String) -> Array:
+	var references: Array = []
+	if resource_id.strip_edges().is_empty():
+		return references
+	for scene_index in range(scenes.size()):
+		var scene_value: Variant = scenes[scene_index]
+		if not scene_value is Dictionary:
+			continue
+		for item in scene_value.get("objects", []):
+			if item is Dictionary and str(item.get("resource_id", "")) == resource_id:
+				references.append({
+					"scene_id": str(scene_value.get("id", "")),
+					"scene_name": str(scene_value.get("name", "Escena %d" % (scene_index + 1))),
+					"instance_id": str(item.get("id", "")),
+					"instance_name": str(item.get("name", "Objeto"))
+				})
+	return references
+
 func validate_scene(scene: Dictionary) -> Dictionary:
 	var objects: Variant = scene.get("objects", [])
 	if not objects is Array:
