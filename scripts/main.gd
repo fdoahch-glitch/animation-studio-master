@@ -4414,11 +4414,13 @@ func _save_dialogue_take_mix() -> void:
 func _load_dialogue_audio_stream(path: String) -> AudioStream:
 	match path.get_extension().to_lower():
 		"wav":
-			return AudioStreamWAV.load_from_file(path)
+			return dialogue_studio.load_pcm_wav(path)
 		"ogg":
 			return AudioStreamOggVorbis.load_from_file(path)
 		"mp3":
-			return AudioStreamMP3.load_from_file(path)
+			var mp3 := AudioStreamMP3.new()
+			mp3.data = FileAccess.get_file_as_bytes(path)
+			return mp3
 	return null
 
 func _play_dialogue_take() -> void:
@@ -4453,7 +4455,7 @@ func _generate_visemes_from_selected_take() -> void:
 	if str(take.get("audio_path","")).get_extension().to_lower() != "wav":
 		_set_status("La generación PCM de visemas requiere una toma WAV.")
 		return
-	var audio: AudioStreamWAV = AudioStreamWAV.load_from_file(str(take.get("audio_path","")))
+	var audio: AudioStreamWAV = dialogue_studio.load_pcm_wav(str(take.get("audio_path","")))
 	if audio == null:
 		_set_status("No se pudo leer el WAV seleccionado.")
 		return
