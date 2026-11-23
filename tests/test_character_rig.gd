@@ -194,6 +194,11 @@ func _run_tests() -> void:
 	var spatial_animator = SPATIAL_ANIMATOR.new()
 	spatial_rig.add_child(spatial_animator)
 	spatial_animator.configure(skeleton)
+	var ik_math: Dictionary = spatial_animator.solve_two_bone_ik(Vector3.ZERO, Vector3(1.0, 1.0, 0.0), 1.0, 1.0, Vector3(0,0,1))
+	if not bool(ik_math.get("ok", false)) or not ik_math.has("joint"):
+		push_error("El solver matemático IK 3D no calculó la articulación intermedia.")
+		quit(1)
+		return
 	var spatial_poses: Array = spatial_animator.generate_pose_library(1.0)
 	var spatial_clips: Array = spatial_animator.generate_animation_library(1.0)
 	if spatial_poses.size() < 18 or spatial_clips.size() < 8:
@@ -211,6 +216,11 @@ func _run_tests() -> void:
 	spatial_animator._process(0.1)
 	if spatial_animator.capture_pose().is_empty():
 		push_error("El animador 3D no pudo capturar la pose resultante.")
+		quit(1)
+		return
+	var chain_ik: Dictionary = spatial_animator.apply_two_bone_ik("arm_right", Vector3(0.6, 1.4, 0.1))
+	if not bool(chain_ik.get("ok", false)) or not chain_ik.has("actual_end"):
+		push_error("No se pudo aplicar IK 3D a la cadena del brazo derecho.")
 		quit(1)
 		return
 	if not spatial_animator.play_clip(spatial_clips[1], 1.0):
