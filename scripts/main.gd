@@ -26,6 +26,7 @@ var imported_preview: TextureRect
 var image_result_output: RichTextLabel
 var build_segmented_button: Button
 var imported_character_data: Dictionary = {}
+var ai_generated_poses: Array = []
 var runtime_rig: Node2D
 var rig_subviewport: SubViewport
 var root_ui: VBoxContainer
@@ -341,6 +342,8 @@ func _show_character_lab() -> void:
 	ai_key_input.secret = true
 	form.add_child(ai_key_input)
 	_add_button(form, "Analizar piezas con IA conectada", _request_ai_segmentation)
+	_add_button(form, "Generar vistas frente/perfil/espalda con IA", _request_ai_turnaround)
+	_add_button(form, "Generar poses con IA", _request_ai_pose_set)
 	_add_button(form, "Crear diseño base + esqueleto", _generate_character)
 	_add_button(form, "Preparar prompt para IA", _request_ai_character)
 	var right := VBoxContainer.new()
@@ -485,6 +488,13 @@ func _request_ai_segmentation() -> void:
 		_set_status("Solicitud enviada al proveedor de IA. Esperando segmentación...")
 
 func _on_ai_segmentation_completed(response: Dictionary) -> void:
+	var task := str(response.get("task", "character_part_segmentation"))
+	if task == "character_turnaround_generation":
+		_handle_ai_turnaround_result(response)
+		return
+	if task == "character_pose_generation":
+		_handle_ai_pose_result(response)
+		return
 	var source := Image.new()
 	if source.load(imported_source_path) != OK:
 		_set_status("No se pudo volver a abrir la imagen original.")
@@ -510,6 +520,85 @@ func _on_ai_segmentation_completed(response: Dictionary) -> void:
 	imported_character_data["ai_joints"] = validation.get("joints", {})
 	_save_project()
 	_set_status("Segmentación IA recibida y recortes guardados.")
+
+func _request_ai_turnaround() -> void:
+	if character_description.text.strip_edges() == "":
+		_set_status("Describe el personaje antes de generar sus vistas.")
+		return
+	if not ai_provider.configure(ai_endpoint_input.text, ai_key_input.text):
+		_set_status("Configura un endpoint HTTPS o localhost.")
+		return
+	var err: Error = ai_provider.request_turnaround_generation(character_description.text, character_style.get_item_text(character_style.selected), ai_request, imported_source_path)
+	if err != OK:
+		_set_status("No se pudo iniciar la generación de vistas. Código: " + str(err))
+	else:
+		_set_status("Solicitando vistas coherentes al proveedor de IA...")
+
+func _request_ai_pose_set() -> void:
+	if character_description.text.strip_edges() == "":
+		_set_status("Describe el personaje antes de generar poses.")
+		return
+	if not ai_provider.configure(ai_endpoint_input.text, ai_key_input.text):
+		_set_status("Configura un endpoint HTTPS o localhost.")
+		return
+	var err: Error = ai_provider.request_pose_generation(character_description.text, character_mode.get_item_text(character_mode.selected), ai_request)
+	if err != OK:
+		_set_status("No se pudo iniciar la generación de poses. Código: " + str(err))
+	else:
+		_set_status("Solicitando poses y ángulos articulares al proveedor de IA...")
+
+func _handle_ai_turnaround_result(response: Dictionary) -> void:
+	var output_dir := "user://character_views/" + str(Time.get_unix_time_from_system())
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(output_dir))
+	var saved_views: Array[Dictionary] = []
+	for view in response.get("views", []):
+		if not view is Dictionary:
+			continue
+		var image_data := str(view.get("image_png_base64", ""))
+		if image_data == "":
+			continue
+		var image := Image.new()
+		if image.load_png_from_buffer(Marshalls.base64_to_raw(image_data)) != OK:
+			continue
+		var view_name := str(view.get("name", "view")).validate_filename()
+		var path := output_dir.path_join(view_name + ".png")
+		if image.save_png(path) == OK:
+			saved_views.append({"name": view_name, "path": path})
+	if not saved_views.is_empty():
+		var first_image := Image.new()
+		if first_image.load(str(saved_views[0].path)) == OK:
+			imported_preview.texture = ImageTexture.create_from_image(first_image)
+	imported_character_data["generated_views"] = saved_views
+	_save_project()
+	var lines := PackedStringArray(["VISTAS GENERADAS POR IA"])
+	for view_data in saved_views:
+		lines.append("• %s — %s" % [view_data.name, view_data.path])
+	lines.append("Comprueba que el diseño, ropa y proporciones sean consistentes en todos los ángulos.")
+	image_result_output.text = "\n".join(lines)
+	_set_status("Vistas IA guardadas: %d." % saved_views.size())
+
+func _handle_ai_pose_result(response: Dictionary) -> void:
+	ai_generated_poses = response.get("poses", [])
+	if ai_generated_poses.is_empty():
+		_set_status("El proveedor no devolvió poses.")
+		return
+	var first_pose: Dictionary = ai_generated_poses[0]
+	var angles: Dictionary = first_pose.get("joint_angles", {})
+	var applied := 0
+	if is_instance_valid(runtime_rig):
+		applied = rig_builder.apply_segment_pose(runtime_rig, angles)
+	if not project_data.has("ai_pose_sets"):
+		project_data["ai_pose_sets"] = []
+	project_data["ai_pose_sets"].append({"character": character_name.text, "poses": ai_generated_poses})
+	_save_project()
+	var lines := PackedStringArray(["POSES RECIBIDAS: %d" % ai_generated_poses.size()])
+	for pose in ai_generated_poses:
+		if pose is Dictionary:
+			lines.append("• %s" % str(pose.get("name", "Pose")))
+	lines.append("Articulaciones aplicadas en la vista actual: %d" % applied)
+	lines.append("Los ángulos IA se interpretan en grados; revisa límites y deformaciones.")
+	image_result_output.text = "\n".join(lines)
+	_set_status("Poses IA guardadas en el proyecto.")
 
 func _on_ai_segmentation_failed(message: String) -> void:
 	_set_status("IA: " + message)
