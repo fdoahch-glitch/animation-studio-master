@@ -45,3 +45,8 @@ jobs:
         run: godot --headless --path . --script res://tests/test_environment_director.gd
       - name: Test dialogue and dubbing model
         run: godot --headless --path . --script res://tests/test_dialogue_studio.gd
+
+      - name: Test portable project bundle
+        run: godot --headless --path . --script res://tests/test_project_bundle.gd
+      - name: Test performance auditor
+        run: godot --headless --path . --script res://tests/test_performance_auditor.gd
