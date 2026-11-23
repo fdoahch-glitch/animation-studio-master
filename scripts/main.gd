@@ -63,7 +63,7 @@ class CharacterPreview:
 			draw_line(Vector2(0, y), Vector2(size.x, y), Color("#e5ebf2"), 1.0)
 		var cx := size.x * 0.5
 		var top := size.y * 0.14
-		var sf := min(size.x / 420.0, size.y / 560.0)
+		var sf: float = minf(size.x / 420.0, size.y / 560.0)
 		var skin := Color("#e5a878")
 		var cloth := Color("#2878b8")
 		var dark := Color("#23384d")
@@ -75,9 +75,9 @@ class CharacterPreview:
 			draw_circle(head + Vector2(-10 if not side else 6, -2) * sf, 3.5 * sf, dark)
 			if not side:
 				draw_circle(head + Vector2(10, -2) * sf, 3.5 * sf, dark)
-		var shoulder_y := top + 132 * sf
-		var hip_y := top + 300 * sf
-		var span := (25.0 if side else 42.0) * sf
+		var shoulder_y: float = top + 132.0 * sf
+		var hip_y: float = top + 300.0 * sf
+		var span: float = (25.0 if side else 42.0) * sf
 		draw_colored_polygon(PackedVector2Array([Vector2(cx-span,shoulder_y),Vector2(cx+span,shoulder_y),Vector2(cx+31*sf,hip_y),Vector2(cx-31*sf,hip_y)]), cloth)
 		for sign in [-1.0, 1.0]:
 			var shoulder := Vector2(cx + sign * span * 0.8, shoulder_y)
