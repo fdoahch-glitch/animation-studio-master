@@ -151,3 +151,22 @@ func image_limit_x(bounds: Rect2i) -> int:
 
 func image_limit_y(bounds: Rect2i) -> int:
 	return bounds.position.y + bounds.size.y
+
+func save_provider_segments(source_path: String, segments: Array[Dictionary]) -> Array[Dictionary]:
+	var source := Image.new()
+	if source.load(source_path) != OK:
+		return []
+	source.convert(Image.FORMAT_RGBA8)
+	var output_dir := "user://character_parts/ai_" + str(Time.get_unix_time_from_system())
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(output_dir))
+	var saved: Array[Dictionary] = []
+	for segment in segments:
+		var rect: Rect2i = segment.rect
+		var crop := source.get_region(rect)
+		var name := str(segment.name).validate_filename()
+		if name == "":
+			name = "part_" + str(saved.size())
+		var path := output_dir.path_join(name + ".png")
+		if crop.save_png(path) == OK:
+			saved.append({"name": name, "path": path, "confidence": segment.confidence, "rect": [rect.position.x, rect.position.y, rect.size.x, rect.size.y]})
+	return saved
