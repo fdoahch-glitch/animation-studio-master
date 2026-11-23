@@ -198,120 +198,120 @@ func is_playing() -> bool:
 	return playing
 
 func _process(delta: float) -> void:
- if not playing or not is_instance_valid(skeleton):
-  return
- elapsed += delta * playback_speed
- if not active_clip.is_empty():
-  var duration := maxf(float(active_clip.get("duration", 1.0)), 0.05)
-  var looping := bool(active_clip.get("loop", true))
-  var sample_time := elapsed
-  var loop_cycles := 0
-  if elapsed >= duration:
-   if looping:
-    loop_cycles = int(floor(elapsed / duration))
-    sample_time = fposmod(elapsed, duration)
-   else:
-    sample_time = duration
-    _apply_blended_pose(_sample_clip_pose(active_clip, sample_time), delta)
-    _apply_clip_root_motion(active_clip, sample_time, 0)
-    _apply_clip_contact_ik(active_clip, sample_time)
-    playing = false
-    return
-  _apply_blended_pose(_sample_clip_pose(active_clip, sample_time), delta)
-  _apply_clip_root_motion(active_clip, sample_time, loop_cycles)
-  _apply_clip_contact_ik(active_clip, sample_time)
-  return
- var pose := _sample_cycle(current_cycle, elapsed, motion_intensity)
- _apply_blended_pose(pose, delta)
- _update_cycle_facial_expression(current_cycle, elapsed)
- if current_cycle == "jump" and elapsed >= 1.2:
-  playing = false
-  _reset_skeleton_pose()
+	if not playing or not is_instance_valid(skeleton):
+		return
+	elapsed += delta * playback_speed
+	if not active_clip.is_empty():
+		var duration := maxf(float(active_clip.get("duration", 1.0)), 0.05)
+		var looping := bool(active_clip.get("loop", true))
+		var sample_time := elapsed
+		var loop_cycles := 0
+		if elapsed >= duration:
+			if looping:
+				loop_cycles = int(floor(elapsed / duration))
+				sample_time = fposmod(elapsed, duration)
+			else:
+				sample_time = duration
+				_apply_blended_pose(_sample_clip_pose(active_clip, sample_time), delta)
+				_apply_clip_root_motion(active_clip, sample_time, 0)
+				_apply_clip_contact_ik(active_clip, sample_time)
+				playing = false
+				return
+		_apply_blended_pose(_sample_clip_pose(active_clip, sample_time), delta)
+		_apply_clip_root_motion(active_clip, sample_time, loop_cycles)
+		_apply_clip_contact_ik(active_clip, sample_time)
+		return
+	var pose := _sample_cycle(current_cycle, elapsed, motion_intensity)
+	_apply_blended_pose(pose, delta)
+	_update_cycle_facial_expression(current_cycle, elapsed)
+	if current_cycle == "jump" and elapsed >= 1.2:
+		playing = false
+		_reset_skeleton_pose()
 
 func set_contact_ik_enabled(enabled: bool) -> void:
- contact_ik_enabled = enabled
+	contact_ik_enabled = enabled
 
 func _sample_clip_frame_pair(clip: Dictionary, time: float) -> Dictionary:
- var frames: Array = clip.get("keyframes", [])
- if frames.is_empty():
-  return {}
- var left: Dictionary = frames[0]
- var right: Dictionary = frames[frames.size() - 1]
- if time <= float(frames[0].get("time", 0.0)):
-  right = frames[0]
- elif time >= float(frames[frames.size() - 1].get("time", 0.0)):
-  left = right
- else:
-  for index in range(frames.size() - 1):
-   var first: Dictionary = frames[index]
-   var second: Dictionary = frames[index + 1]
-   if time >= float(first.get("time", 0.0)) and time <= float(second.get("time", 0.0)):
-    left = first
-    right = second
-    break
- var span := float(right.get("time", 0.0)) - float(left.get("time", 0.0))
- var amount := clampf((time - float(left.get("time", 0.0))) / span, 0.0, 1.0) if span > 0.0001 else 0.0
- return {"left": left, "right": right, "amount": amount}
+	var frames: Array = clip.get("keyframes", [])
+	if frames.is_empty():
+		return {}
+	var left: Dictionary = frames[0]
+	var right: Dictionary = frames[frames.size() - 1]
+	if time <= float(frames[0].get("time", 0.0)):
+		right = frames[0]
+	elif time >= float(frames[frames.size() - 1].get("time", 0.0)):
+		left = right
+	else:
+		for index in range(frames.size() - 1):
+			var first: Dictionary = frames[index]
+			var second: Dictionary = frames[index + 1]
+			if time >= float(first.get("time", 0.0)) and time <= float(second.get("time", 0.0)):
+				left = first
+				right = second
+				break
+	var span := float(right.get("time", 0.0)) - float(left.get("time", 0.0))
+	var amount := clampf((time - float(left.get("time", 0.0))) / span, 0.0, 1.0) if span > 0.0001 else 0.0
+	return {"left": left, "right": right, "amount": amount}
 
 func _sample_clip_vector_track(clip: Dictionary, time: float, key: String) -> Vector3:
- var pair := _sample_clip_frame_pair(clip, time)
- if pair.is_empty():
-  return Vector3.ZERO
- var left: Dictionary = pair.left
- var right: Dictionary = pair.right
- return _as_vector3(left.get(key, Vector3.ZERO)).lerp(_as_vector3(right.get(key, left.get(key, Vector3.ZERO))), float(pair.amount))
+	var pair := _sample_clip_frame_pair(clip, time)
+	if pair.is_empty():
+		return Vector3.ZERO
+	var left: Dictionary = pair.left
+	var right: Dictionary = pair.right
+	return _as_vector3(left.get(key, Vector3.ZERO)).lerp(_as_vector3(right.get(key, left.get(key, Vector3.ZERO))), float(pair.amount))
 
 func _apply_clip_root_motion(clip: Dictionary, time: float, loop_cycles: int) -> void:
- if not is_instance_valid(model_root):
-  return
- var first := _sample_clip_vector_track(clip, 0.0, "root_motion")
- var last := _sample_clip_vector_track(clip, maxf(float(clip.get("duration", 1.0)), 0.05), "root_motion")
- if first == Vector3.ZERO and last == Vector3.ZERO:
-  return
- var sample := _sample_clip_vector_track(clip, time, "root_motion")
- model_root.position = root_motion_base_position + (sample - first) + (last - first) * float(loop_cycles)
+	if not is_instance_valid(model_root):
+		return
+	var first := _sample_clip_vector_track(clip, 0.0, "root_motion")
+	var last := _sample_clip_vector_track(clip, maxf(float(clip.get("duration", 1.0)), 0.05), "root_motion")
+	if first == Vector3.ZERO and last == Vector3.ZERO:
+		return
+	var sample := _sample_clip_vector_track(clip, time, "root_motion")
+	model_root.position = root_motion_base_position + (sample - first) + (last - first) * float(loop_cycles)
 
 func _sample_clip_contact_targets(clip: Dictionary, time: float) -> Dictionary:
- var pair := _sample_clip_frame_pair(clip, time)
- if pair.is_empty():
-  return {}
- var left_targets: Dictionary = pair.left.get("ik_targets", {})
- var right_targets: Dictionary = pair.right.get("ik_targets", {})
- var amount: float = pair.amount
- var result: Dictionary = {}
- var chain_names: Dictionary = {}
- for chain_name in left_targets:
-  chain_names[str(chain_name)] = true
- for chain_name in right_targets:
-  chain_names[str(chain_name)] = true
- for chain_name in chain_names:
-  var left_data: Variant = left_targets.get(chain_name, right_targets.get(chain_name, {}))
-  var right_data: Variant = right_targets.get(chain_name, left_data)
-  var left_position := _as_vector3(left_data.get("position", Vector3.ZERO)) if left_data is Dictionary else _as_vector3(left_data)
-  var right_position := _as_vector3(right_data.get("position", left_position)) if right_data is Dictionary else _as_vector3(right_data)
-  var left_pole := _as_vector3(left_data.get("pole", Vector3(0.0,0.0,1.0))) if left_data is Dictionary else Vector3(0.0,0.0,1.0)
-  var right_pole := _as_vector3(right_data.get("pole", left_pole)) if right_data is Dictionary else left_pole
-  result[str(chain_name)] = {"position": left_position.lerp(right_position, amount), "pole": left_pole.lerp(right_pole, amount)}
- return result
+	var pair := _sample_clip_frame_pair(clip, time)
+	if pair.is_empty():
+		return {}
+	var left_targets: Dictionary = pair.left.get("ik_targets", {})
+	var right_targets: Dictionary = pair.right.get("ik_targets", {})
+	var amount: float = pair.amount
+	var result: Dictionary = {}
+	var chain_names: Dictionary = {}
+	for chain_name in left_targets:
+		chain_names[str(chain_name)] = true
+	for chain_name in right_targets:
+		chain_names[str(chain_name)] = true
+	for chain_name in chain_names:
+		var left_data: Variant = left_targets.get(chain_name, right_targets.get(chain_name, {}))
+		var right_data: Variant = right_targets.get(chain_name, left_data)
+		var left_position := _as_vector3(left_data.get("position", Vector3.ZERO)) if left_data is Dictionary else _as_vector3(left_data)
+		var right_position := _as_vector3(right_data.get("position", left_position)) if right_data is Dictionary else _as_vector3(right_data)
+		var left_pole := _as_vector3(left_data.get("pole", Vector3(0.0,0.0,1.0))) if left_data is Dictionary else Vector3(0.0,0.0,1.0)
+		var right_pole := _as_vector3(right_data.get("pole", left_pole)) if right_data is Dictionary else left_pole
+		result[str(chain_name)] = {"position": left_position.lerp(right_position, amount), "pole": left_pole.lerp(right_pole, amount)}
+	return result
 
 func _apply_clip_contact_ik(clip: Dictionary, time: float) -> void:
- if not contact_ik_enabled:
-  return
- var targets := _sample_clip_contact_targets(clip, time)
- for chain_name in targets:
-  var target: Dictionary = targets[chain_name]
-  apply_two_bone_ik(str(chain_name), target.position, target.pole, false)
+	if not contact_ik_enabled:
+		return
+	var targets := _sample_clip_contact_targets(clip, time)
+	for chain_name in targets:
+		var target: Dictionary = targets[chain_name]
+		apply_two_bone_ik(str(chain_name), target.position, target.pole, false)
 
 func apply_contact_targets(targets: Dictionary) -> int:
- var applied := 0
- for chain_name in targets:
-  var target: Variant = targets[chain_name]
-  var position := _as_vector3(target.get("position", Vector3.ZERO)) if target is Dictionary else _as_vector3(target)
-  var pole := _as_vector3(target.get("pole", Vector3(0.0,0.0,1.0))) if target is Dictionary else Vector3(0.0,0.0,1.0)
-  var result := apply_two_bone_ik(str(chain_name), position, pole, false)
-  if bool(result.get("ok", false)):
-   applied += 1
- return applied
+	var applied := 0
+	for chain_name in targets:
+		var target: Variant = targets[chain_name]
+		var position := _as_vector3(target.get("position", Vector3.ZERO)) if target is Dictionary else _as_vector3(target)
+		var pole := _as_vector3(target.get("pole", Vector3(0.0,0.0,1.0))) if target is Dictionary else Vector3(0.0,0.0,1.0)
+		var result := apply_two_bone_ik(str(chain_name), position, pole, false)
+		if bool(result.get("ok", false)):
+			applied += 1
+	return applied
 
 func _sample_clip_pose(clip: Dictionary, time: float) -> Dictionary:
 	var frames: Array = clip.get("keyframes", [])
