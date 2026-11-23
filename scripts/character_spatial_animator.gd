@@ -11,13 +11,29 @@ var playback_speed := 1.0
 var motion_intensity := 1.0
 var playing := false
 var active_clip: Dictionary = {}
+var model_root: Node3D
+var blend_shape_targets: Array[Dictionary] = []
+var facial_expression_values: Dictionary = {}
+
+const FACIAL_EXPRESSIONS := {
+	"Neutral": {"neutral": 1.0},
+	"Sonrisa": {"smile": 1.0, "happy": 1.0, "mouthsmile": 1.0},
+	"Parpadeo": {"blink": 1.0, "eyeclose": 1.0, "closeeyes": 1.0},
+	"Sorpresa": {"surprise": 1.0, "wideeyes": 0.85, "mouthopen": 0.65},
+	"Enojo": {"angry": 1.0, "browdown": 0.8, "frown": 0.7},
+	"Tristeza": {"sad": 1.0, "frown": 0.8},
+	"Hablar": {"mouthopen": 0.55, "jawopen": 0.55, "visemeaa": 0.65},
+	"Risa": {"laugh": 1.0, "smile": 0.9, "mouthopen": 0.45}
+}
 
 const HUMANOID_CYCLE_NAMES := ["idle", "walk", "run", "jump", "wave", "talk", "dance", "sneak"]
 const QUADRUPED_CYCLE_NAMES := ["idle", "walk", "run", "jump", "roar", "tail_sway", "stomp", "look_around"]
 
-func configure(target_skeleton: Skeleton3D, target_animation_player: AnimationPlayer = null) -> void:
+func configure(target_skeleton: Skeleton3D, target_animation_player: AnimationPlayer = null, target_model_root: Node3D = null) -> void:
 	skeleton = target_skeleton
 	imported_animation_player = target_animation_player
+	model_root = target_model_root if is_instance_valid(target_model_root) else (target_skeleton.get_parent() as Node3D if is_instance_valid(target_skeleton) else null)
+	_rebuild_blend_shape_targets()
 	elapsed = 0.0
 	playing = false
 	set_process(is_instance_valid(skeleton))
@@ -187,6 +203,7 @@ func _process(delta: float) -> void:
 		return
 	var pose := _sample_cycle(current_cycle, elapsed, motion_intensity)
 	_apply_runtime_rotations(pose)
+	_update_cycle_facial_expression(current_cycle, elapsed)
 	if current_cycle == "jump" and elapsed >= 1.2:
 		playing = false
 		_reset_skeleton_pose()
@@ -234,6 +251,97 @@ func _apply_runtime_rotations(pose: Dictionary) -> void:
 func _reset_skeleton_pose() -> void:
 	for index in range(skeleton.get_bone_count()):
 		skeleton.set_bone_pose_rotation(index, Quaternion.IDENTITY)
+
+func _rebuild_blend_shape_targets() -> int:
+	blend_shape_targets.clear()
+	if not is_instance_valid(model_root):
+		return 0
+	var meshes: Array[Node] = []
+	if model_root is MeshInstance3D:
+		meshes.append(model_root)
+	meshes.append_array(model_root.find_children("*", "MeshInstance3D", true, false))
+	for node in meshes:
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance == null or mesh_instance.mesh == null:
+			continue
+		for index in range(mesh_instance.mesh.get_blend_shape_count()):
+			blend_shape_targets.append({"node":mesh_instance,"index":index,"name":mesh_instance.mesh.get_blend_shape_name(index),"normalized":_normalize_expression_name(mesh_instance.mesh.get_blend_shape_name(index))})
+	return blend_shape_targets.size()
+
+func get_facial_expression_names() -> Array:
+	return FACIAL_EXPRESSIONS.keys()
+
+func get_blend_shape_names() -> Array:
+	var names: Array = []
+	for target in blend_shape_targets:
+		names.append(str(target.get("name", "")))
+	return names
+
+func has_facial_expressions() -> bool:
+	return not blend_shape_targets.is_empty()
+
+func apply_facial_expression(expression_name: String, intensity: float = 1.0) -> int:
+	if blend_shape_targets.is_empty():
+		return 0
+	var definition: Dictionary = FACIAL_EXPRESSIONS.get(expression_name, {})
+	if definition.is_empty():
+		return 0
+	var applied := 0
+	var amount_scale := clampf(intensity, 0.0, 1.0)
+	for target in blend_shape_targets:
+		var mesh_instance := target.get("node") as MeshInstance3D
+		if not is_instance_valid(mesh_instance):
+			continue
+		var normalized := str(target.get("normalized", ""))
+		var value := 0.0
+		for alias in definition.keys():
+			if normalized.contains(str(alias)):
+				value = maxf(value, float(definition[alias]) * amount_scale)
+		mesh_instance.set_blend_shape_value(int(target.get("index", -1)), value)
+		applied += 1
+	facial_expression_values = capture_facial_expression()
+	return applied
+
+func capture_facial_expression() -> Dictionary:
+	var result := {}
+	for target in blend_shape_targets:
+		var mesh_instance := target.get("node") as MeshInstance3D
+		if is_instance_valid(mesh_instance):
+			result[str(target.get("name", ""))] = snappedf(float(mesh_instance.get_blend_shape_value(int(target.get("index", -1)))), 0.001)
+	return result
+
+func apply_captured_facial_expression(values: Dictionary) -> int:
+	var applied := 0
+	for target in blend_shape_targets:
+		var mesh_instance := target.get("node") as MeshInstance3D
+		if not is_instance_valid(mesh_instance):
+			continue
+		var shape_name := str(target.get("name", ""))
+		if values.has(shape_name):
+			mesh_instance.set_blend_shape_value(int(target.get("index", -1)), clampf(float(values[shape_name]), 0.0, 1.0))
+			applied += 1
+	return applied
+
+func _update_cycle_facial_expression(cycle_name: String, time: float) -> void:
+	if blend_shape_targets.is_empty():
+		return
+	if cycle_name == "talk" or cycle_name == "roar":
+		var pulse := maxf(0.0, sin(time * TAU * (3.2 if cycle_name == "talk" else 1.7)))
+		apply_facial_expression("Hablar" if cycle_name == "talk" else "Sorpresa", pulse)
+	elif cycle_name == "dance":
+		apply_facial_expression("Sonrisa", 0.65 + 0.25 * sin(time * TAU))
+	elif cycle_name == "idle":
+		var blink_phase := fposmod(time, 3.7)
+		if blink_phase < 0.13:
+			apply_facial_expression("Parpadeo", sin(PI * blink_phase / 0.13))
+		else:
+			apply_facial_expression("Neutral")
+
+func _normalize_expression_name(value: String) -> String:
+	var normalized := value.to_lower()
+	for token in ["mixamorig", "blendshape", "blend_shape", "face", "facial", "mesh", "head", "brow", "eye", "mouth", "_", "-", " ", ".", ":", "|"]:
+		normalized = normalized.replace(token, "")
+	return normalized
 
 
 
