@@ -745,6 +745,7 @@ func _export_3d_model_to_path(path: String) -> void:
 	if append_error != OK:
 		_set_status("No se pudo preparar la escena para GLB. Código: %d" % append_error)
 		return
+	_append_imported_3d_animation_buttons()
 	var write_error := document.write_to_filesystem(state, path)
 	if write_error != OK:
 		_set_status("No se pudo escribir el modelo GLB. Código: %d" % write_error)
@@ -850,13 +851,33 @@ func _fit_imported_3d_model(model_root: Node3D) -> void:
 	model_root.position = Vector3(0.0, 1.0, 0.0) - bounds.get_center() * fit_scale
 
 func _append_imported_3d_animation_buttons() -> void:
-	if not is_instance_valid(animation_controls) or not is_instance_valid(runtime_imported_3d_animation_player):
+	if not is_instance_valid(animation_controls):
 		return
-	for animation_name in runtime_imported_3d_animation_player.get_animation_list():
-		var key := str(animation_name)
-		if key.to_upper() == "RESET":
-			continue
-		_add_button(animation_controls, "Original: " + key, _play_imported_3d_animation.bind(key))
+	if is_instance_valid(runtime_imported_3d_animation_player):
+		for animation_name in runtime_imported_3d_animation_player.get_animation_list():
+			var key := str(animation_name)
+			if key.to_upper() == "RESET":
+				continue
+			_add_button(animation_controls, "Original: " + key, _play_imported_3d_animation.bind(key))
+	var baked_player := runtime_spatial_rig.get_node_or_null("ProceduralAnimationPlayer") as AnimationPlayer if is_instance_valid(runtime_spatial_rig) else null
+	if is_instance_valid(baked_player):
+		for animation_name in baked_player.get_animation_list():
+			var key := str(animation_name)
+			_add_button(animation_controls, "GLB: " + key, _play_baked_3d_animation.bind(key))
+
+func _play_baked_3d_animation(animation_name: String) -> void:
+	if not is_instance_valid(runtime_spatial_rig):
+		return
+	var baked_player := runtime_spatial_rig.get_node_or_null("ProceduralAnimationPlayer") as AnimationPlayer
+	if not is_instance_valid(baked_player) or not baked_player.has_animation(animation_name):
+		_set_status("La animación GLB ya no está disponible.")
+		return
+	if is_instance_valid(runtime_spatial_animator):
+		runtime_spatial_animator.stop_animation()
+	if is_instance_valid(runtime_imported_3d_animation_player):
+		runtime_imported_3d_animation_player.stop()
+	baked_player.play(animation_name)
+	_set_status("Reproduciendo clip GLB «%s»." % animation_name)
 
 func _play_imported_3d_animation(animation_name: String) -> void:
 	if not is_instance_valid(runtime_imported_3d_animation_player) or not runtime_imported_3d_animation_player.has_animation(animation_name):
@@ -877,7 +898,7 @@ func _find_skeleton_in_node(node: Node) -> Skeleton3D:
 	return null
 
 func _find_animation_player_in_node(node: Node) -> AnimationPlayer:
-	if node is AnimationPlayer:
+	if node is AnimationPlayer and node.name != "ProceduralAnimationPlayer":
 		return node as AnimationPlayer
 	for child in node.get_children():
 		var found := _find_animation_player_in_node(child)
@@ -1183,6 +1204,10 @@ func _stop_timeline_clip() -> void:
 		runtime_spatial_animator.stop_animation()
 	if is_instance_valid(runtime_imported_3d_animation_player):
 		runtime_imported_3d_animation_player.stop()
+	if is_instance_valid(runtime_spatial_rig):
+		var baked_player := runtime_spatial_rig.get_node_or_null("ProceduralAnimationPlayer") as AnimationPlayer
+		if is_instance_valid(baked_player):
+			baked_player.stop()
 	_set_status("Reproducción detenida.")
 
 func _save_timeline_clips() -> void:
