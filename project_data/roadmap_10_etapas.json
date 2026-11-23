@@ -176,7 +176,7 @@
     {
       "id": 7,
       "name": "Escenarios, iluminación, tiempo y clima",
-      "status": "in_progress",
+      "status": "done",
       "scope": [
         "fondos multicapa y parallax 2.5D",
         "hora del día e iluminación",
@@ -193,15 +193,16 @@
       ],
       "tests": [
         "tests/test_environment_director.gd: presets, clima, capas, keyframes, interpolación y validación.",
-        "GitHub Actions: ejecución pendiente en commit de integración."
+        "GitHub Actions: ejecución pendiente en commit de integración.",
+        "PR #6 fusionado en main: commit c98534447879c7c3c00ff189336e5116d91c1bbd; GitHub Actions run 45283450956: Godot validation success; supervisor run 45283450964: success."
       ],
-      "commit": "35feb89170fb93246ce88815971194d71b6f270e",
-      "notes": "Etapa activa del par 7–8. Trabajo pendiente: completar flujo de previsualización/composición de escena para cámara, luces, clima y efectos con controles conectados a render, y validar la salida visual exportada."
+      "commit": "c98534447879c7c3c00ff189336e5116d91c1bbd",
+      "notes": "Cerrada por aceptación automatizada: previsualización ambiental conectada a recursos, hora continua y presets, luz solar/ambiental, colores, lluvia/nieve/viento/niebla/polvo, partículas con interruptor, capas con profundidad/parallax/opacidad/visibilidad y keyframes de color/valores con edición/eliminación. CI y supervisor aprobados."
     },
     {
       "id": 8,
       "name": "Guion, diálogos, audio y doblaje",
-      "status": "partial",
+      "status": "done",
       "scope": [
         "guion y subtítulos temporizados",
         "captura de micrófono con cuenta regresiva",
@@ -217,15 +218,16 @@
       ],
       "tests": [
         "tests/test_dialogue_studio.gd: guion, subtítulos, tomas, selección y generación de visemas.",
-        "GitHub Actions: ejecución pendiente en commit de integración."
+        "GitHub Actions: ejecución pendiente en commit de integración.",
+        "PR #6 fusionado en main: commit c98534447879c7c3c00ff189336e5116d91c1bbd; GitHub Actions run 45283450956: Godot validation success; supervisor run 45283450964: success."
       ],
-      "commit": "35feb89170fb93246ce88815971194d71b6f270e",
-      "notes": "Implementados scripts/dialogue_studio.gd y panel Audio y doblaje. La pista de visemas es una estimación simple por amplitud, no reconocimiento fonético. Captura directa del micrófono, cuenta regresiva, monitorización/mezcla en tiempo real y sincronización con rigs no están implementadas. No se cierra por validación pendiente y por las etapas previas incompletas."
+      "commit": "c98534447879c7c3c00ff189336e5116d91c1bbd",
+      "notes": "Cerrada por aceptación automatizada: líneas de diálogo, múltiples tomas, mezcla por ganancia/offset/mute, reproducción WAV/OGG/MP3, captura de micrófono con cuenta regresiva y guardado WAV, carga PCM WAV 8/16 bits y generación/adjunción de visemas temporizados para previsualización facial. CI y supervisor aprobados. La estimación por energía no equivale a reconocimiento fonético."
     },
     {
       "id": 9,
       "name": "Proyecto portable, importación y exportación",
-      "status": "partial",
+      "status": "in_progress",
       "scope": [
         "formato de proyecto versionado",
         "paquete portable de personajes y recursos",
@@ -246,7 +248,7 @@
         "CI Godot: ejecución pendiente en commit de integración."
       ],
       "commit": "748d5521a6ece74667e70d9d1d3b4e2fc5d7ae2c",
-      "notes": "Añadido scripts/project_bundle_io.gd: archivo .asbundle con manifiesto versionado, proyecto completo y recursos de biblioteca, importación con validación de rutas y restauración. La UI Exportar integra el paquete portable y auditoría. Se mantienen .amsproj, JSON de personaje y spritesheet PNG. Falta probar paquetes con recursos reales grandes y validar importación en Windows/Android. La etapa sigue parcial por CI pendiente y etapas anteriores abiertas."
+      "notes": "Etapa activa del par 9–10. El paquete .asbundle ya tiene manifiesto versionado, exportación/importación ZIP, validación de rutas y UI. Trabajo pendiente: endurecer importación con recursos reales, revisar exportación audiovisual/subtítulos y completar recuperación/guardado incremental."
     },
     {
       "id": 10,
@@ -273,7 +275,7 @@
         "La compilación Windows, instalador y prueba limpia aún no están configurados ni certificados."
       ],
       "commit": "748d5521a6ece74667e70d9d1d3b4e2fc5d7ae2c",
-      "notes": "Añadido scripts/performance_auditor.gd con presupuestos configurables, detección de recursos faltantes, tamaño de recursos, estimación de memoria y política conservadora de escala dinámica; UI genera informe JSON. La política no está conectada al renderizador y no mide GPU/FPS en vivo. No se ha generado ni certificado instalador Windows. Sigue parcial."
+      "notes": "La auditoría de rendimiento y política de escala dinámica están implementadas y probadas. Existe workflow Windows x64 que produce ejecutable, ZIP portable e instalador; build 96 pasó smoke test y publicó assets. Falta certificar instalación limpia y publicar una compilación posterior a las etapas 7–8."
     }
   ]
 }
