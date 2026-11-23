@@ -18,7 +18,7 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	preview_viewport = SubViewport.new()
 	preview_viewport.size = VIEWPORT_SIZE
-	preview_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	preview_viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
 	add_child(preview_viewport)
 	preview_world = Node3D.new()
 	preview_viewport.add_child(preview_world)
@@ -164,10 +164,22 @@ func _gui_input(event: InputEvent) -> void:
 			_zoom_camera(1.14)
 			accept_event()
 	elif event is InputEventMouseMotion and is_dragging and is_instance_valid(model_pivot):
-		var delta: Vector2 = event.position - last_pointer
-		model_pivot.rotate_y(-delta.x * 0.012)
+		_rotate_from_pointer(event.position)
+		accept_event()
+	elif event is InputEventScreenTouch:
+		is_dragging = event.pressed
 		last_pointer = event.position
 		accept_event()
+	elif event is InputEventScreenDrag and is_dragging and is_instance_valid(model_pivot):
+		_rotate_from_pointer(event.position)
+		accept_event()
+
+func _rotate_from_pointer(pointer: Vector2) -> void:
+	if not is_instance_valid(model_pivot):
+		return
+	var delta := pointer - last_pointer
+	model_pivot.rotate_y(-delta.x * 0.012)
+	last_pointer = pointer
 
 func _zoom_camera(factor: float) -> void:
 	if not is_instance_valid(preview_camera):
