@@ -411,3 +411,43 @@ func _segmented_pivot_path(pivot_name: String) -> String:
 		"ankle_right": "Pivot_pelvis/Pivot_hip_right/Pivot_knee_right/Pivot_ankle_right"
 	}
 	return str(paths.get(pivot_name, "Pivot_" + pivot_name))
+
+func add_ai_animation_set(rig: Node2D, clips: Array) -> int:
+	var player := rig.get_node_or_null("AnimationPlayer") as AnimationPlayer
+	if player == null or not player.has_animation_library("base"):
+		return 0
+	var library := player.get_animation_library("base")
+	var added := 0
+	for clip in clips:
+		if not clip is Dictionary:
+			continue
+		var clip_name := "ai_" + str(clip.get("name", "generated")).validate_filename().to_lower()
+		var duration := clampf(float(clip.get("duration", 1.0)), 0.05, 60.0)
+		var keyframes: Array = clip.get("keyframes", [])
+		if keyframes.is_empty():
+			continue
+		var animation := Animation.new()
+		animation.length = duration
+		animation.loop_mode = Animation.LOOP_LINEAR if bool(clip.get("loop", true)) else Animation.LOOP_NONE
+		var tracks: Dictionary = {}
+		for keyframe in keyframes:
+			if not keyframe is Dictionary:
+				continue
+			var time := clampf(float(keyframe.get("time", 0.0)), 0.0, duration)
+			var angles: Dictionary = keyframe.get("joint_angles", {})
+			for joint_name in angles.keys():
+				var key := str(joint_name)
+				if not tracks.has(key):
+					var pivot := rig.find_child("Pivot_" + key, true, false)
+					var track_path := _segmented_pivot_path(key) if pivot != null else _bone_path(key)
+					var track := animation.add_track(Animation.TYPE_VALUE)
+					animation.track_set_path(track, NodePath(track_path + ":rotation"))
+					animation.track_set_interpolation_type(track, Animation.INTERPOLATION_CUBIC)
+					tracks[key] = track
+				animation.track_insert_key(int(tracks[key]), time, deg_to_rad(clampf(float(angles[joint_name]), -180.0, 180.0)))
+		if animation.get_track_count() > 0:
+			if library.has_animation(clip_name):
+				library.remove_animation(clip_name)
+			library.add_animation(clip_name, animation)
+			added += 1
+	return added
