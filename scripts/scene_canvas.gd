@@ -153,7 +153,6 @@ func _gui_input(event: InputEvent) -> void:
 					item["transform"]["y"] = drag_object_origin.y + point.y - drag_origin.y
 					break
 			queue_redraw()
-			composition_changed.emit()
 	elif event is InputEventScreenTouch:
 		if event.pressed:
 			var hit := _hit_test(event.position)
@@ -179,7 +178,6 @@ func _gui_input(event: InputEvent) -> void:
 				item["transform"]["y"] = drag_object_origin.y + point.y - drag_origin.y
 				break
 		queue_redraw()
-		composition_changed.emit()
 
 func reset_view() -> void:
 	zoom = 1.0
