@@ -7,14 +7,14 @@ class_name CharacterImageProcessor
 
 const MAX_PIXELS := 16000000
 
-func create_adjusted_texture(source_path: String, brightness: float = 0.0, contrast: float = 1.0, saturation: float = 1.0) -> String:
+func create_adjusted_texture(source_path: String, brightness: float = 1.0, contrast: float = 1.0, saturation: float = 1.0) -> String:
 	var image := Image.new()
 	if image.load(source_path) != OK:
 		return ""
 	image.convert(Image.FORMAT_RGBA8)
 	if image.get_width() * image.get_height() > MAX_PIXELS:
 		return ""
-	image.adjust_bcs(clampf(brightness, -1.0, 1.0), clampf(contrast, 0.5, 1.8), clampf(saturation, 0.0, 2.0))
+	image.adjust_bcs(clampf(brightness, 0.0, 2.0), clampf(contrast, 0.5, 1.8), clampf(saturation, 0.0, 2.0))
 	var output_dir := "user://character_parts/" + str(Time.get_unix_time_from_system()) + "_texture"
 	var absolute_dir := ProjectSettings.globalize_path(output_dir)
 	if DirAccess.make_dir_recursive_absolute(absolute_dir) != OK:
