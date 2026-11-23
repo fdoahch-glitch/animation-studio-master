@@ -70,7 +70,12 @@ func export_bundle(path: String, project: Dictionary) -> Dictionary:
 			writer.close()
 			_remove_partial_bundle(path)
 			return {"ok": false, "error": "No se pudo escribir un archivo en el paquete: %s" % error}
-		manifest.assets.append({"source_path": source, "entry": entry, "resource_id": str(source_item.get("resource_id", ""))})
+		var digest := _sha256(bytes)
+		if digest.is_empty():
+			writer.close()
+			_remove_partial_bundle(path)
+			return {"ok": false, "error": "No se pudo calcular la huella de un recurso."}
+		manifest.assets.append({"source_path": source, "entry": entry, "resource_id": str(source_item.get("resource_id", "")), "size_bytes": bytes.size(), "sha256": digest})
 	error = writer.start_file("project_manifest.json")
 	if error == OK:
 		error = writer.write_file(JSON.stringify(manifest, "\t").to_utf8_buffer())
@@ -103,9 +108,9 @@ func import_bundle(path: String, destination: String) -> Dictionary:
 		return {"ok": false, "error": str(validation.get("error", "Manifiesto inválido."))}
 	var project: Dictionary = parsed.project
 	var assets: Array = parsed.assets
-	if assets.size() > MAX_ARCHIVE_FILES - 1:
+	if assets.size() > MAX_ARCHIVE_FILES - 1 or names.size() != assets.size() + 1:
 		reader.close()
-		return {"ok": false, "error": "El manifiesto declara demasiados recursos."}
+		return {"ok": false, "error": "El paquete contiene entradas no declaradas o demasiados recursos."}
 	var seen_entries := {}
 	var seen_sources := {}
 	var total := 0
@@ -122,6 +127,12 @@ func import_bundle(path: String, destination: String) -> Dictionary:
 		if bytes.is_empty():
 			reader.close()
 			return {"ok": false, "error": "No se pudo leer un recurso del paquete: %s" % entry}
+		if item.has("size_bytes") and int(item.get("size_bytes", -1)) != bytes.size():
+			reader.close()
+			return {"ok": false, "error": "El tamaño de un recurso no coincide con el manifiesto: %s" % entry}
+		if item.has("sha256") and str(item.get("sha256", "")).to_lower() != _sha256(bytes):
+			reader.close()
+			return {"ok": false, "error": "La huella SHA-256 de un recurso no coincide: %s" % entry}
 		total += bytes.size()
 		if total > MAX_TOTAL_BYTES:
 			reader.close()
@@ -197,6 +208,12 @@ func validate_bundle_manifest(manifest: Dictionary) -> Dictionary:
 		var source := str(item.get("source_path", ""))
 		if not _is_safe_asset_entry(entry) or source.is_empty() or entries.has(entry) or sources.has(source):
 			return {"ok": false, "error": "El manifiesto contiene rutas vacías, duplicadas o no permitidas."}
+		if item.has("size_bytes") and int(item.get("size_bytes", -1)) < 0:
+			return {"ok": false, "error": "El manifiesto declara un tamaño de recurso inválido."}
+		if item.has("sha256"):
+			var digest := str(item.get("sha256", ""))
+			if digest.length() != 64 or digest.to_lower() != digest or not digest.is_valid_hex_number(false):
+				return {"ok": false, "error": "El manifiesto contiene una huella SHA-256 inválida."}
 		entries[entry] = true
 		sources[source] = true
 	return {"ok": true}
@@ -206,6 +223,14 @@ func _is_safe_asset_entry(entry: String) -> bool:
 		return false
 	var filename := entry.trim_prefix("assets/")
 	return not filename.is_empty() and not filename.contains("/") and filename != "." and filename != ".." and filename == filename.validate_filename()
+
+func _sha256(bytes: PackedByteArray) -> String:
+	var hashing := HashingContext.new()
+	if hashing.start(HashingContext.HASH_SHA256) != OK:
+		return ""
+	if hashing.update(bytes) != OK:
+		return ""
+	return hashing.finish().hex_encode()
 
 func _remove_partial_bundle(path: String) -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
