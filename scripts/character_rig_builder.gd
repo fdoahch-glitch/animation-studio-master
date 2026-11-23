@@ -367,7 +367,7 @@ func _make_pivot_animation(pose_data: Dictionary, duration: float, looping: bool
 	for pivot_name in pose_data.keys():
 		var values: Array = pose_data[pivot_name]
 		var track := animation.add_track(Animation.TYPE_VALUE)
-		animation.track_set_path(track, NodePath("Pivot_" + str(pivot_name) + ":rotation"))
+		animation.track_set_path(track, NodePath(_segmented_pivot_path(str(pivot_name)) + ":rotation"))
 		animation.track_set_interpolation_type(track, Animation.INTERPOLATION_CUBIC)
 		animation.track_insert_key(track, 0.0, float(values[0]))
 		animation.track_insert_key(track, duration * 0.5, float(values[1]))
@@ -377,9 +377,29 @@ func _make_pivot_animation(pose_data: Dictionary, duration: float, looping: bool
 func apply_segment_pose(rig: Node2D, joint_angles_degrees: Dictionary) -> int:
 	var applied := 0
 	for joint_name in joint_angles_degrees.keys():
-		var pivot := rig.get_node_or_null("Pivot_" + str(joint_name)) as Node2D
+		var pivot := rig.find_child("Pivot_" + str(joint_name), true, false) as Node2D
 		if pivot == null:
 			continue
 		pivot.rotation = deg_to_rad(clampf(float(joint_angles_degrees[joint_name]), -180.0, 180.0))
 		applied += 1
 	return applied
+
+func _segmented_pivot_path(pivot_name: String) -> String:
+	var paths := {
+		"pelvis": "Pivot_pelvis",
+		"torso": "Pivot_pelvis/Pivot_torso",
+		"head": "Pivot_pelvis/Pivot_torso/Pivot_head",
+		"shoulder_left": "Pivot_pelvis/Pivot_torso/Pivot_shoulder_left",
+		"elbow_left": "Pivot_pelvis/Pivot_torso/Pivot_shoulder_left/Pivot_elbow_left",
+		"wrist_left": "Pivot_pelvis/Pivot_torso/Pivot_shoulder_left/Pivot_elbow_left/Pivot_wrist_left",
+		"shoulder_right": "Pivot_pelvis/Pivot_torso/Pivot_shoulder_right",
+		"elbow_right": "Pivot_pelvis/Pivot_torso/Pivot_shoulder_right/Pivot_elbow_right",
+		"wrist_right": "Pivot_pelvis/Pivot_torso/Pivot_shoulder_right/Pivot_elbow_right/Pivot_wrist_right",
+		"hip_left": "Pivot_pelvis/Pivot_hip_left",
+		"knee_left": "Pivot_pelvis/Pivot_hip_left/Pivot_knee_left",
+		"ankle_left": "Pivot_pelvis/Pivot_hip_left/Pivot_knee_left/Pivot_ankle_left",
+		"hip_right": "Pivot_pelvis/Pivot_hip_right",
+		"knee_right": "Pivot_pelvis/Pivot_hip_right/Pivot_knee_right",
+		"ankle_right": "Pivot_pelvis/Pivot_hip_right/Pivot_knee_right/Pivot_ankle_right"
+	}
+	return str(paths.get(pivot_name, "Pivot_" + pivot_name))
