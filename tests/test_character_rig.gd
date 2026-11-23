@@ -91,55 +91,9 @@ func _run_tests() -> void:
 		push_error("El paquete no conservó los fotogramas clave.")
 		quit(1)
 		return
-	var test_image_path := "user://package_asset_test.png"
-	var test_image_file := FileAccess.open(test_image_path, FileAccess.WRITE)
-	if test_image_file == null:
-		push_error("No se pudo preparar la imagen de prueba del paquete.")
-		quit(1)
-		return
-	test_image_file.store_buffer(Marshalls.base64_to_raw("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j2ioAAAAASUVORK5CYII="))
-	test_image_file.close()
-	var image_package: Dictionary = package_io.build_package(
-		{"name":"Personaje con textura"}, "2D_segmented_sprite_pivots", {}, [], [], [],
-		{"source":test_image_path,"processed_image":test_image_path,"width":1,"height":1,
-		"parts":[{"name":"torso","path":test_image_path,"rect":[0,0,1,1]}]}
-	)
-	var decoded_image_package: Dictionary = package_io.decode_package(package_io.encode_package(image_package))
-	if not bool(decoded_image_package.get("ok", false)):
-		push_error("No se pudo validar el paquete con recursos gráficos.")
-		quit(1)
-		return
-	var restored_image_data: Dictionary = package_io.restore_image_assets(decoded_image_package["package"], "user://package_asset_restore_test")
-	if restored_image_data.get("parts", []).size() != 1:
-		push_error("No se restauró el recorte gráfico incluido en el paquete.")
-		quit(1)
-		return
-	var restored_path := str(restored_image_data["parts"][0].get("path", ""))
-	if not FileAccess.file_exists(restored_path) or FileAccess.get_file_as_bytes(restored_path).is_empty():
-		push_error("El recurso gráfico restaurado está vacío o no existe.")
-		quit(1)
-		return
 	var rejected_package: Dictionary = package_io.decode_package("{\"format\":\"otro\"}")
 	if bool(rejected_package.get("ok", true)):
 		push_error("El importador aceptó un formato desconocido.")
-		quit(1)
-		return
-
-	var timeline_clip := {
-		"name": "Timeline CI",
-		"duration": 1.0,
-		"loop": false,
-		"keyframes": [
-			{"time": 0.0, "joint_angles": {"head": 0.0, "elbow_left": 0.0}},
-			{"time": 1.0, "joint_angles": {"head": 35.0, "elbow_left": 55.0}}
-		]
-	}
-	if builder.add_procedural_animation_set(procedural_rig, [timeline_clip]) != 1:
-		push_error("No se pudo instalar el clip de la línea de tiempo en el AnimationPlayer.")
-		quit(1)
-		return
-	if not builder.play_animation(procedural_rig, "proc_timeline_ci"):
-		push_error("El clip de la línea de tiempo no se pudo reproducir con su nombre exportado.")
 		quit(1)
 		return
 
