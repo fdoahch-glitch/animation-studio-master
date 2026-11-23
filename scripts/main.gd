@@ -2925,11 +2925,15 @@ func _labeled_control(parent: Node, label_text: String, control: Control) -> HBo
 
 func _apply_environment_preset(preset: String) -> void:
 	var result=environment_director.set_time_preset(active_environment,preset)
-	if result.ok: _save_environment(); _set_status("Preset horario aplicado: "+preset)
+	if result.ok:
+		_save_environment()
+		_set_status("Preset horario aplicado: " + preset)
 
 func _save_environment() -> void:
 	var result=environment_director.validate_environment(active_environment)
-	if not result.ok: _set_status(str(result.error)); return
+	if not result.ok:
+		_set_status(str(result.error))
+		return
 	project_data["environments"]=[active_environment.duplicate(true)]
 	_save_project()
 
@@ -2973,7 +2977,15 @@ func _show_dialogue_studio() -> void:
 	finish.value=2.5
 	finish.prefix="Fin "
 	times.add_child(finish)
-	_add_button(page,"Añadir diálogo / subtítulo",func(): var result=dialogue_studio.add_line(active_script,speaker.text,line_text.text,start.value,finish.value); if result.ok: line_text.clear(); _refresh_dialogue_lines(); _save_dialogue_script(); else: _set_status(str(result.error)))
+	_add_button(page, "Añadir diálogo / subtítulo", func():
+		var result: Dictionary = dialogue_studio.add_line(active_script, speaker.text, line_text.text, start.value, finish.value)
+		if result.ok:
+			line_text.clear()
+			_refresh_dialogue_lines()
+			_save_dialogue_script()
+		else:
+			_set_status(str(result.error))
+	)
 	dialogue_line_list=ItemList.new()
 	dialogue_line_list.custom_minimum_size.y=180
 	page.add_child(dialogue_line_list)
@@ -2992,7 +3004,9 @@ func _refresh_dialogue_lines() -> void:
 	for line in active_script.get("lines",[]): dialogue_line_list.add_item("[%0.2f–%0.2f] %s: %s" % [float(line.start),float(line.end),str(line.speaker),str(line.text)])
 
 func _register_dialogue_take() -> void:
-	if active_script.get("lines",[]).is_empty(): _set_status("Añade primero un diálogo."); return
+	if active_script.get("lines", []).is_empty():
+		_set_status("Añade primero un diálogo.")
+		return
 	var dialog=FileDialog.new()
 	dialog.file_mode=FileDialog.FILE_MODE_OPEN_FILE
 	dialog.access=FileDialog.ACCESS_FILESYSTEM
@@ -3012,7 +3026,9 @@ func _register_dialogue_take() -> void:
 
 func _save_dialogue_script() -> void:
 	var result=dialogue_studio.validate_script(active_script)
-	if not result.ok: _set_status(str(result.error)); return
+	if not result.ok:
+		_set_status(str(result.error))
+		return
 	project_data["dialogue_scripts"]=[active_script.duplicate(true)]
 	_save_project()
 	_set_status("Guion guardado · %d líneas · %.2f s." % [result.line_count,result.duration])
