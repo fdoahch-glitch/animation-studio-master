@@ -62,3 +62,10 @@ Este módulo es un esqueleto espacial de referencia. No equivale a un modelo 3D 
 El editor muestra cuatro manejadores sobre los extremos de las cadenas (mano izquierda/derecha y pie izquierdo/derecho). Al iniciar el arrastre se detiene el ciclo activo y el solver geométrico de dos huesos calcula las posiciones de codo o rodilla y actualiza las rotaciones de la raíz y la articulación intermedia. Los objetivos fuera del alcance se proyectan al radio alcanzable; los límites `min_degrees` y `max_degrees` de cada pivote se respetan al aplicar la solución.
 
 La misma ruta de cálculo funciona con `2D_pivot_hierarchy` y `2D_segmented_sprite_pivots`. Las rotaciones resultantes siguen siendo parte de la pose del rig y pueden capturarse y reaplicarse desde el sistema existente de poses manuales. El cálculo es local y procedural; no llama a IA externa, modelos locales, servidores ni APIs.
+
+
+## Integridad de pistas y keyframes — refuerzo de etapa 4
+
+El muestreador de pistas rechaza tiempos no finitos y devuelve un resultado vacío para ellos, en vez de producir una pose impredecible. La validación exige tiempos estrictamente crecientes, por lo que los keyframes duplicados en un mismo instante se consideran inválidos; la inserción normal sigue reemplazando la clave existente en ese instante. Las pruebas de regresión cubren además las curvas `ease_out` y `ease_in_out`, junto con `linear`, `ease_in` y `step`.
+
+La vista previa de pistas trabaja sobre una copia de la composición y no modifica el documento original. El timeline de poses 2D/3D permanece separado y compatible.
