@@ -723,7 +723,7 @@ func _on_joint_slider_changed(value: float, joint_path: String) -> void:
 		pivot_key = "knee_left"
 	elif normalized.contains("knee_r"):
 		pivot_key = "knee_right"
-	if pivot_key != "" and runtime_rig.has_node("Pivot_" + pivot_key):
+	if pivot_key != "" and runtime_rig.find_child("Pivot_" + pivot_key, true, false) != null:
 		rig_builder.apply_segment_pose(runtime_rig, {pivot_key: value})
 	else:
 		rig_builder.set_joint_rotation(runtime_rig, NodePath(joint_path), value)
