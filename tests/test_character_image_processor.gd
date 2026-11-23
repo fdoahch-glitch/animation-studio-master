@@ -3,16 +3,16 @@ extends SceneTree
 const PROCESSOR = preload("res://scripts/character_image_processor.gd")
 
 func _initialize() -> void:
+	call_deferred("_run")
+
+func _run() -> void:
 	var processor = PROCESSOR.new()
 	var source_path := "user://character_image_processor_test.png"
-	var image := Image.create(128, 160, false, Image.FORMAT_RGBA8)
+	var image := Image.create(64, 96, false, Image.FORMAT_RGBA8)
 	image.fill(Color.WHITE)
-	for y in range(18, 145):
-		for x in range(28, 101):
-			var dx := (float(x) - 64.0) / 34.0
-			var dy := (float(y) - 82.0) / 63.0
-			if dx * dx + dy * dy <= 1.0:
-				image.set_pixel(x, y, Color("#2478b8"))
+	for y in range(12, 85):
+		for x in range(18, 47):
+			image.set_pixel(x, y, Color("#2478b8"))
 	assert(image.save_png(source_path) == OK, "Debe crear la imagen sintética de prueba")
 
 	var adjusted_path: String = processor.create_adjusted_texture(source_path, 0.05, 1.1, 1.15)
