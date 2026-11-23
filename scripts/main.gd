@@ -1396,7 +1396,13 @@ func _export_character_package_to_path(path: String) -> void:
 	if character.is_empty() and not project_data.get("characters", []).is_empty():
 		character = project_data["characters"][-1].duplicate(true)
 	var angles: Dictionary = rig_builder.capture_procedural_pose(runtime_rig) if is_instance_valid(runtime_rig) else {}
-	var rig_type := str(runtime_rig.get_meta("rig_type", "2D_pivot_hierarchy")) if is_instance_valid(runtime_rig) else str(character.get("rig", {}).get("type", "not_built"))
+	var rig_type := "not_built"
+	if is_instance_valid(runtime_spatial_rig):
+		rig_type = str(runtime_spatial_rig.get_meta("rig_type", "3D_segmented_skeleton"))
+	elif is_instance_valid(runtime_rig):
+		rig_type = str(runtime_rig.get_meta("rig_type", "2D_pivot_hierarchy"))
+	else:
+		rig_type = str(character.get("rig", {}).get("type", "not_built"))
 	var package: Dictionary = package_io.build_package(
 		character, rig_type, angles,
 		procedural_poses,
@@ -1413,7 +1419,9 @@ func _export_character_package_to_path(path: String) -> void:
 		return
 	file.store_string(package_io.encode_package(package))
 	file.close()
-	_set_status("Paquete exportado: personaje, articulaciones, poses y clips. Copia también las imágenes fuente si usas texturas importadas.")
+	var embedded_assets: Dictionary = package.get("assets", {})
+	var asset_status := " Recursos gráficos incrustados." if not embedded_assets.is_empty() else " Sin imágenes incrustadas; si el personaje usa texturas, copia los archivos fuente."
+	_set_status("Paquete exportado: personaje, rig, poses y clips 2D/3D." + asset_status)
 
 func _import_character_package_from_path(path: String) -> void:
 	var file := FileAccess.open(path, FileAccess.READ)
