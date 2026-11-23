@@ -27,6 +27,7 @@ var procedural_animator
 var imported_source_path := ""
 var image_dialog: FileDialog
 var model_3d_dialog: FileDialog
+var model_3d_export_dialog: FileDialog
 var imported_preview: TextureRect
 var image_result_output: RichTextLabel
 var build_segmented_button: Button
@@ -144,6 +145,13 @@ func _ready() -> void:
 	model_3d_dialog.filters = PackedStringArray(["*.glb, *.gltf ; Modelos 3D glTF/GLB"])
 	model_3d_dialog.file_selected.connect(_on_3d_model_selected)
 	add_child(model_3d_dialog)
+	model_3d_export_dialog = FileDialog.new()
+	model_3d_export_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	model_3d_export_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	model_3d_export_dialog.filters = PackedStringArray(["*.glb ; Modelo 3D glTF binario"])
+	model_3d_export_dialog.current_file = "personaje_animation_studio.glb"
+	model_3d_export_dialog.file_selected.connect(_export_3d_model_to_path)
+	add_child(model_3d_export_dialog)
 	package_export_dialog = FileDialog.new()
 	package_export_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
 	package_export_dialog.access = FileDialog.ACCESS_FILESYSTEM
@@ -381,6 +389,7 @@ func _show_character_lab() -> void:
 	character_view.item_selected.connect(_on_character_view_changed)
 	_add_button(form, "Importar imagen y preparar piezas", _open_character_image_dialog)
 	_add_button(form, "Importar modelo 3D (GLB / glTF)", _open_3d_model_dialog)
+	_add_button(form, "Exportar modelo 3D (GLB)", _open_3d_model_export_dialog)
 	build_segmented_button = _add_button(form, "Construir rig con las piezas recortadas", _build_imported_segment_rig)
 	build_segmented_button.disabled = true
 	_add_button(form, "Generar poses y animaciones procedurales", _generate_procedural_pose_set)
@@ -705,6 +714,35 @@ func _apply_texture_adjustments() -> void:
 	_save_project()
 	_set_status("Textura ajustada y recortes regenerados. Ya puedes reconstruir el rig.")
 
+
+func _open_3d_model_export_dialog() -> void:
+	if not is_instance_valid(runtime_spatial_rig):
+		_set_status("Primero importa o construye un modelo 3D.")
+		return
+	if is_instance_valid(model_3d_export_dialog):
+		var base_name := str(generated_character.get("name", "personaje")).validate_filename()
+		model_3d_export_dialog.current_file = (base_name if base_name != "" else "personaje") + ".glb"
+		model_3d_export_dialog.popup_centered_ratio(0.82)
+
+func _export_3d_model_to_path(path: String) -> void:
+	if not is_instance_valid(runtime_spatial_rig):
+		_set_status("No hay un modelo 3D activo para exportar.")
+		return
+	if is_instance_valid(runtime_spatial_animator):
+		runtime_spatial_animator.stop_animation()
+	if is_instance_valid(runtime_imported_3d_animation_player):
+		runtime_imported_3d_animation_player.stop()
+	var document := GLTFDocument.new()
+	var state := GLTFState.new()
+	var append_error := document.append_from_scene(runtime_spatial_rig, state)
+	if append_error != OK:
+		_set_status("No se pudo preparar la escena para GLB. Código: %d" % append_error)
+		return
+	var write_error := document.write_to_filesystem(state, path)
+	if write_error != OK:
+		_set_status("No se pudo escribir el modelo GLB. Código: %d" % write_error)
+		return
+	_set_status("Modelo 3D exportado a GLB. Exporta también el paquete JSON para conservar poses y clips procedurales.")
 
 func _open_3d_model_dialog() -> void:
 	if is_instance_valid(model_3d_dialog):
