@@ -122,7 +122,7 @@ func _run_tests() -> void:
 	var left_hand_root := sprite_rig.find_child("Pivot_shoulder_left", true, false) as Node2D
 	var left_hand_joint := sprite_rig.find_child("Pivot_elbow_left", true, false) as Node2D
 	var left_hand_end := sprite_rig.find_child("Pivot_wrist_left", true, false) as Node2D
-	if left_hand_root == null or left_hand_joint == null or left_hand_end == null or left_hand_root.position.distance_to(left_hand_joint.position) < 1.0 or left_hand_joint.position.distance_to(left_hand_end.position) < 1.0:
+	if left_hand_root == null or left_hand_joint == null or left_hand_end == null or left_hand_joint.position.length() < 1.0 or left_hand_end.position.length() < 1.0:
 		push_error("La cadena IK segmentada no tiene longitudes válidas.")
 		quit(1)
 		return
