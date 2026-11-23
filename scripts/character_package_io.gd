@@ -151,7 +151,7 @@ func restore_image_assets(package_data: Dictionary, target_directory: String) ->
 		var safe_name := str(key).validate_filename()
 		if safe_name == "":
 			continue
-		var output_path := target_directory.path_join(safe_name + ".bin")
+		var output_path := target_directory.path_join(safe_name)
 		var bytes := Marshalls.base64_to_raw(str(assets[key]))
 		if bytes.is_empty():
 			continue
