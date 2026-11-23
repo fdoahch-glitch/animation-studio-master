@@ -1,4 +1,4 @@
-extends Node
+extends RefCounted
 class_name CharacterBlueprintBuilder
 
 ## Plantillas procedurales y preparación de prompts. La generación visual requiere un proveedor externo configurado.
