@@ -24,6 +24,40 @@ func add_background_layer(environment: Dictionary, resource_id: String, depth: f
  environment.background_layers.sort_custom(func(a,b): return float(a.depth)<float(b.depth))
  return {"ok":true,"layer":layer}
 
+func set_hour(environment: Dictionary, hour: float) -> Dictionary:
+ if not is_finite(hour):
+  return {"ok":false,"error":"La hora debe ser finita."}
+ var normalized_hour := fposmod(hour, 24.0)
+ var points := [
+  {"hour":6.0,"preset":"dawn"},
+  {"hour":9.0,"preset":"morning"},
+  {"hour":12.0,"preset":"noon"},
+  {"hour":16.0,"preset":"afternoon"},
+  {"hour":19.0,"preset":"sunset"},
+  {"hour":23.0,"preset":"night"},
+  {"hour":30.0,"preset":"dawn"}
+ ]
+ var sample_hour := normalized_hour + 24.0 if normalized_hour < 6.0 else normalized_hour
+ var left: Dictionary = points[0]
+ var right: Dictionary = points[-1]
+ for index in range(points.size() - 1):
+  if sample_hour >= float(points[index].hour) and sample_hour <= float(points[index + 1].hour):
+   left = points[index]
+   right = points[index + 1]
+   break
+ var first: Dictionary = PRESETS[str(left.preset)]
+ var second: Dictionary = PRESETS[str(right.preset)]
+ var span := float(right.hour) - float(left.hour)
+ var amount := clampf((sample_hour - float(left.hour)) / span, 0.0, 1.0) if span > 0.0001 else 0.0
+ environment["hour"] = normalized_hour
+ for key in ["sun_energy", "ambient_energy"]:
+  environment[key] = lerpf(float(first[key]), float(second[key]), amount)
+ for key in ["sun_color", "sky_color"]:
+  var a: Array = first[key]
+  var b: Array = second[key]
+  environment[key] = [lerpf(float(a[0]), float(b[0]), amount), lerpf(float(a[1]), float(b[1]), amount), lerpf(float(a[2]), float(b[2]), amount)]
+ return {"ok":true,"hour":normalized_hour,"from":str(left.preset),"to":str(right.preset),"blend":amount}
+
 func set_time_preset(environment: Dictionary, preset: String) -> Dictionary:
  if not PRESETS.has(preset): return {"ok":false,"error":"Preset horario desconocido."}
  for key in PRESETS[preset]: environment[key]=PRESETS[preset][key].duplicate(true) if PRESETS[preset][key] is Array else PRESETS[preset][key]
