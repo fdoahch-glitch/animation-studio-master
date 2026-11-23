@@ -1,0 +1,17 @@
+extends SceneTree
+const STUDIO=preload("res://scripts/dialogue_studio.gd")
+func _initialize():
+ var studio=STUDIO.new()
+ var script=studio.create_script("Piloto")
+ var line=studio.add_line(script,"Narrador","Una nueva aventura comienza.",0.0,2.5,"char_1")
+ assert(line.ok)
+ assert(studio.validate_script(script).ok)
+ var take=studio.add_take(script,line.line.id,"user://voice/take_01.wav",2.4,1,"Toma inicial")
+ assert(take.ok)
+ assert(studio.validate_audio_track(take.track).ok)
+ assert(studio.select_take(script,line.line.id,take.track.id).ok)
+ var visemes=studio.build_viseme_track(PackedVector2Array([Vector2(0.0,0),Vector2(0.4,0),Vector2(0.8,0)]),30)
+ assert(visemes.size()==3)
+ assert(not studio.add_line(script,"","",0,1).ok)
+ print("DIALOGUE_STUDIO_TESTS_OK")
+ quit(0)
