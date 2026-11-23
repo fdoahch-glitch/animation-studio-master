@@ -33,3 +33,8 @@ La CI ejecuta esta prueba junto con las pruebas de proyecto, escenas, biblioteca
 ## Retargeting de clips completos
 
 El retargeter convierte bibliotecas de keyframes de animación 3D, traduce nombres de huesos mediante equivalencias canónicas, conserva duración/bucle/tiempos, permite escala y offset de rotación e informa huesos sin equivalencia. El estudio permite guardar los ciclos procedurales convertidos con el último perfil de retargeting. Prueba: `tests/test_spatial_retargeting.gd`.
+
+
+## Transiciones suaves entre clips 3D
+
+El animador espacial admite fundido cruzado de pose al cambiar entre ciclos y clips, con duración configurable (por defecto 0,18 s). La interpolación combina rotaciones por hueso y evita saltos bruscos entre animaciones. Prueba de interpolación: `tests/test_spatial_retargeting.gd`.

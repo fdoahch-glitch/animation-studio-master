@@ -14,6 +14,10 @@ var active_clip: Dictionary = {}
 var model_root: Node3D
 var blend_shape_targets: Array[Dictionary] = []
 var facial_expression_values: Dictionary = {}
+var blend_from_pose: Dictionary = {}
+var blend_elapsed := 0.0
+var blend_duration := 0.0
+var blend_active := false
 
 const FACIAL_EXPRESSIONS := {
 	"Neutral": {"neutral": 1.0},
@@ -120,6 +124,7 @@ func apply_pose(pose: Dictionary) -> int:
 	playing = false
 	active_clip.clear()
 	current_cycle = ""
+	_clear_pose_blend()
 	_reset_skeleton_pose()
 	var rotations: Variant = pose.get("bone_rotations_degrees", pose)
 	if not rotations is Dictionary:
@@ -147,12 +152,14 @@ func capture_pose() -> Dictionary:
 		result[name] = [snappedf(euler.x, 0.01), snappedf(euler.y, 0.01), snappedf(euler.z, 0.01)]
 	return result
 
-func play_animation(animation_name: String, custom_speed: float = 1.0, intensity: float = 1.0) -> bool:
+func play_animation(animation_name: String, custom_speed: float = 1.0, intensity: float = 1.0, crossfade_seconds: float = 0.18) -> bool:
 	var key := animation_name.to_lower().strip_edges()
 	var available_cycles := QUADRUPED_CYCLE_NAMES if _is_quadruped() else HUMANOID_CYCLE_NAMES
 	if not available_cycles.has(key) or not is_instance_valid(skeleton):
 		return false
+	var starting_pose := capture_pose()
 	_stop_imported_animation()
+	_begin_pose_blend(starting_pose, crossfade_seconds)
 	current_cycle = key
 	active_clip.clear()
 	elapsed = 0.0
@@ -167,12 +174,15 @@ func stop_animation() -> void:
 	playing = false
 	current_cycle = ""
 	active_clip.clear()
+	_clear_pose_blend()
 	_reset_skeleton_pose()
 
-func play_clip(clip: Dictionary, custom_speed: float = 1.0) -> bool:
+func play_clip(clip: Dictionary, custom_speed: float = 1.0, crossfade_seconds: float = 0.18) -> bool:
 	if not is_instance_valid(skeleton) or clip.get("keyframes", []).is_empty():
 		return false
+	var starting_pose := capture_pose()
 	_stop_imported_animation()
+	_begin_pose_blend(starting_pose, crossfade_seconds)
 	active_clip = clip.duplicate(true)
 	current_cycle = ""
 	elapsed = 0.0
@@ -196,13 +206,13 @@ func _process(delta: float) -> void:
 				elapsed = fposmod(elapsed, duration)
 			else:
 				elapsed = duration
-				_apply_runtime_rotations(_sample_clip_pose(active_clip, elapsed))
+				_apply_blended_pose(_sample_clip_pose(active_clip, elapsed), delta)
 				playing = false
 				return
-		_apply_runtime_rotations(_sample_clip_pose(active_clip, elapsed))
+		_apply_blended_pose(_sample_clip_pose(active_clip, elapsed), delta)
 		return
 	var pose := _sample_cycle(current_cycle, elapsed, motion_intensity)
-	_apply_runtime_rotations(pose)
+	_apply_blended_pose(pose, delta)
 	_update_cycle_facial_expression(current_cycle, elapsed)
 	if current_cycle == "jump" and elapsed >= 1.2:
 		playing = false
@@ -239,6 +249,42 @@ func _sample_clip_pose(clip: Dictionary, time: float) -> Dictionary:
 		if not result.has(bone_name):
 			result[str(bone_name)] = _as_vector3(b[bone_name])
 	return result
+
+func blend_pose(source_pose: Dictionary, target_pose: Dictionary, amount: float) -> Dictionary:
+	var weight := clampf(amount, 0.0, 1.0)
+	var result := {}
+	var bone_names: Dictionary = {}
+	for bone_name in source_pose.keys():
+		bone_names[str(bone_name)] = true
+	for bone_name in target_pose.keys():
+		bone_names[str(bone_name)] = true
+	for bone_name in bone_names.keys():
+		var source_rotation := _as_vector3(source_pose.get(bone_name, target_pose.get(bone_name, Vector3.ZERO)))
+		var target_rotation := _as_vector3(target_pose.get(bone_name, source_rotation))
+		result[str(bone_name)] = source_rotation.lerp(target_rotation, weight)
+	return result
+
+func _begin_pose_blend(source_pose: Dictionary, duration: float) -> void:
+	blend_from_pose = source_pose.duplicate(true)
+	blend_elapsed = 0.0
+	blend_duration = maxf(0.0, duration)
+	blend_active = blend_duration > 0.001 and not blend_from_pose.is_empty()
+
+func _clear_pose_blend() -> void:
+	blend_from_pose.clear()
+	blend_elapsed = 0.0
+	blend_duration = 0.0
+	blend_active = false
+
+func _apply_blended_pose(target_pose: Dictionary, delta: float) -> void:
+	if not blend_active:
+		_apply_runtime_rotations(target_pose)
+		return
+	blend_elapsed += maxf(0.0, delta)
+	var amount := clampf(blend_elapsed / maxf(blend_duration, 0.001), 0.0, 1.0)
+	_apply_runtime_rotations(blend_pose(blend_from_pose, target_pose, amount))
+	if amount >= 1.0:
+		_clear_pose_blend()
 
 func _apply_runtime_rotations(pose: Dictionary) -> void:
 	_reset_skeleton_pose()

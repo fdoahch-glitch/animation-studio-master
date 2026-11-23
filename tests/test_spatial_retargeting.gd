@@ -54,6 +54,8 @@ func _initialize() -> void:
  assert(converted_clip_result.unmapped_bones.has("Head"), "Debe informar huesos sin equivalencia")
  assert(clip.keyframes[0].bone_rotations_degrees.has("Pelvis"), "El retargeting no debe modificar el clip original")
  var retargeted_animator = ANIMATOR.new()
+ var blend_sample: Dictionary = retargeted_animator.blend_pose({"Pelvis": [0.0, 0.0, 0.0]}, {"Pelvis": [0.0, 90.0, 0.0]}, 0.5)
+ assert(is_equal_approx(float(blend_sample.Pelvis[1]), 45.0), "Las poses deben interpolarse suavemente")
  retargeted_animator.configure(source)
  assert(retargeted_animator.play_clip(converted_clip_result.clip), "El clip retargeteado debe poder reproducirse en un esqueleto compatible")
  retargeted_animator.stop_animation()
