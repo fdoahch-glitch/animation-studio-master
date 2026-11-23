@@ -60,6 +60,7 @@ func _initialize() -> void:
 	pan_release.position = Vector2(435, 325)
 	interactive._gui_input(pan_release)
 	assert(interactive.pan == Vector2(35, 25), "El botón derecho debe desplazar la cámara")
+	interactive.reset_view()
 	var press := InputEventMouseButton.new()
 	press.button_index = MOUSE_BUTTON_LEFT
 	press.pressed = true
