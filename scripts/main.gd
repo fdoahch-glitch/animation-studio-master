@@ -919,7 +919,7 @@ func _on_timeline_playhead_changed(value: float) -> void:
 	if is_instance_valid(timeline_time_input):
 		timeline_time_input.set_value_no_signal(value)
 	var clip := _active_timeline_clip()
-	if clip.is_empty() or not is_instance_valid(runtime_rig):
+	if clip.is_empty() or (not is_instance_valid(runtime_rig) and not is_instance_valid(runtime_spatial_animator)):
 		return
 	if is_instance_valid(runtime_spatial_animator):
 		var spatial_pose: Dictionary = timeline_model.sample_pose(clip, value, "bone_rotations_degrees")
@@ -939,7 +939,7 @@ func _on_timeline_key_selected(index: int) -> void:
 
 func _capture_timeline_keyframe() -> void:
 	var clip := _active_timeline_clip()
-	if clip.is_empty() or not is_instance_valid(runtime_rig):
+	if clip.is_empty() or (not is_instance_valid(runtime_rig) and not is_instance_valid(runtime_spatial_animator)):
 		_set_status("Crea un clip y un rig antes de capturar fotogramas.")
 		return
 	var at := clampf(timeline_time_input.value, 0.0, float(clip.get("duration", 2.0)))
@@ -968,7 +968,7 @@ func _delete_timeline_keyframe() -> void:
 
 func _play_timeline_clip() -> void:
 	var clip := _active_timeline_clip()
-	if clip.is_empty() or clip.get("keyframes", []).is_empty() or not is_instance_valid(runtime_rig):
+	if clip.is_empty() or clip.get("keyframes", []).is_empty() or (not is_instance_valid(runtime_rig) and not is_instance_valid(runtime_spatial_animator)):
 		_set_status("El clip necesita al menos un fotograma clave y un rig.")
 		return
 	var speed := animation_speed_slider.value if is_instance_valid(animation_speed_slider) else 1.0
