@@ -91,5 +91,17 @@ func validate_segmentation_result(data: Dictionary, image_size: Vector2i) -> Dic
 		if rect.end.x > image_size.x or rect.end.y > image_size.y:
 			rejected.append(part_name + ": fuera de los límites de la imagen")
 			continue
-		accepted.append({"name": part_name, "rect": rect, "confidence": clampf(float(segment.get("confidence", 0.0)), 0.0, 1.0)})
-	return {"accepted": accepted, "rejected": rejected, "valid": not accepted.is_empty()}
+		var accepted_segment := {"name": part_name, "rect": rect, "confidence": clampf(float(segment.get("confidence", 0.0)), 0.0, 1.0)}
+		if segment.has("mask_png_base64"):
+			accepted_segment["mask_png_base64"] = str(segment.mask_png_base64)
+		accepted.append(accepted_segment)
+	var joints: Dictionary = {}
+	var raw_joints: Variant = data.get("joints", {})
+	if raw_joints is Dictionary:
+		for joint_name in raw_joints.keys():
+			var point_data: Variant = raw_joints[joint_name]
+			if point_data is Array and point_data.size() == 2:
+				var point := Vector2(float(point_data[0]), float(point_data[1]))
+				if point.x >= 0.0 and point.y >= 0.0 and point.x < image_size.x and point.y < image_size.y:
+					joints[str(joint_name)] = [point.x, point.y]
+	return {"accepted": accepted, "rejected": rejected, "joints": joints, "valid": not accepted.is_empty()}
