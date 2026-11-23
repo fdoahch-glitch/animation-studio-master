@@ -139,7 +139,7 @@ func _make_animation(pose_data: Dictionary, duration: float, looping: bool) -> A
 	for bone_name in pose_data.keys():
 		var values: Array = pose_data[bone_name]
 		var track := animation.add_track(Animation.TYPE_VALUE)
-		animation.track_set_path(track, NodePath(str(bone_name) + ":rotation"))
+		animation.track_set_path(track, NodePath(_bone_path(str(bone_name)) + ":rotation"))
 		animation.track_set_interpolation_type(track, Animation.INTERPOLATION_CUBIC)
 		animation.track_insert_key(track, 0.0, float(values[0]))
 		animation.track_insert_key(track, duration * 0.5, float(values[1]))
@@ -161,6 +161,24 @@ func stop_animation(rig: Node2D) -> void:
 
 func list_animations() -> Array[String]:
 	return ["idle", "walk", "run", "jump", "talk", "wave"]
+
+func _bone_path(bone_name: String) -> String:
+	var paths := {
+		"Pelvis": "Pelvis",
+		"Spine": "Pelvis/Spine",
+		"Chest": "Pelvis/Spine/Chest",
+		"Neck": "Pelvis/Spine/Chest/Neck",
+		"Head": "Pelvis/Spine/Chest/Neck/Head",
+		"Shoulder_L": "Pelvis/Spine/Chest/Shoulder_L",
+		"Elbow_L": "Pelvis/Spine/Chest/Shoulder_L/Elbow_L",
+		"Shoulder_R": "Pelvis/Spine/Chest/Shoulder_R",
+		"Elbow_R": "Pelvis/Spine/Chest/Shoulder_R/Elbow_R",
+		"Hip_L": "Pelvis/Hip_L",
+		"Knee_L": "Pelvis/Hip_L/Knee_L",
+		"Hip_R": "Pelvis/Hip_R",
+		"Knee_R": "Pelvis/Hip_R/Knee_R"
+	}
+	return str(paths.get(bone_name, bone_name))
 
 func _safe_name(value: String) -> String:
 	var result := value.strip_edges().replace(" ", "_")
