@@ -45,7 +45,7 @@ godot --headless --path . --script res://tests/test_timeline_tracks.gd
 
 ## Windows
 
-Las versiones preliminares verificadas se publican en GitHub Releases con `AnimationStudioMaster.exe` y el paquete ZIP x64. Se debe comprobar que el workflow **Windows desktop build** correspondiente al último commit haya terminado correctamente y que los archivos estén cargados antes de considerar disponible una compilación.
+Las versiones preliminares verificadas se publican en GitHub Releases con `AnimationStudioMaster.exe`, el paquete ZIP x64 y `AnimationStudioMaster-Setup-x64.exe` (instalador Inno Setup). El instalador aún no está firmado digitalmente, por lo que Windows SmartScreen puede mostrar una advertencia. Se debe comprobar que el workflow **Windows desktop build** correspondiente al último commit haya terminado correctamente y que los tres archivos estén cargados antes de considerar disponible una compilación.
 
 ## Documentación
 

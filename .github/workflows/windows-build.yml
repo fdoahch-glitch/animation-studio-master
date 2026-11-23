@@ -74,6 +74,33 @@ jobs:
             throw "Windows ZIP package was not created."
           }
 
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          $compiler = Join-Path ([Environment]::GetFolderPath("ProgramFilesX86")) "Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $compiler)) { throw "Inno Setup compiler not found: $compiler" }
+          & $compiler "installer\AnimationStudioMaster.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed with exit code $LASTEXITCODE" }
+          if (-not (Test-Path "build\AnimationStudioMaster-Setup-x64.exe")) { throw "Installer executable was not generated." }
+
+      - name: Smoke test Windows installer
+        shell: pwsh
+        run: |
+          $installDir = Join-Path $PWD "build\installer-smoke-test"
+          $installer = Join-Path $PWD "build\AnimationStudioMaster-Setup-x64.exe"
+          $install = Start-Process -FilePath $installer -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=$installDir") -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Silent installation failed with exit code $($install.ExitCode)" }
+          $installedExe = Join-Path $installDir "AnimationStudioMaster.exe"
+          if (-not (Test-Path $installedExe)) { throw "The installer did not place the application executable." }
+          $launch = Start-Process -FilePath $installedExe -ArgumentList @("--headless", "--quit-after", "3") -Wait -PassThru
+          if ($launch.ExitCode -ne 0) { throw "Installed application failed headless startup with exit code $($launch.ExitCode)" }
+          $uninstaller = Join-Path $installDir "unins000.exe"
+          if (Test-Path $uninstaller) {
+            $remove = Start-Process -FilePath $uninstaller -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") -Wait -PassThru
+            if ($remove.ExitCode -ne 0) { throw "Silent uninstall failed with exit code $($remove.ExitCode)" }
+          }
+
       - name: Upload Windows executable
         uses: actions/upload-artifact@v4
         with:
@@ -81,6 +108,8 @@ jobs:
           path: |
             build/AnimationStudioMaster.exe
             build/AnimationStudioMaster-Windows-x64.zip
+            build/AnimationStudioMaster-Setup-x64.exe
+            build/AnimationStudioMaster-Setup-x64.exe
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
