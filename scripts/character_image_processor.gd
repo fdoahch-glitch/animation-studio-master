@@ -153,35 +153,3 @@ func image_limit_x(bounds: Rect2i) -> int:
 func image_limit_y(bounds: Rect2i) -> int:
 	return bounds.position.y + bounds.size.y
 
-func save_provider_segments(source_path: String, segments: Array[Dictionary]) -> Array[Dictionary]:
-	var source := Image.new()
-	if source.load(source_path) != OK:
-		return []
-	source.convert(Image.FORMAT_RGBA8)
-	var output_dir := "user://character_parts/ai_" + str(Time.get_unix_time_from_system())
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(output_dir))
-	var saved: Array[Dictionary] = []
-	for segment in segments:
-		var rect: Rect2i = segment.rect
-		var crop := source.get_region(rect)
-		var mask_data := str(segment.get("mask_png_base64", ""))
-		if mask_data != "":
-			var mask := Image.new()
-			var mask_error := mask.load_png_from_buffer(Marshalls.base64_to_raw(mask_data))
-			if mask_error == OK and mask.get_size() == crop.get_size():
-				mask.convert(Image.FORMAT_RGBA8)
-				var mask_uses_alpha := mask.detect_alpha()
-				for py in range(crop.get_height()):
-					for px in range(crop.get_width()):
-						var mask_color := mask.get_pixel(px, py)
-						var mask_alpha := mask_color.a if mask_uses_alpha else (mask_color.r * 0.299 + mask_color.g * 0.587 + mask_color.b * 0.114)
-						var pixel := crop.get_pixel(px, py)
-						pixel.a *= mask_alpha
-						crop.set_pixel(px, py, pixel)
-		var name := str(segment.name).validate_filename()
-		if name == "":
-			name = "part_" + str(saved.size())
-		var path := output_dir.path_join(name + ".png")
-		if crop.save_png(path) == OK:
-			saved.append({"name": name, "path": path, "confidence": segment.confidence, "rect": [rect.position.x, rect.position.y, rect.size.x, rect.size.y]})
-	return saved
