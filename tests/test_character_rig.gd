@@ -5,6 +5,7 @@ const IMAGE_PROCESSOR = preload("res://scripts/character_image_processor.gd")
 const SPATIAL_BUILDER = preload("res://scripts/character_spatial_rig_builder.gd")
 const PROCEDURAL_ANIMATOR = preload("res://scripts/character_procedural_animator.gd")
 const IK_DRAG_OVERLAY = preload("res://scripts/ik_drag_overlay.gd")
+const ANIMATION_TIMELINE = preload("res://scripts/animation_timeline.gd")
 
 func _initialize() -> void:
 	call_deferred("_run_tests")
@@ -49,6 +50,25 @@ func _run_tests() -> void:
 		return
 	if not builder.play_animation(procedural_rig, "proc_caminar", 1.4):
 		push_error("No se pudo reproducir el ciclo procedural Caminar.")
+		quit(1)
+		return
+
+	var timeline = ANIMATION_TIMELINE.new()
+	var keys: Array = timeline.insert_keyframe([], 0.0, {"head": 0.0, "torso": 0.0})
+	keys = timeline.insert_keyframe(keys, 2.0, {"head": 90.0, "torso": 30.0})
+	keys = timeline.insert_keyframe(keys, 1.0, {"head": 45.0, "torso": 15.0})
+	if keys.size() != 3 or not is_equal_approx(float(keys[1].time), 1.0):
+		push_error("La línea de tiempo no ordena correctamente los fotogramas clave.")
+		quit(1)
+		return
+	var mid_pose: Dictionary = timeline.sample_pose({"keyframes": keys}, 1.5)
+	if not is_equal_approx(float(mid_pose.get("head", 0.0)), 67.5):
+		push_error("La interpolación de poses no coincide con el valor esperado.")
+		quit(1)
+		return
+	keys = timeline.remove_keyframe(keys, 1)
+	if keys.size() != 2:
+		push_error("No se pudo eliminar un fotograma clave.")
 		quit(1)
 		return
 
