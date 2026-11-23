@@ -38,6 +38,10 @@ var motion_intensity_slider: HSlider
 var custom_pose_name_input: LineEdit
 var joint_picker: OptionButton
 var joint_axis_picker: OptionButton
+var ik_chain_picker: OptionButton
+var ik_target_x: SpinBox
+var ik_target_y: SpinBox
+var ik_target_z: SpinBox
 var joint_angle_slider: HSlider
 var joint_angle_spin: SpinBox
 var joint_undo_stack: Array[Dictionary] = []
@@ -535,6 +539,26 @@ func _show_character_lab() -> void:
 		_on_joint_editor_selection_changed(joint_picker.selected if is_instance_valid(joint_picker) else 0)
 	)
 	joint_axis_row.add_child(joint_axis_picker)
+	var ik_title := Label.new()
+	ik_title.text = "IK 3D · POSICIÓN OBJETIVO EN COORDENADAS DEL ESQUELETO"
+	right.add_child(ik_title)
+	var ik_chain_row := HBoxContainer.new()
+	right.add_child(ik_chain_row)
+	ik_chain_picker = OptionButton.new()
+	ik_chain_picker.add_item("Brazo izquierdo")
+	ik_chain_picker.set_item_metadata(0, "arm_left")
+	ik_chain_picker.add_item("Brazo derecho")
+	ik_chain_picker.set_item_metadata(1, "arm_right")
+	ik_chain_picker.add_item("Pierna izquierda")
+	ik_chain_picker.set_item_metadata(2, "leg_left")
+	ik_chain_picker.add_item("Pierna derecha")
+	ik_chain_picker.set_item_metadata(3, "leg_right")
+	ik_chain_picker.select(1)
+	ik_chain_row.add_child(ik_chain_picker)
+	ik_target_x = _add_ik_target_axis(ik_chain_row, "X", 0.65)
+	ik_target_y = _add_ik_target_axis(ik_chain_row, "Y", 1.4)
+	ik_target_z = _add_ik_target_axis(ik_chain_row, "Z", 0.0)
+	_add_button(ik_chain_row, "Aplicar IK 3D", _apply_3d_ik_target)
 	var joint_angle_row := HBoxContainer.new()
 	right.add_child(joint_angle_row)
 	joint_angle_slider = HSlider.new()
@@ -1424,6 +1448,37 @@ func _add_pivot_offset_control(parent: Node, label_text: String, pivot_name: Str
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slider.value_changed.connect(_on_pivot_offset_changed.bind(pivot_name, axis))
 	row.add_child(slider)
+
+func _add_ik_target_axis(parent: Node, axis_label: String, initial: float) -> SpinBox:
+	var spin := SpinBox.new()
+	spin.min_value = -5.0
+	spin.max_value = 5.0
+	spin.step = 0.05
+	spin.value = initial
+	spin.prefix = axis_label + " "
+	spin.custom_minimum_size.x = 92
+	parent.add_child(spin)
+	return spin
+
+func _apply_3d_ik_target() -> void:
+	if not is_instance_valid(runtime_spatial_animator):
+		_set_status("Construye o importa un rig 3D con Skeleton3D para usar IK.")
+		return
+	var before := runtime_spatial_animator.capture_pose()
+	if not before.is_empty():
+		joint_undo_stack.append(before.duplicate(true))
+		if joint_undo_stack.size() > 50:
+			joint_undo_stack.pop_front()
+		joint_redo_stack.clear()
+	var chain := str(ik_chain_picker.get_item_metadata(ik_chain_picker.selected))
+	var target := Vector3(ik_target_x.value, ik_target_y.value, ik_target_z.value)
+	var result: Dictionary = runtime_spatial_animator.apply_two_bone_ik(chain, target)
+	if not bool(result.get("ok", false)):
+		_set_status(str(result.get("error", "No se pudo resolver la cadena IK 3D.")))
+		return
+	var error_distance := float(result.get("error_distance", 0.0))
+	_set_status("IK 3D aplicado. Error de alcance: %.3f unidades." % error_distance)
+	_on_joint_editor_selection_changed(joint_picker.selected if is_instance_valid(joint_picker) else 0)
 
 func _spatial_bone_name(joint_key: String) -> String:
 	var names := {
