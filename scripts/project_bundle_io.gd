@@ -38,7 +38,7 @@ func export_bundle(path: String, project: Dictionary) -> Dictionary:
 		for clip in track.get("clips", []):
 			if clip is Dictionary:
 				var media_path := str(clip.get("source", ""))
-				if not media_path.is_empty() and (media_path.begins_with("user://") or media_path.begins_with("res://")):
+				if not media_path.is_empty():
 					sources.append({"path": media_path, "resource_id": ""})
 	for source_item in sources:
 		var source := str(source_item.get("path", ""))
