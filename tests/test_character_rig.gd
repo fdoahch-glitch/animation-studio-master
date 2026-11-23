@@ -3,6 +3,7 @@ extends SceneTree
 const RIG_BUILDER = preload("res://scripts/character_rig_builder.gd")
 const IMAGE_PROCESSOR = preload("res://scripts/character_image_processor.gd")
 const SPATIAL_BUILDER = preload("res://scripts/character_spatial_rig_builder.gd")
+const SPATIAL_ANIMATOR = preload("res://scripts/character_spatial_animator.gd")
 const PROCEDURAL_ANIMATOR = preload("res://scripts/character_procedural_animator.gd")
 const IK_DRAG_OVERLAY = preload("res://scripts/ik_drag_overlay.gd")
 const ANIMATION_TIMELINE = preload("res://scripts/animation_timeline.gd")
@@ -179,6 +180,28 @@ func _run_tests() -> void:
 	var skeleton := spatial_rig.get_node_or_null("Skeleton3D") as Skeleton3D
 	if skeleton == null or skeleton.get_bone_count() < 15:
 		push_error("No se construyó el esqueleto Skeleton3D esperado.")
+		quit(1)
+		return
+	var spatial_animator = SPATIAL_ANIMATOR.new()
+	spatial_rig.add_child(spatial_animator)
+	spatial_animator.configure(skeleton)
+	var spatial_poses: Array = spatial_animator.generate_pose_library(1.0)
+	var spatial_clips: Array = spatial_animator.generate_animation_library(1.0)
+	if spatial_poses.size() < 18 or spatial_clips.size() < 8:
+		push_error("El generador 3D no creó suficientes poses y ciclos.")
+		quit(1)
+		return
+	if spatial_animator.apply_pose(spatial_poses[1]) < 1:
+		push_error("No se pudo aplicar una pose al Skeleton3D.")
+		quit(1)
+		return
+	if not spatial_animator.play_animation("walk", 1.0, 1.0):
+		push_error("No se pudo iniciar el ciclo procedural 3D.")
+		quit(1)
+		return
+	spatial_animator._process(0.1)
+	if spatial_animator.capture_pose().is_empty():
+		push_error("El animador 3D no pudo capturar la pose resultante.")
 		quit(1)
 		return
 
