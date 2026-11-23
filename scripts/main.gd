@@ -182,6 +182,8 @@ var environment_sky_picker: ColorPickerButton
 var environment_sun_picker: ColorPickerButton
 var environment_weather_picker: OptionButton
 var environment_weather_intensity_slider: HSlider
+var environment_wind_strength_slider: HSlider
+var environment_fog_density_slider: HSlider
 var environment_particles_toggle: CheckBox
 var environment_layer_list: ItemList
 var environment_layer_depth: SpinBox
@@ -4003,6 +4005,8 @@ func _show_environment_studio() -> void:
 	weather_row.add_child(environment_weather_picker)
 	environment_weather_picker.item_selected.connect(func(index: int):
 		environment_director.set_weather(active_environment, weather_names[index], float(active_environment.get("weather_intensity",0.0)))
+		if is_instance_valid(environment_wind_strength_slider): environment_wind_strength_slider.value = float(active_environment.get("wind_strength",0.0))
+		if is_instance_valid(environment_fog_density_slider): environment_fog_density_slider.value = float(active_environment.get("fog_density",0.0))
 		_save_environment()
 	)
 
@@ -4016,6 +4020,22 @@ func _show_environment_studio() -> void:
 		environment_director.set_weather(active_environment, weather_names[environment_weather_picker.selected], value)
 		_save_environment()
 	)
+
+	environment_wind_strength_slider = HSlider.new()
+	environment_wind_strength_slider.min_value = 0.0
+	environment_wind_strength_slider.max_value = 1.0
+	environment_wind_strength_slider.step = 0.01
+	environment_wind_strength_slider.value = float(active_environment.get("wind_strength",0.0))
+	_labeled_control(page, "Fuerza del viento", environment_wind_strength_slider)
+	environment_wind_strength_slider.value_changed.connect(func(value: float): active_environment["wind_strength"] = value; _save_environment())
+
+	environment_fog_density_slider = HSlider.new()
+	environment_fog_density_slider.min_value = 0.0
+	environment_fog_density_slider.max_value = 1.0
+	environment_fog_density_slider.step = 0.01
+	environment_fog_density_slider.value = float(active_environment.get("fog_density",0.0))
+	_labeled_control(page, "Densidad de niebla", environment_fog_density_slider)
+	environment_fog_density_slider.value_changed.connect(func(value: float): active_environment["fog_density"] = value; _save_environment())
 
 	environment_particles_toggle = CheckBox.new()
 	environment_particles_toggle.text = "Mostrar partículas ambientales"
