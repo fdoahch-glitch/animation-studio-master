@@ -68,6 +68,15 @@ func apply_tracks_to_scene(scene: Dictionary, tracks: Array, time: float) -> Dic
 			continue
 		var target_id := str(track.get("target_id", ""))
 		var property := str(track.get("property", "x"))
+		if target_id == "__camera__":
+			var camera: Dictionary = preview.get("camera", {"x": 960.0, "y": 540.0, "zoom": 1.0, "rotation": 0.0}).duplicate(true)
+			if property == "position" and sampled is Array and sampled.size() >= 2:
+				camera["x"] = sampled[0]
+				camera["y"] = sampled[1]
+			elif ["x", "y", "zoom", "rotation"].has(property):
+				camera[property] = sampled
+			preview["camera"] = camera
+			continue
 		for object_index in range(objects.size()):
 			var object: Dictionary = objects[object_index]
 			if str(object.get("id", "")) != target_id:

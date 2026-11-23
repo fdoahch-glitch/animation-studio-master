@@ -106,6 +106,7 @@ var resource_tags_input: LineEdit
 var director_track_list: ItemList
 var director_target_picker: OptionButton
 var director_property_picker: OptionButton
+var director_camera_property_picker: OptionButton
 var director_time_input: SpinBox
 var director_value_input: SpinBox
 var director_value_y_input: SpinBox
@@ -918,6 +919,12 @@ func _show_director_timeline() -> void:
 	director_property_picker.item_selected.connect(_on_director_property_selected)
 	controls.add_child(director_property_picker)
 	_add_button(controls, "Crear pista", _director_create_track)
+	director_camera_property_picker = OptionButton.new()
+	for camera_property in ["position", "zoom", "rotation"]:
+		director_camera_property_picker.add_item(camera_property)
+	director_camera_property_picker.item_selected.connect(_on_director_camera_property_selected)
+	controls.add_child(director_camera_property_picker)
+	_add_button(controls, "Crear pista cámara", _director_create_camera_track)
 	var edit := HBoxContainer.new()
 	page.add_child(edit)
 	director_time_input = SpinBox.new()
@@ -1072,6 +1079,31 @@ func _director_tracks() -> Array:
 	if not project_data["scene_animation_tracks"].has(scene_id):
 		project_data["scene_animation_tracks"][scene_id] = []
 	return project_data["scene_animation_tracks"][scene_id]
+
+func _on_director_camera_property_selected(index: int) -> void:
+	var is_position := director_camera_property_picker.get_item_text(index) == "position"
+	if is_instance_valid(director_value_y_input):
+		director_value_y_input.visible = is_position
+	if is_instance_valid(director_value_input):
+		director_value_input.prefix = "X cámara " if is_position else "Cámara "
+
+func _director_create_camera_track() -> void:
+	if not is_instance_valid(director_camera_property_picker) or director_camera_property_picker.selected < 0:
+		return
+	var property := director_camera_property_picker.get_item_text(director_camera_property_picker.selected)
+	var value_type := "vector2" if property == "position" else "number"
+	var track: Dictionary = timeline_model.create_track("camera_%d_%d" % [Time.get_ticks_msec(), _director_tracks().size()], "Cámara · " + property, "__camera__", property, value_type)
+	if track.is_empty():
+		_set_status("No se pudo crear la pista de cámara.")
+		return
+	_director_tracks().append(track)
+	director_selected_track = _director_tracks().size() - 1
+	_refresh_director_tracks()
+	if is_instance_valid(director_track_list):
+		director_track_list.select(director_selected_track)
+	_refresh_director_timeline_view()
+	_save_project()
+	_set_status("Pista de cámara %s creada." % property)
 
 func _director_create_track() -> void:
 	if not is_instance_valid(director_target_picker) or director_target_picker.selected < 0:
@@ -1574,7 +1606,7 @@ func _create_scene() -> void:
 		project_data["scenes"] = []
 	var index: int = project_data["scenes"].size() + 1
 	var scene_id := "scene_%d_%d" % [int(Time.get_unix_time_from_system()), Time.get_ticks_msec() % 100000]
-	project_data["scenes"].append({"id": scene_id, "name": "Escena %d" % index, "duration_seconds": 10.0, "notes": "", "objects": [], "transitions": {}})
+	project_data["scenes"].append({"id": scene_id, "name": "Escena %d" % index, "duration_seconds": 10.0, "notes": "", "objects": [], "camera": {"x": float(project_data.get("width", 1920)) * 0.5, "y": float(project_data.get("height", 1080)) * 0.5, "zoom": 1.0, "rotation": 0.0}, "transitions": {}})
 	selected_scene_index = project_data["scenes"].size() - 1
 	_refresh_scene_list()
 	_save_project()

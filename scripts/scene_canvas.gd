@@ -136,12 +136,28 @@ func _canvas_rect() -> Rect2:
 	var extent := Vector2(scene_width, scene_height) * scale_value
 	return Rect2((size - extent) * 0.5 + pan, extent)
 
+func _camera_state() -> Dictionary:
+	return scene_data.get("camera", {"x": scene_width * 0.5, "y": scene_height * 0.5, "zoom": 1.0, "rotation": 0.0})
+
+func _camera_center() -> Vector2:
+	var camera := _camera_state()
+	return Vector2(float(camera.get("x", scene_width * 0.5)), float(camera.get("y", scene_height * 0.5)))
+
+func _camera_zoom() -> float:
+	return clampf(float(_camera_state().get("zoom", 1.0)), 0.1, 8.0)
+
+func _camera_rotation() -> float:
+	return deg_to_rad(float(_camera_state().get("rotation", 0.0)))
+
 func _scene_to_screen(point: Vector2) -> Vector2:
 	var rect := _canvas_rect()
-	return rect.position + point * _canvas_scale()
+	var camera_point := (point - _camera_center()).rotated(-_camera_rotation()) * _camera_zoom()
+	return rect.position + rect.size * 0.5 + camera_point * _canvas_scale()
 
 func _screen_to_scene(point: Vector2) -> Vector2:
-	return (point - _canvas_rect().position) / maxf(_canvas_scale(), 0.0001)
+	var rect := _canvas_rect()
+	var camera_point := (point - rect.position - rect.size * 0.5) / maxf(_canvas_scale(), 0.0001)
+	return camera_point.rotated(_camera_rotation()) / _camera_zoom() + _camera_center()
 
 func _zoom_at(screen_point: Vector2, factor: float) -> void:
 	var scene_point := _screen_to_scene(screen_point)
@@ -190,7 +206,7 @@ func _draw() -> void:
 		var center := _scene_to_screen(Vector2(float(transform.get("x", scene_width * 0.5)), float(transform.get("y", scene_height * 0.5))))
 		var base_size := _object_size(item)
 		var scale_value := _canvas_scale()
-		var extent := base_size * Vector2(float(transform.get("scale_x",1.0)), float(transform.get("scale_y",1.0))) * scale_value
+		var extent := base_size * Vector2(float(transform.get("scale_x",1.0)), float(transform.get("scale_y",1.0))) * scale_value * _camera_zoom()
 		var rect := Rect2(center - extent * 0.5, extent)
 		var kind := str(item.get("type", "element"))
 		var resource_id := str(item.get("resource_id",""))
@@ -201,7 +217,7 @@ func _draw() -> void:
 			"character": fill = Color("#46a6a0")
 			"decoration": fill = Color("#6ca66b")
 			"element": fill = Color("#d59b58")
-		draw_set_transform(center, deg_to_rad(float(transform.get("rotation",0.0))), Vector2.ONE)
+		draw_set_transform(center, deg_to_rad(float(transform.get("rotation",0.0))) - _camera_rotation(), Vector2.ONE)
 		var local_rect := Rect2(-extent * 0.5, extent)
 		if is_instance_valid(texture):
 			draw_texture_rect(texture, local_rect, false)
@@ -257,8 +273,8 @@ func _hit_test(screen_point: Vector2) -> String:
 			continue
 		var t: Dictionary = item.get("transform", {})
 		var center := _scene_to_screen(Vector2(float(t.get("x", scene_width * 0.5)), float(t.get("y", scene_height * 0.5))))
-		var extent := _object_size(item) * Vector2(float(t.get("scale_x", 1.0)), float(t.get("scale_y", 1.0))) * _canvas_scale()
-		var local_point := (screen_point - center).rotated(-deg_to_rad(float(t.get("rotation", 0.0))))
+		var extent := _object_size(item) * Vector2(float(t.get("scale_x", 1.0)), float(t.get("scale_y", 1.0))) * _canvas_scale() * _camera_zoom()
+		var local_point := (screen_point - center).rotated(-(deg_to_rad(float(t.get("rotation", 0.0))) - _camera_rotation()))
 		if Rect2(-extent * 0.5, extent).has_point(local_point):
 			return str(item.get("id", ""))
 	return ""

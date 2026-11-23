@@ -37,3 +37,8 @@ La biblioteca real de recursos y la previsualización GLB pertenecen a la etapa 
 ## Edición directa de keyframes
 
 En el timeline de dirección, los diamantes de keyframe se pueden arrastrar horizontalmente para cambiar su fotograma. El editor conserva el valor y la curva de interpolación originales, ajusta el tiempo al FPS del proyecto y guarda el cambio. La interacción se cubre con una prueba automatizada de arrastre y señal.
+
+
+## Cámara animable
+
+Cada escena nueva incluye cámara 2D con posición, zoom y rotación. El director de animación permite crear pistas específicas de cámara y muestrearlas junto a las pistas de objetos. El lienzo transforma las coordenadas de dibujo y selección según la cámara, manteniendo separada la cámara de salida del zoom/paneo de edición. Pruebas: `tests/test_timeline_tracks.gd` y `tests/test_scene_canvas.gd`.
