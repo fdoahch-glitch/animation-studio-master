@@ -4,6 +4,9 @@ const TIMELINE = preload("res://scripts/animation_timeline.gd")
 
 func _initialize() -> void:
 	var timeline = TIMELINE.new()
+	assert(timeline.seconds_to_frame(1.0, 24) == 24)
+	assert(is_equal_approx(timeline.frame_to_seconds(48, 24), 2.0))
+	assert(is_equal_approx(timeline.snap_time_to_frame(0.51, 24), 0.5))
 	var track: Dictionary = timeline.create_track("track_x", "Posición X", "object_1", "x")
 	assert(not track.is_empty())
 	assert(timeline.insert_property_keyframe(track, 0.0, 0.0, "linear").ok)
