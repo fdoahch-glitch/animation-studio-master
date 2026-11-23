@@ -64,6 +64,13 @@ func _scene_to_screen(point: Vector2) -> Vector2:
 func _screen_to_scene(point: Vector2) -> Vector2:
 	return (point - _canvas_rect().position) / maxf(_canvas_scale(), 0.0001)
 
+func _zoom_at(screen_point: Vector2, factor: float) -> void:
+	var scene_point := _screen_to_scene(screen_point)
+	zoom = clampf(zoom * factor, 0.2, 4.0)
+	var extent := Vector2(scene_width, scene_height) * _canvas_scale()
+	pan = screen_point - (size - extent) * 0.5 - scene_point * _canvas_scale()
+	queue_redraw()
+
 func _object_size(item: Dictionary) -> Vector2:
 	var kind := str(item.get("type", "element"))
 	match kind:
