@@ -55,7 +55,7 @@ func decode_package(json_text: String) -> Dictionary:
 	var spatial_clips: Variant = parsed.get("spatial_animation_clips", [])
 	if not clips is Array or not poses is Array or not custom is Array or not assets is Dictionary or not spatial_poses is Array or not spatial_clips is Array:
 		return {"ok": false, "error": "Las bibliotecas de poses o animaciones tienen un formato inválido."}
-	var normalized := parsed.duplicate(true)
+	var normalized: Dictionary = parsed.duplicate(true)
 	normalized["rig"]["joint_angles_degrees"] = _clean_angles(rig.get("joint_angles_degrees", {}))
 	normalized["rig"]["bone_rotations_degrees"] = _clean_bone_rotations(rig.get("bone_rotations_degrees", {}))
 	normalized["spatial_poses"] = _clean_spatial_poses(spatial_poses)
