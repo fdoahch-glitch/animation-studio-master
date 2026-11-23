@@ -310,6 +310,7 @@ func _show_wizard() -> void:
 	_add_button(page, "Crear proyecto y abrir estudio", _create_project)
 
 func _create_project() -> void:
+	current_project_path = ""
 	var widths := [1280,1920,2560,3840]
 	var heights := [720,1080,1440,2160]
 	var fps_values := [24,25,30,50,60]
