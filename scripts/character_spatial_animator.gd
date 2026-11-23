@@ -9,6 +9,7 @@ var elapsed := 0.0
 var playback_speed := 1.0
 var motion_intensity := 1.0
 var playing := false
+var active_clip: Dictionary = {}
 
 const CYCLE_NAMES := ["idle", "walk", "run", "jump", "wave", "talk", "dance", "sneak"]
 
@@ -115,6 +116,7 @@ func play_animation(animation_name: String, custom_speed: float = 1.0, intensity
 	if not CYCLE_NAMES.has(key) or not is_instance_valid(skeleton):
 		return false
 	current_cycle = key
+	active_clip.clear()
 	elapsed = 0.0
 	playback_speed = clampf(custom_speed, 0.1, 4.0)
 	motion_intensity = clampf(intensity, 0.5, 1.75)
@@ -125,7 +127,19 @@ func play_animation(animation_name: String, custom_speed: float = 1.0, intensity
 func stop_animation() -> void:
 	playing = false
 	current_cycle = ""
+	active_clip.clear()
 	_reset_skeleton_pose()
+
+func play_clip(clip: Dictionary, custom_speed: float = 1.0) -> bool:
+	if not is_instance_valid(skeleton) or clip.get("keyframes", []).is_empty():
+		return false
+	active_clip = clip.duplicate(true)
+	current_cycle = ""
+	elapsed = 0.0
+	playback_speed = clampf(custom_speed, 0.1, 4.0)
+	playing = true
+	set_process(true)
+	return true
 
 func is_playing() -> bool:
 	return playing
@@ -134,18 +148,63 @@ func _process(delta: float) -> void:
 	if not playing or not is_instance_valid(skeleton):
 		return
 	elapsed += delta * playback_speed
+	if not active_clip.is_empty():
+		var duration := maxf(float(active_clip.get("duration", 1.0)), 0.05)
+		var looping := bool(active_clip.get("loop", true))
+		if elapsed >= duration:
+			if looping:
+				elapsed = fposmod(elapsed, duration)
+			else:
+				elapsed = duration
+				_apply_runtime_rotations(_sample_clip_pose(active_clip, elapsed))
+				playing = false
+				return
+		_apply_runtime_rotations(_sample_clip_pose(active_clip, elapsed))
+		return
 	var pose := _sample_cycle(current_cycle, elapsed, motion_intensity)
 	_apply_runtime_rotations(pose)
 	if current_cycle == "jump" and elapsed >= 1.2:
 		playing = false
 		_reset_skeleton_pose()
 
+func _sample_clip_pose(clip: Dictionary, time: float) -> Dictionary:
+	var frames: Array = clip.get("keyframes", [])
+	if frames.is_empty():
+		return {}
+	var left: Dictionary = frames[0]
+	var right: Dictionary = frames[frames.size() - 1]
+	if time <= float(frames[0].get("time", 0.0)):
+		right = frames[0]
+	elif time >= float(frames[frames.size() - 1].get("time", 0.0)):
+		left = right
+	else:
+		for index in range(frames.size() - 1):
+			var first: Dictionary = frames[index]
+			var second: Dictionary = frames[index + 1]
+			if time >= float(first.get("time", 0.0)) and time <= float(second.get("time", 0.0)):
+				left = first
+				right = second
+				break
+	var a: Dictionary = left.get("bone_rotations_degrees", {})
+	var b: Dictionary = right.get("bone_rotations_degrees", {})
+	var span := float(right.get("time", 0.0)) - float(left.get("time", 0.0))
+	var amount := clampf((time - float(left.get("time", 0.0))) / span, 0.0, 1.0) if span > 0.0001 else 0.0
+	var result := {}
+	for bone_name in a.keys():
+		var start := _as_vector3(a[bone_name])
+		var finish := _as_vector3(b.get(bone_name, a[bone_name]))
+		result[str(bone_name)] = start.lerp(finish, amount)
+	for bone_name in b.keys():
+		if not result.has(bone_name):
+			result[str(bone_name)] = _as_vector3(b[bone_name])
+	return result
+
 func _apply_runtime_rotations(pose: Dictionary) -> void:
 	_reset_skeleton_pose()
 	for bone_name in pose.keys():
 		var index := skeleton.find_bone(str(bone_name))
 		if index >= 0:
-			var euler: Vector3 = pose[bone_name]
+			var euler := _as_vector3(pose[bone_name])
 			skeleton.set_bone_pose_rotation(index, Quaternion.from_euler(euler * (PI / 180.0)))
 
 func _reset_skeleton_pose() -> void:
