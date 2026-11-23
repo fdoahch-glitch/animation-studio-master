@@ -148,7 +148,7 @@
     {
       "id": 6,
       "name": "Retargeting y biblioteca de movimientos",
-      "status": "in_progress",
+      "status": "done",
       "scope": [
         "perfiles de esqueletos y alias ampliados",
         "mapa de correspondencia origen-destino",
@@ -167,15 +167,16 @@
       "tests": [
         "tests/test_spatial_retargeting.gd: equivalencias, cobertura, validación de perfil y transferencia de pose.",
         "CI Godot run sobre commit final de esta etapa; validación con una colección de GLB externos sigue pendiente.",
-        "Trabajo activo tras cierre de etapa 5. Base actual: tests/test_spatial_retargeting.gd valida alias, mapas humanoide/cuadrúpedo, cobertura, perfiles, transferencia de pose y retargeting de clips."
+        "Trabajo activo tras cierre de etapa 5. Base actual: tests/test_spatial_retargeting.gd valida alias, mapas humanoide/cuadrúpedo, cobertura, perfiles, transferencia de pose y retargeting de clips.",
+        "PR #5 fusionado en main: commit 26bb3ac1b29ade1da53c6f1caf94d8eaea6f62cc; GitHub Actions run 45280933630: Godot validation success; supervisor run 45280933783: success. Añade offsets bind pose por hueso, root motion escalado/desplazado, objetivos de contacto IK, aplicación en playback y roundtrip de perfiles en .amsproj."
       ],
-      "commit": "53031da8986049f015c8fdbffaf978de9ebf16ff",
-      "notes": "Etapa activa del par 5–6. Ya existe mapeo anatómico, equivalencias Mixamo, perfiles, transferencia de poses y conversión de clips. Trabajo pendiente: offsets de bind pose por hueso, root motion explícito, contactos de pies/manos asistidos por IK y persistencia/roundtrip de perfiles de retargeting desde el documento de proyecto."
+      "commit": "26bb3ac1b29ade1da53c6f1caf94d8eaea6f62cc",
+      "notes": "Cerrada por aceptación automatizada: perfiles versionados, calibración por hueso, root motion y objetivos IK de contacto transformados por keyframe; el animador aplica root motion al nodo raíz y resuelve contactos sin interrumpir el clip. La interfaz permite calibrar offsets por hueso, escala/desplazamiento de root motion y activar/desactivar IK de contacto. Perfiles y ajustes persisten en el documento del proyecto. CI y supervisor aprobados."
     },
     {
       "id": 7,
       "name": "Escenarios, iluminación, tiempo y clima",
-      "status": "partial",
+      "status": "in_progress",
       "scope": [
         "fondos multicapa y parallax 2.5D",
         "hora del día e iluminación",
@@ -195,7 +196,7 @@
         "GitHub Actions: ejecución pendiente en commit de integración."
       ],
       "commit": "35feb89170fb93246ce88815971194d71b6f270e",
-      "notes": "Implementados scripts/environment_director.gd y panel Tiempo y clima en scripts/main.gd. Los parámetros y perfiles de partículas quedan modelados y persistidos. Falta conectar las propiedades a luces/partículas reales del renderizador y validar visualmente parallax y clima en dispositivo. No se cierra por las etapas 2–6 aún incompletas."
+      "notes": "Etapa activa del par 7–8. Trabajo pendiente: completar flujo de previsualización/composición de escena para cámara, luces, clima y efectos con controles conectados a render, y validar la salida visual exportada."
     },
     {
       "id": 8,
