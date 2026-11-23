@@ -12,7 +12,6 @@ DefaultGroupName={#AppName}
 UninstallDisplayIcon={app}\AnimationStudioMaster.exe
 OutputDir=..\build
 OutputBaseFilename=AnimationStudioMaster-Setup-x64
-SetupIconFile=
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 PrivilegesRequired=admin

@@ -122,7 +122,7 @@ jobs:
           body: |
             Compilación automática de Windows x64 generada desde la rama main.
 
-            Descarga AnimationStudioMaster-Windows-x64.zip y extrae su contenido para ejecutar AnimationStudioMaster.exe.
+            Descarga AnimationStudioMaster-Setup-x64.exe para instalar, AnimationStudioMaster-Windows-x64.zip para uso portable o AnimationStudioMaster.exe para ejecución directa. El instalador no está firmado digitalmente.
           prerelease: true
           files: |
             build/AnimationStudioMaster.exe
