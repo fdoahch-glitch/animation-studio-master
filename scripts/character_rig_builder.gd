@@ -217,3 +217,125 @@ func solve_two_bone_ik(root_position: Vector2, target_position: Vector2, upper_l
 	var joint_position := root_position + direction * along + perpendicular * height
 	var clamped_target := root_position + direction * distance
 	return {"root": root_position, "joint": joint_position, "end": clamped_target, "reachable": is_equal_approx(distance, delta.length())}
+
+func build_segmented_sprite_rig(parts: Array, joints: Dictionary, source_size: Vector2i, target_size: Vector2 = Vector2(210, 245)) -> Node2D:
+	var rig := Node2D.new()
+	rig.name = "Rig_Imagen_Segmentada"
+	rig.set_meta("rig_type", "2D_segmented_sprite_pivots")
+	rig.set_meta("editable", true)
+	var source_center := Vector2(source_size) * 0.5
+	var scale_factor := minf(target_size.x / maxf(float(source_size.x), 1.0), target_size.y / maxf(float(source_size.y), 1.0))
+	rig.scale = Vector2.ONE * scale_factor
+	for part in parts:
+		var part_path := str(part.get("path", ""))
+		var part_name := str(part.get("name", "part"))
+		var rect_data: Array = part.get("rect", [])
+		if part_path == "" or rect_data.size() != 4:
+			continue
+		var part_image := Image.new()
+		if part_image.load(part_path) != OK:
+			continue
+		part_image.convert(Image.FORMAT_RGBA8)
+		var texture := ImageTexture.create_from_image(part_image)
+		var rect := Rect2(Vector2(float(rect_data[0]), float(rect_data[1])), Vector2(float(rect_data[2]), float(rect_data[3])))
+		var pivot_key := _part_pivot_key(part_name)
+		var joint_point := _resolve_joint_point(joints, pivot_key, rect)
+		var pivot := rig.get_node_or_null("Pivot_" + pivot_key) as Node2D
+		if pivot == null:
+			pivot = Node2D.new()
+			pivot.name = "Pivot_" + pivot_key
+			pivot.position = joint_point - source_center
+			rig.add_child(pivot)
+		var sprite := Sprite2D.new()
+		sprite.name = "Sprite_" + part_name.validate_filename()
+		sprite.texture = texture
+		sprite.centered = true
+		sprite.position = rect.get_center() - joint_point
+		pivot.add_child(sprite)
+	_add_segmented_animation_player(rig)
+	return rig
+
+func _part_pivot_key(part_name: String) -> String:
+	var name := part_name.to_lower()
+	if name.contains("head"):
+		return "head"
+	if name.contains("torso") or name.contains("chest"):
+		return "torso"
+	if name.contains("pelvis"):
+		return "pelvis"
+	if name.contains("upper_arm_left") or name.contains("arm_left"):
+		return "shoulder_left"
+	if name.contains("lower_arm_left"):
+		return "elbow_left"
+	if name.contains("hand_left"):
+		return "wrist_left"
+	if name.contains("upper_arm_right") or name.contains("arm_right"):
+		return "shoulder_right"
+	if name.contains("lower_arm_right"):
+		return "elbow_right"
+	if name.contains("hand_right"):
+		return "wrist_right"
+	if name.contains("upper_leg_left") or name.contains("leg_left"):
+		return "hip_left"
+	if name.contains("lower_leg_left"):
+		return "knee_left"
+	if name.contains("foot_left"):
+		return "ankle_left"
+	if name.contains("upper_leg_right") or name.contains("leg_right"):
+		return "hip_right"
+	if name.contains("lower_leg_right"):
+		return "knee_right"
+	if name.contains("foot_right"):
+		return "ankle_right"
+	return name.replace(" ", "_")
+
+func _resolve_joint_point(joints: Dictionary, pivot_key: String, rect: Rect2) -> Vector2:
+	var aliases := [pivot_key, pivot_key.replace("_", ""), pivot_key.replace("_left", "_l").replace("_right", "_r")]
+	for alias in aliases:
+		if joints.has(alias):
+			var value: Variant = joints[alias]
+			if value is Array and value.size() == 2:
+				return Vector2(float(value[0]), float(value[1]))
+	match pivot_key:
+		"head", "shoulder_left", "shoulder_right", "hip_left", "hip_right":
+			return Vector2(rect.position.x + rect.size.x * 0.5, rect.position.y + rect.size.y * 0.18)
+		"elbow_left", "elbow_right", "knee_left", "knee_right":
+			return Vector2(rect.position.x + rect.size.x * 0.5, rect.position.y + rect.size.y * 0.15)
+		"wrist_left", "wrist_right", "ankle_left", "ankle_right":
+			return Vector2(rect.position.x + rect.size.x * 0.5, rect.position.y + rect.size.y * 0.12)
+		"pelvis":
+			return Vector2(rect.position.x + rect.size.x * 0.5, rect.position.y + rect.size.y * 0.85)
+		_:
+			return Vector2(rect.position.x + rect.size.x * 0.5, rect.position.y + rect.size.y * 0.5)
+
+func _add_segmented_animation_player(rig: Node2D) -> void:
+	var player := AnimationPlayer.new()
+	player.name = "AnimationPlayer"
+	player.root_node = NodePath("..")
+	rig.add_child(player)
+	var library := AnimationLibrary.new()
+	var poses := {
+		"idle": {"head":[0.0,-0.025,0.0],"torso":[0.0,0.018,0.0]},
+		"walk": {"shoulder_left":[0.35,-0.35,0.35],"shoulder_right":[-0.35,0.35,-0.35],"hip_left":[-0.45,0.45,-0.45],"hip_right":[0.45,-0.45,0.45],"elbow_left":[-0.1,-0.3,-0.1],"elbow_right":[-0.3,-0.1,-0.3]},
+		"run": {"shoulder_left":[0.65,-0.65,0.65],"shoulder_right":[-0.65,0.65,-0.65],"hip_left":[-0.8,0.8,-0.8],"hip_right":[0.8,-0.8,0.8],"elbow_left":[-0.55,-0.2,-0.55],"elbow_right":[-0.2,-0.55,-0.2]},
+		"jump": {"shoulder_left":[-0.8,-0.5,-0.8],"shoulder_right":[0.8,0.5,0.8],"hip_left":[-0.5,0.1,-0.5],"hip_right":[0.5,-0.1,0.5]},
+		"talk": {"head":[0.0,-0.06,0.0],"torso":[0.0,0.02,0.0]},
+		"wave": {"shoulder_right":[-1.0,-1.2,-1.0],"elbow_right":[-0.7,-1.1,-0.7]}
+	}
+	for animation_name in poses.keys():
+		library.add_animation(animation_name, _make_pivot_animation(poses[animation_name], 0.8, animation_name != "jump"))
+	player.add_animation_library("base", library)
+
+func _make_pivot_animation(pose_data: Dictionary, duration: float, looping: bool) -> Animation:
+	var animation := Animation.new()
+	animation.length = duration
+	animation.loop_mode = Animation.LOOP_LINEAR if looping else Animation.LOOP_NONE
+	for pivot_name in pose_data.keys():
+		var values: Array = pose_data[pivot_name]
+		var track := animation.add_track(Animation.TYPE_VALUE)
+		animation.track_set_path(track, NodePath("Pivot_" + str(pivot_name) + ":rotation"))
+		animation.track_set_interpolation_type(track, Animation.INTERPOLATION_CUBIC)
+		animation.track_insert_key(track, 0.0, float(values[0]))
+		animation.track_insert_key(track, duration * 0.5, float(values[1]))
+		animation.track_insert_key(track, duration, float(values[2]))
+	return animation
