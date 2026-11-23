@@ -48,7 +48,7 @@ El botón «Construir rig con las piezas recortadas» monta las regiones como Sp
 
 El módulo `scripts/character_procedural_animator.gd` crea 20 poses y 20 ciclos de movimiento mediante funciones matemáticas y keyframes interpolados. Incluye respiración, caminar, correr, saltar, saludo, conversación, celebración, baile, sigilo, estiramiento, sueño, tropiezo, caminar hacia atrás, miedo, pensamiento y deslizamiento, entre otros.
 
-Las poses se aplican directamente al rig 2D y los ciclos se instalan en su `AnimationPlayer`. La velocidad de reproducción se ajusta desde el control del estudio. Todo se calcula dentro del programa, sin llamadas de red, claves API, modelos, servidores o procesos residentes. El generador anima articulaciones existentes; no crea píxeles nuevos ni reconstruye partes ocultas de una ilustración.
+Las poses se aplican directamente al rig 2D y los ciclos se instalan en su `AnimationPlayer`. La velocidad de reproducción (0,25× a 2,5×) y la intensidad de los movimientos (0,5× a 1,75×) se ajustan desde los controles del estudio. Todo se calcula dentro del programa, sin llamadas de red, claves API, modelos, servidores o procesos residentes. El generador anima articulaciones existentes; no crea píxeles nuevos ni reconstruye partes ocultas de una ilustración.
 
 ## Rig espacial
 
