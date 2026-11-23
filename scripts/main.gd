@@ -408,6 +408,15 @@ func _show_character_lab() -> void:
 	_add_joint_control(right, "Rodilla izquierda", "Pelvis/Hip_L/Knee_L", -5.0, 150.0)
 	_add_joint_control(right, "Cadera derecha", "Pelvis/Hip_R", -100.0, 100.0)
 	_add_joint_control(right, "Rodilla derecha", "Pelvis/Hip_R/Knee_R", -5.0, 150.0)
+	var position_title := Label.new()
+	position_title.text = "POSICIÓN DE PIVOTES (X / Y)"
+	right.add_child(position_title)
+	_add_pivot_offset_control(right, "Hombro izquierdo X", "shoulder_left", "x")
+	_add_pivot_offset_control(right, "Hombro izquierdo Y", "shoulder_left", "y")
+	_add_pivot_offset_control(right, "Codo izquierdo X", "elbow_left", "x")
+	_add_pivot_offset_control(right, "Codo izquierdo Y", "elbow_left", "y")
+	_add_pivot_offset_control(right, "Hombro derecho X", "shoulder_right", "x")
+	_add_pivot_offset_control(right, "Hombro derecho Y", "shoulder_right", "y")
 	imported_preview = TextureRect.new()
 	imported_preview.custom_minimum_size = Vector2(420, 220)
 	imported_preview.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
@@ -705,6 +714,26 @@ func _add_joint_control(parent: Node, label_text: String, joint_path: String, mi
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slider.value_changed.connect(_on_joint_slider_changed.bind(joint_path))
 	row.add_child(slider)
+
+func _add_pivot_offset_control(parent: Node, label_text: String, pivot_name: String, axis: String) -> void:
+	var row := HBoxContainer.new()
+	parent.add_child(row)
+	var label := Label.new()
+	label.text = label_text
+	label.custom_minimum_size.x = 145
+	row.add_child(label)
+	var slider := HSlider.new()
+	slider.min_value = -60.0
+	slider.max_value = 60.0
+	slider.step = 1.0
+	slider.value = 0.0
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.value_changed.connect(_on_pivot_offset_changed.bind(pivot_name, axis))
+	row.add_child(slider)
+
+func _on_pivot_offset_changed(value: float, pivot_name: String, axis: String) -> void:
+	if is_instance_valid(runtime_rig):
+		rig_builder.set_pivot_offset(runtime_rig, pivot_name, axis, value)
 
 func _on_joint_slider_changed(value: float, joint_path: String) -> void:
 	if not is_instance_valid(runtime_rig):
