@@ -37,6 +37,7 @@ var animation_speed_slider: HSlider
 var motion_intensity_slider: HSlider
 var custom_pose_name_input: LineEdit
 var joint_picker: OptionButton
+var joint_axis_picker: OptionButton
 var joint_angle_slider: HSlider
 var joint_angle_spin: SpinBox
 var joint_undo_stack: Array[Dictionary] = []
@@ -519,6 +520,21 @@ func _show_character_lab() -> void:
 		joint_picker.set_item_metadata(joint_picker.item_count - 1, str(option[1]))
 	joint_picker.item_selected.connect(_on_joint_editor_selection_changed)
 	joint_picker_row.add_child(joint_picker)
+	var joint_axis_row := HBoxContainer.new()
+	right.add_child(joint_axis_row)
+	var joint_axis_label := Label.new()
+	joint_axis_label.text = "Eje 3D"
+	joint_axis_label.custom_minimum_size.x = 145
+	joint_axis_row.add_child(joint_axis_label)
+	joint_axis_picker = OptionButton.new()
+	joint_axis_picker.add_item("X")
+	joint_axis_picker.add_item("Y")
+	joint_axis_picker.add_item("Z")
+	joint_axis_picker.select(2)
+	joint_axis_picker.item_selected.connect(func(_axis: int) -> void:
+		_on_joint_editor_selection_changed(joint_picker.selected if is_instance_valid(joint_picker) else 0)
+	)
+	joint_axis_row.add_child(joint_axis_picker)
 	var joint_angle_row := HBoxContainer.new()
 	right.add_child(joint_angle_row)
 	joint_angle_slider = HSlider.new()
@@ -1024,6 +1040,8 @@ func _generate_spatial_pose_set() -> void:
 		return
 	var intensity := motion_intensity_slider.value if is_instance_valid(motion_intensity_slider) else 1.0
 	procedural_poses = runtime_spatial_animator.generate_pose_library(intensity)
+	for custom_pose in project_data.get("spatial_custom_poses", []):
+		procedural_poses.append(custom_pose.duplicate(true))
 	var clips: Array = runtime_spatial_animator.generate_animation_library(intensity)
 	if not procedural_poses.is_empty():
 		runtime_spatial_animator.apply_pose(procedural_poses[0])
@@ -1227,14 +1245,36 @@ func _save_timeline_clips() -> void:
 	_set_status("Biblioteca de clips guardada en el proyecto.")
 
 func _save_current_procedural_pose() -> void:
+	var pose_name := custom_pose_name_input.text.strip_edges() if is_instance_valid(custom_pose_name_input) else ""
+	if is_instance_valid(runtime_spatial_animator) and not is_instance_valid(runtime_rig):
+		var bone_rotations: Dictionary = runtime_spatial_animator.capture_pose()
+		if bone_rotations.is_empty():
+			_set_status("No se encontraron huesos para guardar.")
+			return
+		if pose_name == "":
+			pose_name = "Pose 3D personalizada %d" % (project_data.get("spatial_custom_poses", []).size() + 1)
+		var spatial_pose := {"name":pose_name,"bone_rotations_degrees":bone_rotations,"custom":true}
+		if not project_data.has("spatial_custom_poses"):
+			project_data["spatial_custom_poses"] = []
+		project_data["spatial_custom_poses"].append(spatial_pose)
+		if not project_data.has("spatial_procedural_poses"):
+			project_data["spatial_procedural_poses"] = []
+		project_data["spatial_procedural_poses"].append(spatial_pose.duplicate(true))
+		procedural_poses.append(spatial_pose.duplicate(true))
+		if is_instance_valid(pose_controls):
+			_add_button(pose_controls, pose_name, _apply_generated_pose.bind(spatial_pose))
+		if is_instance_valid(custom_pose_name_input):
+			custom_pose_name_input.clear()
+		_save_project()
+		_set_status("Pose 3D «%s» guardada en la biblioteca personalizada." % pose_name)
+		return
 	if not is_instance_valid(runtime_rig):
-		_set_status("Primero crea o construye un rig 2D.")
+		_set_status("Primero crea o construye un rig.")
 		return
 	var angles: Dictionary = rig_builder.capture_procedural_pose(runtime_rig)
 	if angles.is_empty():
 		_set_status("No se encontraron articulaciones para guardar.")
 		return
-	var pose_name := custom_pose_name_input.text.strip_edges() if is_instance_valid(custom_pose_name_input) else ""
 	if pose_name == "":
 		pose_name = "Pose personalizada %d" % (project_data.get("custom_procedural_poses", []).size() + 1)
 	var pose := {"name": pose_name, "joint_angles": angles, "custom": true}
@@ -1420,7 +1460,8 @@ func _on_joint_editor_selection_changed(index: int) -> void:
 		var bone_name := _spatial_bone_name(key)
 		var rotations: Dictionary = runtime_spatial_animator.capture_pose()
 		var angles: Array = rotations.get(bone_name, [0.0, 0.0, 0.0])
-		value = float(angles[2]) if angles.size() >= 3 else 0.0
+		var axis_index := joint_axis_picker.selected if is_instance_valid(joint_axis_picker) else 2
+		value = float(angles[axis_index]) if angles.size() > axis_index else 0.0
 	else:
 		return
 	joint_editor_syncing = true
@@ -1454,7 +1495,10 @@ func _on_joint_editor_angle_changed(value: float) -> void:
 			_set_status("Esta articulación no existe en el rig 3D actual.")
 			return
 		var rotations := before.duplicate(true)
-		rotations[bone_name] = [0.0, 0.0, clampf(value, -180.0, 180.0)]
+		var bone_angles: Array = rotations.get(bone_name, [0.0, 0.0, 0.0]).duplicate()
+		var axis_index := joint_axis_picker.selected if is_instance_valid(joint_axis_picker) else 2
+		bone_angles[axis_index] = clampf(value, -180.0, 180.0)
+		rotations[bone_name] = bone_angles
 		runtime_spatial_animator.apply_pose({"bone_rotations_degrees": rotations})
 	_set_status("Articulación %s ajustada a %.0f°." % [joint_picker.get_item_text(joint_picker.selected), value])
 
@@ -1502,7 +1546,10 @@ func _reset_selected_joint() -> void:
 		var bone_name := _spatial_bone_name(key)
 		if bone_name != "":
 			var rotations := before.duplicate(true)
-			rotations[bone_name] = [0.0, 0.0, 0.0]
+			var bone_angles: Array = rotations.get(bone_name, [0.0, 0.0, 0.0]).duplicate()
+			var axis_index := joint_axis_picker.selected if is_instance_valid(joint_axis_picker) else 2
+			bone_angles[axis_index] = 0.0
+			rotations[bone_name] = bone_angles
 			runtime_spatial_animator.apply_pose({"bone_rotations_degrees": rotations})
 			_on_joint_editor_selection_changed(joint_picker.selected)
 			_set_status("Articulación 3D restablecida a 0°.")
