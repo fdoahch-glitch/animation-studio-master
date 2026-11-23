@@ -18,9 +18,15 @@ func export_bundle(path: String, project: Dictionary) -> Dictionary:
   var source=str(resource.get("path",""))
   if source.is_empty() or seen.has(source): continue
   seen[source]=true
-  if not FileAccess.file_exists(source): continue
+  if not FileAccess.file_exists(source):
+   writer.close()
+   DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+   return {"ok":false,"error":"No se encuentra un recurso del proyecto: %s" % source}
   var bytes=FileAccess.get_file_as_bytes(source)
-  if bytes.is_empty(): continue
+  if bytes.is_empty():
+   writer.close()
+   DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+   return {"ok":false,"error":"No se pudo leer el recurso del proyecto: %s" % source}
   total+=bytes.size()
   if total>MAX_TOTAL_BYTES:
    writer.close()
