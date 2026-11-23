@@ -287,7 +287,7 @@ func _build_shell() -> void:
 	header.custom_minimum_size.y = 58
 	root_ui.add_child(header)
 	var brand := Label.new()
-	brand.text = "  ANIMATION STUDIO MANAGER"
+	brand.text = "  ANIMATION STUDIO MASTER"
 	brand.add_theme_font_size_override("font_size", 20)
 	brand.add_theme_color_override("font_color", Color("#17324d"))
 	brand.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -359,7 +359,7 @@ func _show_wizard() -> void:
 	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	page.add_theme_constant_override("separation", 12)
 	scroll.add_child(page)
-	_add_heading(page, "Crear un nuevo proyecto", "Configura tu película o serie antes de abrir el lienzo.")
+	_add_heading(page, "Crear un nuevo proyecto", "Configura tu proyecto de animación antes de abrir el estudio.")
 	var name_row := HBoxContainer.new()
 	page.add_child(name_row)
 	var name_label := Label.new()
@@ -405,31 +405,115 @@ func _create_project() -> void:
 
 func _show_workspace() -> void:
 	_clear_content()
-	var layout := HBoxContainer.new()
-	layout.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	content.add_child(layout)
-	var nav := VBoxContainer.new()
-	nav.custom_minimum_size.x = 190
-	nav.add_theme_constant_override("separation", 5)
-	layout.add_child(nav)
-	for section in ["Escenas","Personajes","Fondos","Elementos","Decoraciones","Tiempo y clima","Animación","Edición de vídeo","Audio y doblaje","Exportar"]:
-		_add_button(nav, section, _open_section.bind(section))
-	var main_panel := VBoxContainer.new()
-	main_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	main_panel.add_theme_constant_override("separation", 12)
-	layout.add_child(main_panel)
-	_add_heading(main_panel, str(project_data.name), "%d × %d · %d FPS · %s" % [project_data.width,project_data.height,project_data.fps,project_data.visual_mode])
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	content.add_child(scroll)
+	var page := VBoxContainer.new()
+	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	page.add_theme_constant_override("separation", 14)
+	scroll.add_child(page)
+	var scene_count := project_data.get("scenes", []).size()
+	var resource_count := project_data.get("resources", []).size()
+	var character_count := 0
+	for resource in project_data.get("resources", []):
+		if str(resource.get("category", "")) == "character":
+			character_count += 1
+	_add_heading(page, "Estudio de producción", "Crea tu animación por escenas. Diseña personajes, compón el escenario, anima sus movimientos y exporta el resultado.")
+	var summary := HBoxContainer.new()
+	page.add_child(summary)
+	var meta := Label.new()
+	meta.text = "  %s     ·     %d × %d px     ·     %d FPS     ·     %s     ·     %d escenas     ·     %d recursos" % [str(project_data.get("name", "Proyecto")), int(project_data.get("width", 1920)), int(project_data.get("height", 1080)), int(project_data.get("fps", 24)), str(project_data.get("visual_mode", "2D")), scene_count, resource_count]
+	meta.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	meta.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	meta.add_theme_color_override("font_color", Color("#536779"))
+	summary.add_child(meta)
+	_add_button(summary, "Guardar", _save_project)
+	var hero := PanelContainer.new()
+	hero.custom_minimum_size.y = 112
+	page.add_child(hero)
+	var hero_row := HBoxContainer.new()
+	hero_row.add_theme_constant_override("separation", 18)
+	hero.add_child(hero_row)
+	var hero_copy := VBoxContainer.new()
+	hero_copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hero_row.add_child(hero_copy)
+	var hero_title := Label.new()
+	hero_title.text = "Continúa creando"
+	hero_title.add_theme_font_size_override("font_size", 21)
+	hero_title.add_theme_color_override("font_color", Color("#17324d"))
+	hero_copy.add_child(hero_title)
+	var hero_detail := Label.new()
+	hero_detail.text = "Empieza por una escena y coloca personajes u objetos. Después podrás crear pistas y keyframes para darles movimiento."
+	hero_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hero_copy.add_child(hero_detail)
+	_add_button(hero_row, "ABRIR ESCENAS", _start_scene_workflow)
+	_add_heading(page, "Tu flujo de trabajo", "Cada área abre herramientas del proyecto; puedes volver aquí en cualquier momento.")
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 12)
+	page.add_child(grid)
+	_add_workspace_card(grid, "01 · Escenas y composición", "Crea escenas, coloca recursos en el lienzo, organiza capas y ajusta transformaciones y transiciones.", "Abrir editor de escenas", _start_scene_workflow)
+	_add_workspace_card(grid, "02 · Personajes y marionetas", "Importa una imagen o modelo, prepara articulaciones, crea un rig y prueba movimientos procedurales.", "Abrir estudio de personajes", _show_character_lab)
+	_add_workspace_card(grid, "03 · Biblioteca de recursos", "Importa y clasifica personajes, fondos, elementos y decoraciones para reutilizarlos en tus escenas.", "Abrir biblioteca", _show_character_library)
+	_add_workspace_card(grid, "04 · Animación", "Crea pistas por objeto, inserta keyframes, define interpolación y revisa el movimiento en el tiempo.", "Abrir timeline de animación", _start_animation_workflow)
+	_add_workspace_card(grid, "05 · Diálogos y sonido", "Organiza guion, subtítulos, tomas de voz y datos de sincronización labial por personaje.", "Abrir estudio de diálogo", _show_dialogue_studio)
+	_add_workspace_card(grid, "06 · Escenarios y ambiente", "Configura condiciones ambientales, hora del día, clima y dirección visual de la escena.", "Abrir dirección ambiental", _show_environment_studio)
+	_add_workspace_card(grid, "07 · Exportación y entrega", "Prepara el proyecto portable, revisa recursos y accede a las opciones de salida disponibles.", "Abrir exportación", _show_export_workspace)
+	var legacy := HBoxContainer.new()
+	legacy.alignment = BoxContainer.ALIGNMENT_END
+	page.add_child(legacy)
+	_add_button(legacy, "Herramientas audiovisuales heredadas…", _show_legacy_tools)
+	_set_status("Proyecto listo · selecciona un área para continuar.")
+
+func _add_workspace_card(parent: GridContainer, heading: String, detail: String, action_label: String, callback: Callable) -> void:
 	var card := PanelContainer.new()
-	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_panel.add_child(card)
-	var instruction := Label.new()
-	instruction.text = "ESCENARIO DE TRABAJO\n\nArrastra aquí personajes, fondos, elementos y decoraciones.\nSelecciona un recurso para abrir su inspector y definir acciones."
-	instruction.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	instruction.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	instruction.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	instruction.add_theme_font_size_override("font_size", 19)
-	card.add_child(instruction)
-	_add_button(main_panel, "Abrir asistente de personajes", _show_character_lab)
+	card.custom_minimum_size = Vector2(320, 132)
+	parent.add_child(card)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 7)
+	card.add_child(body)
+	var title := Label.new()
+	title.text = heading
+	title.add_theme_font_size_override("font_size", 17)
+	title.add_theme_color_override("font_color", Color("#17324d"))
+	body.add_child(title)
+	var description := Label.new()
+	description.text = detail
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	description.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	description.add_theme_color_override("font_color", Color("#536779"))
+	body.add_child(description)
+	_add_button(body, action_label, callback)
+
+func _show_character_library() -> void:
+	_show_resource_library("character")
+
+func _start_scene_workflow() -> void:
+	if project_data.get("scenes", []).is_empty():
+		_create_scene()
+	_show_scene_manager()
+
+func _start_animation_workflow() -> void:
+	if project_data.get("scenes", []).is_empty():
+		_create_scene()
+	var objects: Array = _active_scene().get("objects", [])
+	if objects.is_empty():
+		_show_scene_manager()
+		_set_status("Primero añade un personaje u objeto a la escena; después podrás crear sus pistas de animación.")
+		return
+	_show_director_timeline()
+
+func _show_legacy_tools() -> void:
+	_clear_content()
+	var page := VBoxContainer.new()
+	page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	page.add_theme_constant_override("separation", 10)
+	content.add_child(page)
+	_add_heading(page, "Herramientas audiovisuales heredadas", "Este módulo se conserva por compatibilidad con proyectos y pruebas anteriores. No es el flujo principal de creación de animaciones.")
+	_add_button(page, "Abrir editor audiovisual multipista", _show_video_editor)
+	_add_button(page, "Volver al estudio", _show_workspace)
 
 func _open_section(section: String) -> void:
 	if section == "Escenas":
