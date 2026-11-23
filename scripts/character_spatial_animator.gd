@@ -222,6 +222,78 @@ func _reset_skeleton_pose() -> void:
 
 
 
+
+func solve_two_bone_ik(root_position: Vector3, target_position: Vector3, first_length: float, second_length: float, pole_position: Vector3 = Vector3(0, 0, 1)) -> Dictionary:
+	var direction_vector := target_position - root_position
+	var raw_distance := direction_vector.length()
+	if raw_distance < 0.0001 or first_length <= 0.0001 or second_length <= 0.0001:
+		return {"ok":false}
+	var minimum_distance := absf(first_length - second_length) + 0.0001
+	var maximum_distance := maxf(minimum_distance, first_length + second_length - 0.0001)
+	var distance := clampf(raw_distance, minimum_distance, maximum_distance)
+	var direction := direction_vector / raw_distance
+	var along := (first_length * first_length - second_length * second_length + distance * distance) / (2.0 * distance)
+	var height := sqrt(maxf(0.0, first_length * first_length - along * along))
+	var pole_direction := pole_position - direction * pole_position.dot(direction)
+	if pole_direction.length_squared() < 0.0001:
+		pole_direction = Vector3(0, 0, 1) - direction * Vector3(0, 0, 1).dot(direction)
+	if pole_direction.length_squared() < 0.0001:
+		pole_direction = Vector3(0, 1, 0) - direction * Vector3(0, 1, 0).dot(direction)
+	var joint_position := root_position + direction * along + pole_direction.normalized() * height
+	var solved_end := root_position + direction * distance
+	return {"ok":true,"joint":joint_position,"end":solved_end,"target":target_position,"reachable":raw_distance <= maximum_distance}
+
+func apply_two_bone_ik(chain_name: String, target_position: Vector3, pole_position: Vector3 = Vector3(0, 0, 1)) -> Dictionary:
+	if not is_instance_valid(skeleton):
+		return {"ok":false,"error":"No hay un Skeleton3D activo."}
+	var chains := {
+		"arm_left":["Shoulder_L","Elbow_L","Wrist_L"],
+		"arm_right":["Shoulder_R","Elbow_R","Wrist_R"],
+		"leg_left":["Hip_L","Knee_L","Ankle_L"],
+		"leg_right":["Hip_R","Knee_R","Ankle_R"]
+	}
+	if not chains.has(chain_name):
+		return {"ok":false,"error":"Cadena IK desconocida."}
+	var chain: Array = chains[chain_name]
+	var root_index := _find_bone_index(str(chain[0]))
+	var middle_index := _find_bone_index(str(chain[1]))
+	var end_index := _find_bone_index(str(chain[2]))
+	if root_index < 0 or middle_index < 0 or end_index < 0:
+		return {"ok":false,"error":"El modelo no contiene todos los huesos de esta cadena."}
+	skeleton.force_update_all_bone_transforms()
+	var root_position: Vector3 = skeleton.get_bone_global_pose(root_index).origin
+	var middle_position: Vector3 = skeleton.get_bone_global_pose(middle_index).origin
+	var end_position: Vector3 = skeleton.get_bone_global_pose(end_index).origin
+	var first_length := root_position.distance_to(middle_position)
+	var second_length := middle_position.distance_to(end_position)
+	var solution := solve_two_bone_ik(root_position, target_position, first_length, second_length, pole_position)
+	if not bool(solution.get("ok", false)):
+		return solution
+	_rotate_bone_towards(root_index, root_position, middle_position, solution["joint"])
+	skeleton.force_update_all_bone_transforms()
+	middle_position = skeleton.get_bone_global_pose(middle_index).origin
+	end_position = skeleton.get_bone_global_pose(end_index).origin
+	_rotate_bone_towards(middle_index, middle_position, end_position, solution["end"])
+	skeleton.force_update_all_bone_transforms()
+	var final_end: Vector3 = skeleton.get_bone_global_pose(end_index).origin
+	solution["actual_end"] = final_end
+	solution["error_distance"] = final_end.distance_to(target_position)
+	return solution
+
+func _rotate_bone_towards(bone_index: int, bone_origin: Vector3, child_position: Vector3, desired_child_position: Vector3) -> void:
+	var current_direction := child_position - bone_origin
+	var desired_direction := desired_child_position - bone_origin
+	if current_direction.length_squared() < 0.0001 or desired_direction.length_squared() < 0.0001:
+		return
+	var delta_rotation := Quaternion(current_direction.normalized(), desired_direction.normalized())
+	var current_global_rotation := skeleton.get_bone_global_pose(bone_index).basis.get_rotation_quaternion()
+	var desired_global_rotation := delta_rotation * current_global_rotation
+	var parent_index := skeleton.get_bone_parent(bone_index)
+	var parent_global_rotation := Quaternion.IDENTITY
+	if parent_index >= 0:
+		parent_global_rotation = skeleton.get_bone_global_pose(parent_index).basis.get_rotation_quaternion()
+	skeleton.set_bone_pose_rotation(bone_index, parent_global_rotation.inverse() * desired_global_rotation)
+
 func bake_clips_to_animation_player(root: Node3D, clips: Array, player_name: String = "ProceduralAnimationPlayer") -> int:
 	if not is_instance_valid(root) or not is_instance_valid(skeleton):
 		return 0
