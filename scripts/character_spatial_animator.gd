@@ -264,8 +264,11 @@ func _rebuild_blend_shape_targets() -> int:
 		var mesh_instance := node as MeshInstance3D
 		if mesh_instance == null or mesh_instance.mesh == null:
 			continue
-		for index in range(mesh_instance.mesh.get_blend_shape_count()):
-			blend_shape_targets.append({"node":mesh_instance,"index":index,"name":mesh_instance.mesh.get_blend_shape_name(index),"normalized":_normalize_expression_name(mesh_instance.mesh.get_blend_shape_name(index))})
+		for index in range(mesh_instance.get_blend_shape_count()):
+			var shape_name := mesh_instance.mesh.get_blend_shape_name(index) if mesh_instance.mesh is ArrayMesh else ""
+			if shape_name.is_empty():
+				continue
+			blend_shape_targets.append({"node":mesh_instance,"index":index,"name":shape_name,"normalized":_normalize_expression_name(shape_name)})
 	return blend_shape_targets.size()
 
 func get_facial_expression_names() -> Array:
