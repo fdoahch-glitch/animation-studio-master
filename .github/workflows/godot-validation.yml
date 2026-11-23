@@ -66,6 +66,12 @@ jobs:
         continue-on-error: true
         run: godot --headless --path . --script res://tests/test_resource_library.gd
 
+      - name: Test audiovisual multipiste timeline
+        id: video_timeline
+        timeout-minutes: 3
+        continue-on-error: true
+        run: godot --headless --path . --script res://tests/test_video_timeline.gd
+
       - name: Test scene animation tracks
         id: timeline_tracks
         timeout-minutes: 3
@@ -113,6 +119,7 @@ jobs:
           SCENE_CANVAS: ${{ steps.scene_canvas.outcome }}
           RESOURCE_LIBRARY: ${{ steps.resource_library.outcome }}
           TIMELINE_TRACKS: ${{ steps.timeline_tracks.outcome }}
+          VIDEO_TIMELINE: ${{ steps.video_timeline.outcome }}
           SPATIAL_RETARGETING: ${{ steps.spatial_retargeting.outcome }}
           ENVIRONMENT_DIRECTOR: ${{ steps.environment_director.outcome }}
           DIALOGUE_STUDIO: ${{ steps.dialogue_studio.outcome }}
@@ -120,7 +127,7 @@ jobs:
           PERFORMANCE_AUDITOR: ${{ steps.performance_auditor.outcome }}
         run: |
           failed=0
-          for check in PARSE LAUNCH CHARACTER_RIG SCENE_COMPOSITION PROJECT_DOCUMENT SCENE_CANVAS RESOURCE_LIBRARY TIMELINE_TRACKS SPATIAL_RETARGETING ENVIRONMENT_DIRECTOR DIALOGUE_STUDIO PROJECT_BUNDLE PERFORMANCE_AUDITOR; do
+          for check in PARSE LAUNCH CHARACTER_RIG SCENE_COMPOSITION PROJECT_DOCUMENT SCENE_CANVAS RESOURCE_LIBRARY TIMELINE_TRACKS VIDEO_TIMELINE SPATIAL_RETARGETING ENVIRONMENT_DIRECTOR DIALOGUE_STUDIO PROJECT_BUNDLE PERFORMANCE_AUDITOR; do
             value="${!check}"
             echo "${check}: ${value}"
             if [ "${value}" != "success" ]; then failed=1; fi
