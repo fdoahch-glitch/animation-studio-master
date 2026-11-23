@@ -123,15 +123,25 @@
         "IK 3D, mandíbula y expresiones faciales",
         "timeline 3D y horneado de animaciones"
       ],
-      "acceptance": [],
-      "tests": [],
-      "commit": null,
-      "notes": "Funciones y pruebas headless existentes; falta prueba visual con modelos externos reales."
+      "acceptance": [
+        "Se pueden construir rigs Skeleton3D humanoide y cuadrúpedo con jerarquías consistentes.",
+        "El rig cuadrúpedo contiene columna, cabeza, mandíbula, cola segmentada y cuatro cadenas de extremidades.",
+        "El animador genera poses y ocho ciclos procedurales para humanoides y cuadrúpedos.",
+        "Las cadenas IK de dos huesos se pueden resolver para extremidades compatibles.",
+        "La auditoría informa huesos requeridos ausentes, cobertura anatómica y errores de orden jerárquico.",
+        "Las animaciones originales importadas siguen disponibles junto al sistema procedural."
+      ],
+      "tests": [
+        "tests/test_spatial_retargeting.gd: construcción y auditoría humanoide/cuadrúpeda, librerías de poses/ciclos y reproducción procedural básica.",
+        "CI Godot run sobre commit final de esta etapa; la prueba visual con GLB externo sigue pendiente."
+      ],
+      "commit": "53031da8986049f015c8fdbffaf978de9ebf16ff",
+      "notes": "Etapa reforzada: scripts/character_spatial_rig_builder.gd incorpora validate_skeleton; tests/test_spatial_retargeting.gd cubre ambos arquetipos y el animador procedural. El rig segmentado es de demostración y no realiza skinning automático de mallas artísticas. Prueba visual con GLB externo aún pendiente."
     },
     {
       "id": 6,
       "name": "Retargeting y biblioteca de movimientos",
-      "status": "pending",
+      "status": "partial",
       "scope": [
         "perfiles de esqueletos y alias ampliados",
         "mapa de correspondencia origen-destino",
@@ -139,10 +149,20 @@
         "normalización de escala, ejes y rest pose",
         "previsualización, corrección y guardado de retarget"
       ],
-      "acceptance": [],
-      "tests": [],
-      "commit": null,
-      "notes": "Siguiente etapa técnica prevista."
+      "acceptance": [
+        "El retargeter normaliza nombres anatómicos habituales y prefijos Mixamo.",
+        "Puede crear un mapa de huesos origen-destino para esqueletos humanoides y cuadrúpedos compatibles.",
+        "Genera informe de huesos mapeados, no mapeados y porcentaje de cobertura.",
+        "Puede transferir poses articulares aplicando escala y offset angular por eje.",
+        "Los perfiles de retargeting se validan y guardan en el documento del proyecto.",
+        "El Estudio de personajes permite auditar un modelo importado y generar un perfil contra un rig de referencia."
+      ],
+      "tests": [
+        "tests/test_spatial_retargeting.gd: equivalencias, cobertura, validación de perfil y transferencia de pose.",
+        "CI Godot run sobre commit final de esta etapa; validación con una colección de GLB externos sigue pendiente."
+      ],
+      "commit": "53031da8986049f015c8fdbffaf978de9ebf16ff",
+      "notes": "Implementado scripts/animation_retargeter.gd y UI en scripts/main.gd. Retargeting actual transfiere poses por equivalencia de huesos; todavía no convierte AnimationPlayer completas ni resuelve root motion, bind-pose offsets o contacto IK. Se mantiene partial hasta pruebas reales con modelos externos."
     },
     {
       "id": 7,
