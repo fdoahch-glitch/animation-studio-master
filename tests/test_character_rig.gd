@@ -96,8 +96,15 @@ func _run_tests() -> void:
 		return
 
 	var segmented_parts: Array = []
-	for part_name in ["pelvis", "torso", "upper_arm_left", "lower_arm_left", "hand_left", "upper_arm_right", "lower_arm_right", "hand_right", "upper_leg_left", "lower_leg_left", "foot_left", "upper_leg_right", "lower_leg_right", "foot_right"]:
-		segmented_parts.append({"name": part_name, "path": source_path, "rect": [20, 20, 70, 100]})
+	var part_rects := {
+		"pelvis": [45, 150, 38, 42], "torso": [40, 60, 48, 100],
+		"upper_arm_left": [18, 65, 22, 60], "lower_arm_left": [8, 110, 22, 55], "hand_left": [8, 155, 22, 30],
+		"upper_arm_right": [88, 65, 22, 60], "lower_arm_right": [98, 110, 22, 55], "hand_right": [98, 155, 22, 30],
+		"upper_leg_left": [40, 150, 22, 55], "lower_leg_left": [38, 200, 22, 45], "foot_left": [30, 230, 35, 20],
+		"upper_leg_right": [65, 150, 22, 55], "lower_leg_right": [68, 200, 22, 45], "foot_right": [65, 230, 35, 20]
+	}
+	for part_name in part_rects.keys():
+		segmented_parts.append({"name": part_name, "path": source_path, "rect": part_rects[part_name]})
 	var sprite_rig: Node2D = builder.build_segmented_sprite_rig(segmented_parts, {}, Vector2i(128, 256))
 	root.add_child(sprite_rig)
 	var segmented_overlay: Control = IK_DRAG_OVERLAY.new()
@@ -112,6 +119,13 @@ func _run_tests() -> void:
 			push_error("Falta un punto IK arrastrable en el rig segmentado: " + str(handle_name))
 			quit(1)
 			return
+	var left_hand_root := sprite_rig.find_child("Pivot_shoulder_left", true, false) as Node2D
+	var left_hand_joint := sprite_rig.find_child("Pivot_elbow_left", true, false) as Node2D
+	var left_hand_end := sprite_rig.find_child("Pivot_wrist_left", true, false) as Node2D
+	if left_hand_root == null or left_hand_joint == null or left_hand_end == null or left_hand_root.position.distance_to(left_hand_joint.position) < 1.0 or left_hand_joint.position.distance_to(left_hand_end.position) < 1.0:
+		push_error("La cadena IK segmentada no tiene longitudes válidas.")
+		quit(1)
+		return
 	if not builder.play_animation(sprite_rig, "walk"):
 		push_error("No se pudo reproducir la animación walk del rig segmentado.")
 		quit(1)
