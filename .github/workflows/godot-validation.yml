@@ -40,3 +40,8 @@ jobs:
         run: godot --headless --path . --script res://tests/test_timeline_tracks.gd
       - name: Test spatial rigs and retargeting
         run: godot --headless --path . --script res://tests/test_spatial_retargeting.gd
+
+      - name: Test environment and weather director
+        run: godot --headless --path . --script res://tests/test_environment_director.gd
+      - name: Test dialogue and dubbing model
+        run: godot --headless --path . --script res://tests/test_dialogue_studio.gd
