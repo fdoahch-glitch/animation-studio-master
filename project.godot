@@ -1,10 +1,10 @@
 ; Engine configuration file.
-; Animation Studio Manager - Godot 4.x
+; Animation Studio Manager
 config_version=5
 
 [application]
 config/name="Animation Studio Manager"
-config/description="Editor de animacion 2D"
+config/description="Estudio visual de animación por escenas"
 run/main_scene="res://scenes/main.tscn"
 
 [display]
