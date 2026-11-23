@@ -29,7 +29,7 @@ func _run_tests() -> void:
 		push_error("No se pudo aplicar una pose procedural al rig estándar.")
 		quit(1)
 		return
-	if builder.add_ai_animation_set(procedural_rig, clips) < 10:
+	if builder.add_procedural_animation_set(procedural_rig, clips) < 10:
 		push_error("No se pudieron instalar los ciclos procedurales en el rig.")
 		quit(1)
 		return
