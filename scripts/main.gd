@@ -193,6 +193,12 @@ var environment_keyframe_time: SpinBox
 var environment_selected_layer_id := ""
 var active_script: Dictionary = {}
 var dialogue_line_list: ItemList
+var dialogue_take_list: ItemList
+var dialogue_gain_slider: HSlider
+var dialogue_offset_input: SpinBox
+var dialogue_mute_toggle: CheckBox
+var dialogue_audio_player: AudioStreamPlayer
+var selected_dialogue_take_id := ""
 var microphone_player: AudioStreamPlayer
 var microphone_record_effect: AudioEffectRecord
 var microphone_bus_name := "MicRecord"
@@ -4209,36 +4215,36 @@ func _ensure_dialogue_script() -> void:
 func _show_dialogue_studio() -> void:
 	_ensure_dialogue_script()
 	_clear_content()
-	var scroll=ScrollContainer.new()
+	var scroll := ScrollContainer.new()
 	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	content.add_child(scroll)
-	var page=VBoxContainer.new()
-	page.custom_minimum_size.x=620
-	page.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-	page.add_theme_constant_override("separation",8)
+	var page := VBoxContainer.new()
+	page.custom_minimum_size.x = 620
+	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	page.add_theme_constant_override("separation", 8)
 	scroll.add_child(page)
-	_add_heading(page,"Guion, diálogos y doblaje","Crea líneas de diálogo y subtítulos sincronizados; registra tomas de voz importadas.")
-	var speaker=LineEdit.new()
-	speaker.placeholder_text="Personaje / locutor"
+	_add_heading(page, "Guion, diálogos y doblaje", "Crea subtítulos, graba tomas, ajusta mezcla y genera una pista de sincronización labial.")
+	var speaker := LineEdit.new()
+	speaker.placeholder_text = "Personaje / locutor"
 	page.add_child(speaker)
-	var line_text=TextEdit.new()
-	line_text.placeholder_text="Texto del diálogo"
-	line_text.custom_minimum_size.y=90
+	var line_text := TextEdit.new()
+	line_text.placeholder_text = "Texto del diálogo"
+	line_text.custom_minimum_size.y = 90
 	page.add_child(line_text)
-	var times=HBoxContainer.new()
+	var times := HBoxContainer.new()
 	page.add_child(times)
-	var start=SpinBox.new()
-	start.min_value=0
-	start.max_value=36000
-	start.step=0.1
-	start.prefix="Inicio "
+	var start := SpinBox.new()
+	start.min_value = 0
+	start.max_value = 36000
+	start.step = 0.1
+	start.prefix = "Inicio "
 	times.add_child(start)
-	var finish=SpinBox.new()
-	finish.min_value=0.1
-	finish.max_value=36000
-	finish.step=0.1
-	finish.value=2.5
-	finish.prefix="Fin "
+	var finish := SpinBox.new()
+	finish.min_value = 0.1
+	finish.max_value = 36000
+	finish.step = 0.1
+	finish.value = 2.5
+	finish.prefix = "Fin "
 	times.add_child(finish)
 	_add_button(page, "Añadir diálogo / subtítulo", func():
 		var result: Dictionary = dialogue_studio.add_line(active_script, speaker.text, line_text.text, start.value, finish.value)
@@ -4246,15 +4252,42 @@ func _show_dialogue_studio() -> void:
 			line_text.clear()
 			selected_dialogue_line_id = str(result.line.get("id", ""))
 			_refresh_dialogue_lines()
+			_refresh_dialogue_takes()
 			_save_dialogue_script()
 		else:
 			_set_status(str(result.error))
 	)
-	dialogue_line_list=ItemList.new()
-	dialogue_line_list.custom_minimum_size.y=180
+	dialogue_line_list = ItemList.new()
+	dialogue_line_list.custom_minimum_size.y = 160
 	dialogue_line_list.item_selected.connect(_on_dialogue_line_selected)
 	page.add_child(dialogue_line_list)
 	_refresh_dialogue_lines()
+
+	_add_heading(page, "Tomas de voz y mezcla", "Selecciona una línea y gestiona sus tomas, volumen, silencio y desplazamiento.")
+	dialogue_take_list = ItemList.new()
+	dialogue_take_list.custom_minimum_size.y = 130
+	dialogue_take_list.item_selected.connect(_on_dialogue_take_selected)
+	page.add_child(dialogue_take_list)
+	_refresh_dialogue_takes()
+	dialogue_gain_slider = HSlider.new()
+	dialogue_gain_slider.min_value = -60.0
+	dialogue_gain_slider.max_value = 12.0
+	dialogue_gain_slider.step = 0.5
+	dialogue_gain_slider.value = 0.0
+	_labeled_control(page, "Ganancia (dB)", dialogue_gain_slider)
+	dialogue_offset_input = SpinBox.new()
+	dialogue_offset_input.min_value = 0.0
+	dialogue_offset_input.max_value = 36000.0
+	dialogue_offset_input.step = 0.01
+	dialogue_offset_input.prefix = "Offset (s) "
+	_labeled_control(page, "Inicio de toma", dialogue_offset_input)
+	dialogue_mute_toggle = CheckBox.new()
+	dialogue_mute_toggle.text = "Silenciar toma"
+	page.add_child(dialogue_mute_toggle)
+	_add_button(page, "Guardar mezcla de la toma", _save_dialogue_take_mix)
+	_add_button(page, "Reproducir toma seleccionada", _play_dialogue_take)
+	_add_button(page, "Detener reproducción", _stop_dialogue_take_playback)
+
 	microphone_countdown_label = Label.new()
 	microphone_countdown_label.text = "Micrófono listo · cuenta regresiva de 3 segundos"
 	page.add_child(microphone_countdown_label)
@@ -4264,15 +4297,24 @@ func _show_dialogue_studio() -> void:
 		microphone_countdown_timer.wait_time = 1.0
 		microphone_countdown_timer.timeout.connect(_on_microphone_countdown_tick)
 		add_child(microphone_countdown_timer)
-	_add_button(page,"Iniciar grabación · 3 s",_begin_microphone_recording_countdown)
-	_add_button(page,"Detener y registrar toma WAV",_stop_or_cancel_microphone_recording)
-	_add_button(page,"Registrar toma de audio importada",_register_dialogue_take)
-	_add_button(page,"Validar y guardar guion",_save_dialogue_script)
-	var note=Label.new()
-	note.text="Selecciona una línea para asociar la toma de voz. Si no seleccionas ninguna, se usará la última línea. La grabación guarda WAV y requiere permiso del sistema y una entrada de audio habilitada."
-	note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	_add_button(page, "Iniciar grabación · 3 s", _begin_microphone_recording_countdown)
+	_add_button(page, "Detener y registrar toma WAV", _stop_or_cancel_microphone_recording)
+	_add_button(page, "Registrar toma de audio importada", _register_dialogue_take)
+
+	_add_heading(page, "Sincronización labial", "Genera visemas aproximados desde audio PCM WAV y previsualízalos en el rig 3D.")
+	_add_button(page, "Generar visemas desde WAV seleccionado", _generate_visemes_from_selected_take)
+	_add_button(page, "Previsualizar visemas en personaje 3D", _preview_dialogue_visemes)
+	_add_button(page, "Detener sincronización labial", func():
+		if is_instance_valid(runtime_spatial_animator): runtime_spatial_animator.stop_viseme_track()
+		_set_status("Previsualización de visemas detenida.")
+	)
+	_add_button(page, "Validar y guardar guion", _save_dialogue_script)
+	var note := Label.new()
+	note.text = "La estimación de visemas se basa en energía PCM, no en reconocimiento fonético. La captura directa requiere permiso de micrófono y una entrada de audio habilitada."
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	page.add_child(note)
-	_add_button(page,"Volver",_show_workspace)
+	_add_button(page, "Volver", _show_workspace)
+
 
 func _refresh_dialogue_lines() -> void:
 	if not is_instance_valid(dialogue_line_list):
