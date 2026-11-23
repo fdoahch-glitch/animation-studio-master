@@ -98,6 +98,28 @@ func validate_scene(scene: Dictionary) -> Dictionary:
 		seen[id] = true
 		if not OBJECT_TYPES.has(str(item.get("type", ""))):
 			return {"ok": false, "error": "Tipo de instancia no compatible: " + str(item.get("type", ""))}
+		if str(item.get("resource_id", "")).strip_edges().is_empty():
+			return {"ok": false, "error": "Cada instancia debe apuntar a un recurso."}
+		var transform_value: Variant = item.get("transform", {})
+		if not transform_value is Dictionary:
+			return {"ok": false, "error": "La transformación debe ser un objeto."}
+		for numeric_key in ["x", "y", "scale_x", "scale_y", "rotation", "depth"]:
+			var numeric_value: Variant = transform_value.get(numeric_key, DEFAULT_TRANSFORM.get(numeric_key))
+			if not (numeric_value is int or numeric_value is float) or not is_finite(float(numeric_value)):
+				return {"ok": false, "error": "Transformación numérica inválida: " + numeric_key}
+		if float(transform_value.get("scale_x", 1.0)) <= 0.0 or float(transform_value.get("scale_y", 1.0)) <= 0.0:
+			return {"ok": false, "error": "La escala debe ser mayor que cero."}
+		if not (transform_value.get("visible", true) is bool):
+			return {"ok": false, "error": "La visibilidad debe ser booleana."}
+	var transition_value: Variant = scene.get("transitions", {})
+	if not transition_value is Dictionary:
+		return {"ok": false, "error": "La transición de escena debe ser un objeto."}
+	if not transition_value.is_empty():
+		if not ["cut", "fade", "dissolve", "wipe"].has(str(transition_value.get("type", ""))):
+			return {"ok": false, "error": "Transición de escena no compatible."}
+		var duration := float(transition_value.get("duration_seconds", 0.0))
+		if not is_finite(duration) or duration < 0.0 or duration > 30.0:
+			return {"ok": false, "error": "La duración de transición debe estar entre 0 y 30 segundos."}
 	return {"ok": true, "count": objects.size()}
 
 func _find_index(objects: Array, instance_id: String) -> int:
