@@ -21,7 +21,7 @@ func _run_tests() -> void:
 	var library: Dictionary = animator.generate_pose_library()
 	var poses: Array = library.get("poses", [])
 	var clips: Array = library.get("animations", [])
-	if poses.size() < 10 or clips.size() < 10:
+	if poses.size() < 20 or clips.size() < 20:
 		push_error("El generador procedural no creó suficientes poses y ciclos.")
 		quit(1)
 		return
@@ -29,11 +29,11 @@ func _run_tests() -> void:
 		push_error("No se pudo aplicar una pose procedural al rig estándar.")
 		quit(1)
 		return
-	if builder.add_procedural_animation_set(procedural_rig, clips) < 10:
+	if builder.add_procedural_animation_set(procedural_rig, clips) < 18:
 		push_error("No se pudieron instalar los ciclos procedurales en el rig.")
 		quit(1)
 		return
-	if not builder.play_animation(procedural_rig, "proc_caminar"):
+	if not builder.play_animation(procedural_rig, "proc_caminar", 1.4):
 		push_error("No se pudo reproducir el ciclo procedural Caminar.")
 		quit(1)
 		return
