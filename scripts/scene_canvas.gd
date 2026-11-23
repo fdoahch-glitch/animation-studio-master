@@ -3,6 +3,7 @@ class_name SceneCanvas
 
 signal selection_changed(instance_id: String)
 signal composition_changed
+signal asset_dropped(resource_type: String, scene_position: Vector2)
 
 var scene_data: Dictionary = {}
 var scene_width := 1920.0
@@ -198,3 +199,11 @@ func reset_view() -> void:
 	zoom = 1.0
 	pan = Vector2.ZERO
 	queue_redraw()
+
+func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
+	return data is Dictionary and ["character", "background", "element", "decoration"].has(str(data.get("scene_asset_type", "")))
+
+func _drop_data(at_position: Vector2, data: Variant) -> void:
+	if not _can_drop_data(at_position, data):
+		return
+	asset_dropped.emit(str(data.get("scene_asset_type", "")), _screen_to_scene(at_position))
