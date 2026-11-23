@@ -61,7 +61,7 @@ func _initialize() -> void:
 	assert(preview.preview_viewport.render_target_update_mode == SubViewport.UPDATE_WHEN_VISIBLE, "La vista previa debe limitar el render al estado visible")
 	var preview_result: Dictionary = preview.load_model(path)
 	assert(preview_result.ok and preview.has_model(), "La vista previa debe cargar el modelo GLB")
-	var initial_rotation := preview.model_pivot.rotation.y
+	var initial_rotation: float = float(preview.model_pivot.rotation.y)
 	var touch_down := InputEventScreenTouch.new()
 	touch_down.pressed = true
 	touch_down.position = Vector2(100, 100)
