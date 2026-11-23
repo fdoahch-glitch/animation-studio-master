@@ -25,7 +25,7 @@ func _initialize() -> void:
 	assert(model.set_transition(scene, "fade", 1.25).ok)
 	assert(scene.transitions.type == "fade" and scene.transitions.duration_seconds == 1.25)
 	assert(not model.set_transition(scene, "unknown", 1.0).ok)
-	 assert(model.validate_scene(scene).ok)
+	assert(model.validate_scene(scene).ok)
 	var usage := model.find_resource_references([scene], "char_01")
 	assert(usage.size() == 1 and usage[0].instance_id == actor.id, "Debe localizar recursos usados por escenas")
 	assert(model.find_resource_references([scene], "unused_asset").is_empty(), "No debe reportar recursos sin referencias")
