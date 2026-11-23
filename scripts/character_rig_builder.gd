@@ -183,6 +183,7 @@ func _bone_path(bone_name: String) -> String:
 		"Hip_R": "Pelvis/Hip_R",
 		"Knee_R": "Pelvis/Hip_R/Knee_R",
 		"pelvis": "Pelvis",
+		"neck": "Pelvis/Spine/Chest/Neck",
 		"torso": "Pelvis/Spine/Chest",
 		"head": "Pelvis/Spine/Chest/Neck/Head",
 		"shoulder_left": "Pelvis/Spine/Chest/Shoulder_L",
@@ -402,7 +403,7 @@ func _make_pivot_animation(pose_data: Dictionary, duration: float, looping: bool
 
 func capture_procedural_pose(rig: Node2D) -> Dictionary:
 	var captured: Dictionary = {}
-	var joint_keys := ["head", "torso", "shoulder_left", "elbow_left", "shoulder_right", "elbow_right", "hip_left", "knee_left", "hip_right", "knee_right"]
+	var joint_keys := ["pelvis", "torso", "neck", "head", "shoulder_left", "elbow_left", "wrist_left", "shoulder_right", "elbow_right", "wrist_right", "hip_left", "knee_left", "ankle_left", "hip_right", "knee_right", "ankle_right"]
 	for key in joint_keys:
 		var pivot := rig.find_child("Pivot_" + key, true, false) as Node2D
 		if pivot == null:
