@@ -43,13 +43,17 @@ godot --headless --path . --script res://tests/test_character_rig.gd
 
 GitHub Actions ejecuta estas comprobaciones en cada cambio de `main`.
 
-## Exportar para Windows
-1. Instala las plantillas de exportación en Godot.
-2. Abre Proyecto > Exportar.
-3. Añade Windows Desktop (x86_64).
-4. Exporta el ejecutable.
+## Descargar el ejecutable para Windows
 
-La compilación del ejecutable todavía no se ha ejecutado ni verificado en CI.
+El repositorio incluye `export_presets.cfg` y el workflow **Windows desktop build**. Cada push a `main` y cada ejecución manual del workflow compilan el proyecto con Godot 4.3 para Windows x64 y publican el archivo `AnimationStudioMaster.exe` como artefacto de GitHub Actions.
+
+Para descargarlo:
+1. Abre la pestaña **Actions** del repositorio.
+2. Entra en la ejecución **Windows desktop build** más reciente y espera a que termine correctamente.
+3. Al final de la página, en **Artifacts**, descarga `AnimationStudioMaster-Windows-x64`.
+4. Descomprime el ZIP y ejecuta `AnimationStudioMaster.exe` en Windows 10/11 de 64 bits.
+
+La validación del proyecto y la compilación de Windows son workflows separados. Un resultado verde en **Godot project validation** no genera por sí solo un ejecutable. El archivo solo debe considerarse disponible cuando **Windows desktop build** termine correctamente y el artefacto aparezca en esa ejecución.
 
 ## Documentación
 - Diseño funcional: docs/PRODUCT_BLUEPRINT.md
