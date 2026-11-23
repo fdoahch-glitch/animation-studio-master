@@ -8,3 +8,8 @@
 
 ## Límites pendientes
 El auditor no mide FPS/GPU en vivo ni sustituye un perfilador del dispositivo. La escala sugerida aún no está conectada al viewport/renderizador. El workflow de Windows genera EXE, ZIP e instalador Inno Setup x64. Ejecuta una instalación silenciosa, verifica que el ejecutable quede instalado, lo inicia en modo headless y desinstala. El instalador no está firmado digitalmente; la prueba de instalación gráfica en un Windows de usuario sigue pendiente. La aceptación visual/dispositivo de etapas anteriores sigue pendiente.
+
+
+## Timeline visual multipista
+
+`scripts/video_timeline_view.gd` presenta pistas y clips en una escala temporal desplazable horizontalmente. Permite seleccionar pistas/clips, mover el cabezal al pulsar la regla y arrastrar clips entre tiempos sin perder el desplazamiento del punto de agarre. La vista se sincroniza con el modelo de montaje y el documento del proyecto. Prueba de interacción: `tests/test_video_timeline_view.gd`.

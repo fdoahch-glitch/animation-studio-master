@@ -10,6 +10,7 @@ const IK_DRAG_OVERLAY = preload("res://scripts/ik_drag_overlay.gd")
 const ANIMATION_TIMELINE = preload("res://scripts/animation_timeline.gd")
 const ANIMATION_TIMELINE_VIEW = preload("res://scripts/animation_timeline_view.gd")
 const VIDEO_TIMELINE = preload("res://scripts/video_timeline.gd")
+const VIDEO_TIMELINE_VIEW = preload("res://scripts/video_timeline_view.gd")
 const CHARACTER_PACKAGE_IO = preload("res://scripts/character_package_io.gd")
 const PROJECT_DOCUMENT_IO = preload("res://scripts/project_document_io.gd")
 const SCENE_COMPOSITION_MODEL = preload("res://scripts/scene_composition_model.gd")
@@ -125,6 +126,7 @@ var timeline_loop: CheckBox
 var timeline_name_input: LineEdit
 var timeline_time_input: SpinBox
 var video_timeline_model
+var video_timeline_view
 var video_track_list: ItemList
 var video_clip_list: ItemList
 var video_playhead: SpinBox
@@ -3296,6 +3298,18 @@ func _show_video_editor() -> void:
 	_add_button(toolbar, "+ Títulos", _video_add_track.bind("title"))
 	_add_button(toolbar, "+ Superposición", _video_add_track.bind("overlay"))
 	_add_button(toolbar, "+ Efectos", _video_add_track.bind("effect"))
+	var timeline_scroll := ScrollContainer.new()
+	timeline_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	timeline_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	timeline_scroll.custom_minimum_size.y = 190
+	page.add_child(timeline_scroll)
+	video_timeline_view = VIDEO_TIMELINE_VIEW.new()
+	video_timeline_view.custom_minimum_size = Vector2(700, 180)
+	video_timeline_view.clip_selected.connect(_video_on_timeline_clip_selected)
+	video_timeline_view.clip_moved.connect(_video_on_timeline_clip_moved)
+	video_timeline_view.track_selected.connect(_video_select_track)
+	video_timeline_view.time_selected.connect(_video_on_timeline_time_selected)
+	timeline_scroll.add_child(video_timeline_view)
 	var columns := HBoxContainer.new()
 	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	page.add_child(columns)
@@ -3326,6 +3340,7 @@ func _show_video_editor() -> void:
 	video_playhead.max_value = 86400.0
 	video_playhead.step = 0.01
 	video_playhead.suffix = " s · cabezal"
+	video_playhead.value_changed.connect(_video_on_timeline_time_selected)
 	edit_row.add_child(video_playhead)
 	video_clip_start = SpinBox.new()
 	video_clip_start.min_value = 0.0
@@ -3385,6 +3400,48 @@ func _video_refresh_tracks() -> void:
 		_video_refresh_clips()
 	else:
 		video_clip_list.clear()
+	_video_refresh_timeline_view()
+
+func _video_refresh_timeline_view() -> void:
+	if is_instance_valid(video_timeline_view):
+		video_timeline_view.configure(_video_timeline(), float(video_playhead.value) if is_instance_valid(video_playhead) else 0.0, video_selected_track, video_selected_clip)
+
+func _video_on_timeline_time_selected(seconds: float) -> void:
+	if is_instance_valid(video_playhead):
+		video_playhead.set_value_no_signal(maxf(0.0, seconds))
+	_video_refresh_timeline_view()
+
+func _video_on_timeline_clip_selected(track_index: int, clip_index: int) -> void:
+	var tracks: Array = _video_timeline().get("tracks", [])
+	if track_index < 0 or track_index >= tracks.size():
+		return
+	video_selected_track = track_index
+	video_selected_clip = clip_index
+	if is_instance_valid(video_track_list):
+		video_track_list.select(track_index)
+	_video_refresh_clips()
+	if is_instance_valid(video_clip_list) and clip_index >= 0:
+		video_clip_list.select(clip_index)
+		_video_select_clip(clip_index)
+	_video_refresh_timeline_view()
+
+func _video_on_timeline_clip_moved(track_index: int, clip_id: String, new_start: float) -> void:
+	var tracks: Array = _video_timeline().get("tracks", [])
+	if track_index < 0 or track_index >= tracks.size():
+		return
+	var result: Dictionary = video_timeline_model.move_clip(tracks[track_index], clip_id, new_start)
+	if not bool(result.get("ok", false)):
+		_set_status(str(result.get("error", "No se pudo mover el clip.")))
+		return
+	video_selected_track = track_index
+	var clips: Array = tracks[track_index].get("clips", [])
+	for index in range(clips.size()):
+		if str(clips[index].get("id", "")) == clip_id:
+			video_selected_clip = index
+			break
+	_video_refresh_tracks()
+	_save_project()
+	_set_status("Clip movido a %.2f s." % new_start)
 
 func _video_select_track(index: int) -> void:
 	video_selected_track = index
