@@ -702,8 +702,30 @@ func _add_joint_control(parent: Node, label_text: String, joint_path: String, mi
 	row.add_child(slider)
 
 func _on_joint_slider_changed(value: float, joint_path: String) -> void:
-	if is_instance_valid(runtime_rig):
-		rig_builder.stop_animation(runtime_rig)
+	if not is_instance_valid(runtime_rig):
+		return
+	rig_builder.stop_animation(runtime_rig)
+	var normalized := joint_path.to_lower()
+	var pivot_key := ""
+	if normalized.contains("shoulder_l"):
+		pivot_key = "shoulder_left"
+	elif normalized.contains("shoulder_r"):
+		pivot_key = "shoulder_right"
+	elif normalized.contains("elbow_l"):
+		pivot_key = "elbow_left"
+	elif normalized.contains("elbow_r"):
+		pivot_key = "elbow_right"
+	elif normalized.contains("hip_l"):
+		pivot_key = "hip_left"
+	elif normalized.contains("hip_r"):
+		pivot_key = "hip_right"
+	elif normalized.contains("knee_l"):
+		pivot_key = "knee_left"
+	elif normalized.contains("knee_r"):
+		pivot_key = "knee_right"
+	if pivot_key != "" and runtime_rig.has_node("Pivot_" + pivot_key):
+		rig_builder.apply_segment_pose(runtime_rig, {pivot_key: value})
+	else:
 		rig_builder.set_joint_rotation(runtime_rig, NodePath(joint_path), value)
 
 func _play_rig_animation(animation_name: String) -> void:
