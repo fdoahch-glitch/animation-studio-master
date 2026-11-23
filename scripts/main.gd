@@ -25,7 +25,7 @@ var build_segmented_button: Button
 var animation_controls: GridContainer
 var pose_controls: GridContainer
 var imported_character_data: Dictionary = {}
-var ai_generated_poses: Array = []
+var procedural_poses: Array = []
 var runtime_rig: Node2D
 var rig_subviewport: SubViewport
 var root_ui: VBoxContainer
@@ -472,18 +472,18 @@ func _generate_procedural_pose_set() -> void:
 	if procedural_animator == null:
 		procedural_animator = CHARACTER_PROCEDURAL_ANIMATOR.new()
 	var generated: Dictionary = procedural_animator.generate_pose_library()
-	ai_generated_poses = generated.get("poses", [])
+	procedural_poses = generated.get("poses", [])
 	var clips: Array = generated.get("animations", [])
 	var added := 0
 	var applied := 0
 	if is_instance_valid(runtime_rig):
 		added = rig_builder.add_procedural_animation_set(runtime_rig, clips)
-		if not ai_generated_poses.is_empty():
-			applied = rig_builder.apply_procedural_pose(runtime_rig, ai_generated_poses[0].get("joint_angles", {}))
+		if not procedural_poses.is_empty():
+			applied = rig_builder.apply_procedural_pose(runtime_rig, procedural_poses[0].get("joint_angles", {}))
 	if is_instance_valid(pose_controls):
 		for child in pose_controls.get_children():
 			child.queue_free()
-		for pose in ai_generated_poses:
+		for pose in procedural_poses:
 			_add_button(pose_controls, str(pose.get("name", "Pose")), _apply_generated_pose.bind(pose))
 	if is_instance_valid(animation_controls):
 		for child in animation_controls.get_children():
@@ -491,14 +491,14 @@ func _generate_procedural_pose_set() -> void:
 		for clip in clips:
 			var clip_key := "ai_" + str(clip.get("name", "generated")).validate_filename().to_lower()
 			_add_button(animation_controls, str(clip.get("name", "Animación")), _play_rig_animation.bind(clip_key))
-	var record := {"character": character_name.text if is_instance_valid(character_name) else "Personaje", "poses": ai_generated_poses, "animations": clips, "generator": "procedural_v1"}
+	var record := {"character": character_name.text if is_instance_valid(character_name) else "Personaje", "poses": procedural_poses, "animations": clips, "generator": "procedural_v1"}
 	if not project_data.has("procedural_pose_sets"):
 		project_data["procedural_pose_sets"] = []
 	project_data["procedural_pose_sets"].append(record)
 	_save_project()
 	var lines := PackedStringArray()
 	lines.append("GENERACIÓN PROCEDURAL COMPLETADA")
-	lines.append("Poses listas: %d" % ai_generated_poses.size())
+	lines.append("Poses listas: %d" % procedural_poses.size())
 	lines.append("Ciclos de animación creados: %d" % clips.size())
 	lines.append("Clips añadidos al rig actual: %d" % added)
 	lines.append("Primera pose aplicada: %d articulaciones" % applied)
@@ -508,7 +508,7 @@ func _generate_procedural_pose_set() -> void:
 	lines.append("Cálculo local determinista: curvas matemáticas y keyframes; sin conexión, modelos ni procesos externos.")
 	if is_instance_valid(image_result_output):
 		image_result_output.text = "\n".join(lines)
-	_set_status("Generador procedural: %d poses y %d animaciones guardadas." % [ai_generated_poses.size(), clips.size()])
+	_set_status("Generador procedural: %d poses y %d animaciones guardadas." % [procedural_poses.size(), clips.size()])
 
 func _apply_generated_pose(pose: Dictionary) -> void:
 	if not is_instance_valid(runtime_rig):
