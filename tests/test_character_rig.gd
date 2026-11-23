@@ -91,6 +91,33 @@ func _run_tests() -> void:
 		push_error("El paquete no conservó los fotogramas clave.")
 		quit(1)
 		return
+	var test_image_path := "user://package_asset_test.png"
+	var test_image := Image.create(32, 64, false, Image.FORMAT_RGBA8)
+	test_image.fill(Color(0.2, 0.7, 0.9, 1.0))
+	if test_image.save_png(test_image_path) != OK:
+		push_error("No se pudo preparar la imagen de prueba del paquete.")
+		quit(1)
+		return
+	var image_package: Dictionary = package_io.build_package(
+		{"name":"Personaje con textura"}, "2D_segmented_sprite_pivots", {}, [], [], [],
+		{"source":test_image_path,"processed_image":test_image_path,"width":32,"height":64,
+		"parts":[{"name":"torso","path":test_image_path,"rect":[0,0,32,64]}]}
+	)
+	var decoded_image_package: Dictionary = package_io.decode_package(package_io.encode_package(image_package))
+	if not bool(decoded_image_package.get("ok", false)):
+		push_error("No se pudo validar el paquete con recursos gráficos.")
+		quit(1)
+		return
+	var restored_image_data: Dictionary = package_io.restore_image_assets(decoded_image_package["package"], "user://package_asset_restore_test")
+	if restored_image_data.get("parts", []).size() != 1 or not FileAccess.file_exists(str(restored_image_data["parts"][0].get("path", ""))):
+		push_error("No se restauró el recorte gráfico incluido en el paquete.")
+		quit(1)
+		return
+	var restored_test_image := Image.new()
+	if restored_test_image.load(str(restored_image_data["parts"][0]["path"])) != OK:
+		push_error("El recurso gráfico restaurado no se puede abrir como imagen.")
+		quit(1)
+		return
 	var rejected_package: Dictionary = package_io.decode_package("{\"format\":\"otro\"}")
 	if bool(rejected_package.get("ok", true)):
 		push_error("El importador aceptó un formato desconocido.")
