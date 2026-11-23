@@ -1,0 +1,21 @@
+name: Godot project validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Import and parse project
+        run: godot --headless --editor --path . --quit
+      - name: Run project headlessly
+        run: godot --headless --path . --quit-after 3
