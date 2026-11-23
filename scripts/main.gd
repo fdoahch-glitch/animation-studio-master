@@ -12,6 +12,7 @@ const CHARACTER_PACKAGE_IO = preload("res://scripts/character_package_io.gd")
 const PROJECT_DOCUMENT_IO = preload("res://scripts/project_document_io.gd")
 const SCENE_COMPOSITION_MODEL = preload("res://scripts/scene_composition_model.gd")
 const SCENE_CANVAS = preload("res://scripts/scene_canvas.gd")
+const SCENE_ASSET_BUTTON = preload("res://scripts/scene_asset_button.gd")
 const DEFAULT_PROJECT := {"name":"Mi primera animación","width":1920,"height":1080,"fps":60,"orientation":"Horizontal","visual_mode":"2D","background_mode":"Vacío"}
 
 var project_data: Dictionary = DEFAULT_PROJECT.duplicate(true)
@@ -434,10 +435,10 @@ func _show_scene_manager() -> void:
 	_add_heading(center, "Lienzo de composición", "Selecciona y arrastra objetos. Rueda: zoom; botón derecho o central: desplazar.")
 	var add_row := HBoxContainer.new()
 	center.add_child(add_row)
-	_add_button(add_row, "+ Personaje", _add_scene_character)
-	_add_button(add_row, "+ Fondo", _add_scene_background)
-	_add_button(add_row, "+ Elemento", _add_scene_element)
-	_add_button(add_row, "+ Decoración", _add_scene_decoration)
+	_add_scene_asset_button(add_row, "+ Personaje", "character")
+	_add_scene_asset_button(add_row, "+ Fondo", "background")
+	_add_scene_asset_button(add_row, "+ Elemento", "element")
+	_add_scene_asset_button(add_row, "+ Decoración", "decoration")
 	_add_button(add_row, "Ajustar vista", _reset_scene_canvas)
 	var frame := PanelContainer.new()
 	frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -449,6 +450,7 @@ func _show_scene_manager() -> void:
 	scene_canvas.custom_minimum_size = Vector2(420, 300)
 	scene_canvas.selection_changed.connect(_on_canvas_selection_changed)
 	scene_canvas.composition_changed.connect(_on_canvas_composition_changed)
+	scene_canvas.asset_dropped.connect(_on_canvas_asset_dropped)
 	frame.add_child(scene_canvas)
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size.x = 245
@@ -584,12 +586,24 @@ func _update_scene_inspector() -> void:
 	object_visible.button_pressed = bool(t.get("visible", true))
 	scene_canvas_guard = false
 
-func _add_scene_object(kind: String) -> void:
+func _add_scene_asset_button(parent: Node, label_text: String, kind: String) -> void:
+	var button = SCENE_ASSET_BUTTON.new()
+	button.text = label_text
+	button.resource_kind = kind
+	button.custom_minimum_size.y = 36
+	button.pressed.connect(_add_scene_object.bind(kind))
+	parent.add_child(button)
+
+func _on_canvas_asset_dropped(kind: String, position: Vector2) -> void:
+	_add_scene_object(kind, position)
+
+func _add_scene_object(kind: String, drop_position := Vector2(-1.0, -1.0)) -> void:
 	if _active_scene().is_empty(): _create_scene()
 	var scene := _active_scene()
 	var labels := {"character": "Personaje nuevo", "background": "Fondo de escena", "element": "Elemento nuevo", "decoration": "Decoración nueva"}
 	var rid := "builtin:" + kind + ":" + str(Time.get_ticks_msec())
-	var instance: Dictionary = scene_model.create_instance(rid, kind, labels[kind], Vector2(float(project_data.get("width", 1920)) * 0.5, float(project_data.get("height", 1080)) * 0.5))
+	var position := drop_position if drop_position.x >= 0.0 and drop_position.y >= 0.0 else Vector2(float(project_data.get("width", 1920)) * 0.5, float(project_data.get("height", 1080)) * 0.5)
+	var instance: Dictionary = scene_model.create_instance(rid, kind, labels[kind], position)
 	var result: Dictionary = scene_model.add_instance(scene, instance)
 	if not result.ok:
 		_set_status(str(result.get("error", "No se pudo añadir el objeto.")))
