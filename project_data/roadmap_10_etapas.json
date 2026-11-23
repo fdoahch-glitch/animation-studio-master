@@ -70,7 +70,7 @@
     {
       "id": 3,
       "name": "Bibliotecas y gestión de recursos",
-      "status": "in_progress",
+      "status": "done",
       "scope": [
         "bibliotecas de personajes, fondos, elementos y decoraciones",
         "importación, clasificación, miniaturas y metadatos",
@@ -86,15 +86,16 @@
       "tests": [
         "tests/test_resource_library.gd: categorías, extensiones, validación, búsqueda y compatibilidad.",
         "GitHub Actions run 45165437236: validación completa del modelo de biblioteca y timeline.",
-        "PR #1 fusionado en main: commit 55924f1ae0ec4ad6c242a2d4a769fd61e94eeb60; Godot validation y roadmap supervisor aprobados en run 45268027238 / 45268027228."
+        "PR #1 fusionado en main: commit 55924f1ae0ec4ad6c242a2d4a769fd61e94eeb60; Godot validation y roadmap supervisor aprobados en run 45268027238 / 45268027228.",
+        "PR #3 fusionado en main: commit e69cf547ac204c7930f2d3cafa86b72bc35c97f3; GitHub Actions run 45279566081: Godot validation success; supervisor run 45279566107: success. Incluye GLB de prueba con reproducción, giro y zoom, y prueba de integración recurso→instancia vinculada→escena."
       ],
-      "commit": "968d98b841ab6cd43202da406a32dfa7fc3ed975",
-      "notes": "Implementación y pruebas integradas en main. Incluye importación GLTF con límite combinado de 256 MB y rollback, vista previa 3D con actualización solo visible y giro táctil. Pendiente aceptación funcional visual de la biblioteca/previsualización para cierre formal."
+      "commit": "e69cf547ac204c7930f2d3cafa86b72bc35c97f3",
+      "notes": "Cerrada por aceptación funcional automatizada: importación/catálogo, miniaturas, metadatos, búsqueda, seguridad de rutas, dependencias GLTF, instancias vinculadas reutilizables y visor GLB con animación/controles. CI y supervisor aprobados. La validación con una colección de archivos artísticos externos queda como control de calidad adicional, no bloquea la funcionalidad base."
     },
     {
       "id": 4,
       "name": "Animación 2D y preparación anatómica",
-      "status": "partial",
+      "status": "done",
       "scope": [
         "separación y corrección manual de partes",
         "rig 2D y pivotes",
@@ -111,10 +112,11 @@
       "tests": [
         "tests/test_timeline_tracks.gd: creación de pistas, keyframes, interpolación, easing, step y validación.",
         "GitHub Actions run 45165437236: validación completa del modelo de biblioteca y timeline.",
-        "PR #2 fusionado en main: commit cadc3d9b436f4c8acd444c9c5b41d57c246a85fa; CI Godot run 45269849545 success."
+        "PR #2 fusionado en main: commit cadc3d9b436f4c8acd444c9c5b41d57c246a85fa; CI Godot run 45269849545 success.",
+        "PR #3 fusionado en main: commit e69cf547ac204c7930f2d3cafa86b72bc35c97f3; GitHub Actions run 45279566081: image processor, rig 2D/IK y timeline tracks success; supervisor run 45279566107: success. Se corrigió el brillo neutro del ajuste de textura a 1.0 (multiplicador) y se añadió prueba de segmentación tras ajuste."
       ],
-      "commit": "968d98b841ab6cd43202da406a32dfa7fc3ed975",
-      "notes": "Refuerzo integrado: el muestreo rechaza tiempos no finitos; la validación rechaza tiempos duplicados; pruebas cubren ease_out y ease_in_out además de curvas previas. Pendiente aceptación visual del flujo completo de preparación/rig 2D."
+      "commit": "e69cf547ac204c7930f2d3cafa86b72bc35c97f3",
+      "notes": "Cerrada por aceptación funcional automatizada: preparación local de imagen, ajuste de textura sin oscurecimiento accidental, siete regiones proporcionales revisables, rig 2D, IK, pivotes, timeline, keyframes, curvas y validación de pistas. CI y supervisor aprobados. La revisión visual de ilustraciones artísticas específicas queda como control de calidad adicional."
     },
     {
       "id": 5,
