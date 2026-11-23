@@ -3,7 +3,7 @@ extends Control
 const CHARACTER_AI = preload("res://scripts/character_ai.gd")
 const CHARACTER_RIG_BUILDER = preload("res://scripts/character_rig_builder.gd")
 const CHARACTER_IMAGE_PROCESSOR = preload("res://scripts/character_image_processor.gd")
-const CHARACTER_AI_PROVIDER = preload("res://scripts/character_ai_provider.gd")
+const CHARACTER_PROCEDURAL_ANIMATOR = preload("res://scripts/character_procedural_animator.gd")
 const CHARACTER_SPATIAL_RIG_BUILDER = preload("res://scripts/character_spatial_rig_builder.gd")
 const DEFAULT_PROJECT := {"name":"Mi primera animación","width":1920,"height":1080,"fps":60,"orientation":"Horizontal","visual_mode":"2D","background_mode":"Vacío"}
 
@@ -16,10 +16,7 @@ var spatial_subviewport: SubViewport
 var spatial_container: SubViewportContainer
 var rig_2d_container: SubViewportContainer
 var image_processor
-var ai_provider
-var ai_request: HTTPRequest
-var ai_endpoint_input: LineEdit
-var ai_key_input: LineEdit
+var procedural_animator
 var imported_source_path := ""
 var image_dialog: FileDialog
 var imported_preview: TextureRect
@@ -97,14 +94,7 @@ func _ready() -> void:
 	rig_builder = CHARACTER_RIG_BUILDER.new()
 	spatial_builder = CHARACTER_SPATIAL_RIG_BUILDER.new()
 	image_processor = CHARACTER_IMAGE_PROCESSOR.new()
-	ai_provider = CHARACTER_AI_PROVIDER.new()
-	ai_provider.name = "CharacterAIProvider"
-	add_child(ai_provider)
-	ai_provider.request_completed.connect(_on_ai_segmentation_completed)
-	ai_provider.request_failed.connect(_on_ai_segmentation_failed)
-	ai_request = HTTPRequest.new()
-	ai_request.timeout = 120.0
-	add_child(ai_request)
+	procedural_animator = CHARACTER_PROCEDURAL_ANIMATOR.new()
 	ai.name = "CharacterAI"
 	add_child(ai)
 	_build_shell()
@@ -332,19 +322,7 @@ func _show_character_lab() -> void:
 	_add_button(form, "Importar imagen y preparar piezas", _open_character_image_dialog)
 	build_segmented_button = _add_button(form, "Construir rig con las piezas recortadas", _build_imported_segment_rig)
 	build_segmented_button.disabled = true
-	var ai_provider_title := Label.new()
-	ai_provider_title.text = "IA EXTERNA (OPCIONAL)"
-	form.add_child(ai_provider_title)
-	ai_endpoint_input = LineEdit.new()
-	ai_endpoint_input.placeholder_text = "Endpoint HTTPS /segment"
-	form.add_child(ai_endpoint_input)
-	ai_key_input = LineEdit.new()
-	ai_key_input.placeholder_text = "Clave API (no se guarda en el proyecto)"
-	ai_key_input.secret = true
-	form.add_child(ai_key_input)
-	_add_button(form, "Analizar piezas con IA conectada", _request_ai_segmentation)
-	_add_button(form, "Generar vistas frente/perfil/espalda con IA", _request_ai_turnaround)
-	_add_button(form, "Generar poses con IA", _request_ai_pose_set)
+	_add_button(form, "Generar poses y animaciones procedurales", _generate_procedural_pose_set)
 	_add_button(form, "Crear diseño base + esqueleto", _generate_character)
 	_add_button(form, "Preparar prompt para IA", _request_ai_character)
 	var right := VBoxContainer.new()
@@ -430,7 +408,7 @@ func _show_character_lab() -> void:
 	character_output = RichTextLabel.new()
 	character_output.fit_content = true
 	character_output.custom_minimum_size.y = 75
-	character_output.text = "Vista esquemática de referencia. El arte final se importa o se genera con un proveedor conectado."
+	character_output.text = "Vista esquemática de referencia. El arte final se importa; las poses y animaciones se generan dentro del programa."
 	right.add_child(character_output)
 	page.add_child(Label.new())
 	var skeleton_title := Label.new()
@@ -484,141 +462,42 @@ func _on_character_image_selected(path: String) -> void:
 	_save_project()
 	_set_status("Imagen preparada. Revisa los recortes y corrige las zonas antes de animar.")
 
-func _request_ai_segmentation() -> void:
-	if imported_source_path == "":
-		_set_status("Primero importa una imagen de personaje.")
-		return
-	if not ai_provider.configure(ai_endpoint_input.text, ai_key_input.text):
-		_set_status("Endpoint de IA no válido. Usa HTTPS o localhost.")
-		return
-	var err: Error = ai_provider.request_segmentation(imported_source_path, ai_request, character_mode.get_item_text(character_mode.selected))
-	if err != OK:
-		_set_status("No se pudo iniciar la solicitud de IA. Código: " + str(err))
-	else:
-		_set_status("Solicitud enviada al proveedor de IA. Esperando segmentación...")
-
-func _on_ai_segmentation_completed(response: Dictionary) -> void:
-	var task := str(response.get("task", "character_part_segmentation"))
-	if task == "character_turnaround_generation":
-		_handle_ai_turnaround_result(response)
-		return
-	if task == "character_pose_generation":
-		_handle_ai_pose_result(response)
-		return
-	var source := Image.new()
-	if source.load(imported_source_path) != OK:
-		_set_status("No se pudo volver a abrir la imagen original.")
-		return
-	var validation: Dictionary = ai_provider.validate_segmentation_result(response, source.get_size())
-	var accepted: Array[Dictionary] = validation.get("accepted", [])
-	if accepted.is_empty():
-		_set_status("La IA respondió, pero no entregó recortes válidos.")
-		image_result_output.text = "No se pudieron validar las regiones. Revisa el contrato del proveedor."
-		return
-	var saved := image_processor.save_provider_segments(imported_source_path, accepted)
-	var lines := PackedStringArray()
-	lines.append("SEGMENTACIÓN IA RECIBIDA")
-	lines.append("Piezas válidas: %d · rechazadas: %d" % [saved.size(), validation.get("rejected", []).size()])
-	for part in saved:
-		lines.append("• %s · confianza %.0f%% · %s" % [part.name, float(part.confidence) * 100.0, part.path])
-	lines.append("Puntos articulares reconocidos: %d" % validation.get("joints", {}).size())
-	lines.append("Los recortes se guardaron como archivos independientes. Revisa máscaras y pivotes antes de animar.")
-	image_result_output.text = "\n".join(lines)
-	imported_character_data["ai_segments"] = saved
-	if is_instance_valid(build_segmented_button):
-		build_segmented_button.disabled = saved.is_empty()
-	imported_character_data["ai_joints"] = validation.get("joints", {})
-	_save_project()
-	_set_status("Segmentación IA recibida y recortes guardados.")
-
-func _request_ai_turnaround() -> void:
-	if character_description.text.strip_edges() == "":
-		_set_status("Describe el personaje antes de generar sus vistas.")
-		return
-	if not ai_provider.configure(ai_endpoint_input.text, ai_key_input.text):
-		_set_status("Configura un endpoint HTTPS o localhost.")
-		return
-	var err: Error = ai_provider.request_turnaround_generation(character_description.text, character_style.get_item_text(character_style.selected), ai_request, imported_source_path)
-	if err != OK:
-		_set_status("No se pudo iniciar la generación de vistas. Código: " + str(err))
-	else:
-		_set_status("Solicitando vistas coherentes al proveedor de IA...")
-
-func _request_ai_pose_set() -> void:
-	if character_description.text.strip_edges() == "":
-		_set_status("Describe el personaje antes de generar poses.")
-		return
-	if not ai_provider.configure(ai_endpoint_input.text, ai_key_input.text):
-		_set_status("Configura un endpoint HTTPS o localhost.")
-		return
-	var err: Error = ai_provider.request_pose_generation(character_description.text, character_mode.get_item_text(character_mode.selected), ai_request)
-	if err != OK:
-		_set_status("No se pudo iniciar la generación de poses. Código: " + str(err))
-	else:
-		_set_status("Solicitando poses y ángulos articulares al proveedor de IA...")
-
-func _handle_ai_turnaround_result(response: Dictionary) -> void:
-	var output_dir := "user://character_views/" + str(Time.get_unix_time_from_system())
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(output_dir))
-	var saved_views: Array[Dictionary] = []
-	for view in response.get("views", []):
-		if not view is Dictionary:
-			continue
-		var image_data := str(view.get("image_png_base64", ""))
-		if image_data == "":
-			continue
-		var image := Image.new()
-		if image.load_png_from_buffer(Marshalls.base64_to_raw(image_data)) != OK:
-			continue
-		var view_name := str(view.get("name", "view")).validate_filename()
-		var path := output_dir.path_join(view_name + ".png")
-		if image.save_png(path) == OK:
-			saved_views.append({"name": view_name, "path": path})
-	if not saved_views.is_empty():
-		var first_image := Image.new()
-		if first_image.load(str(saved_views[0].path)) == OK:
-			imported_preview.texture = ImageTexture.create_from_image(first_image)
-	imported_character_data["generated_views"] = saved_views
-	project_data["generated_character_views"] = saved_views
-	_save_project()
-	var lines := PackedStringArray(["VISTAS GENERADAS POR IA"])
-	for view_data in saved_views:
-		lines.append("• %s — %s" % [view_data.name, view_data.path])
-	lines.append("Comprueba que el diseño, ropa y proporciones sean consistentes en todos los ángulos.")
-	image_result_output.text = "\n".join(lines)
-	_set_status("Vistas IA guardadas: %d." % saved_views.size())
-
-func _handle_ai_pose_result(response: Dictionary) -> void:
-	ai_generated_poses = response.get("poses", [])
-	var clips: Array = response.get("animations", [])
+func _generate_procedural_pose_set() -> void:
+	if procedural_animator == null:
+		procedural_animator = CHARACTER_PROCEDURAL_ANIMATOR.new()
+	var generated: Dictionary = procedural_animator.generate_pose_library()
+	ai_generated_poses = generated.get("poses", [])
+	var clips: Array = generated.get("animations", [])
+	var added := 0
 	var applied := 0
-	var added_clips := 0
 	if is_instance_valid(runtime_rig):
-		added_clips = rig_builder.add_ai_animation_set(runtime_rig, clips)
+		added = rig_builder.add_ai_animation_set(runtime_rig, clips)
 		if not ai_generated_poses.is_empty():
-			var first_pose: Dictionary = ai_generated_poses[0]
-			applied = rig_builder.apply_segment_pose(runtime_rig, first_pose.get("joint_angles", {}))
-	if not project_data.has("ai_pose_sets"):
-		project_data["ai_pose_sets"] = []
-	project_data["ai_pose_sets"].append({"character": character_name.text, "poses": ai_generated_poses, "animations": clips})
+			applied = rig_builder.apply_procedural_pose(runtime_rig, ai_generated_poses[0].get("joint_angles", {}))
+	if is_instance_valid(animation_controls):
+		for child in animation_controls.get_children():
+			child.queue_free()
+		for clip in clips:
+			var clip_key := "ai_" + str(clip.get("name", "generated")).validate_filename().to_lower()
+			_add_button(animation_controls, str(clip.get("name", "Animación")), _play_rig_animation.bind(clip_key))
+	var record := {"character": character_name.text if is_instance_valid(character_name) else "Personaje", "poses": ai_generated_poses, "animations": clips, "generator": "procedural_v1"}
+	if not project_data.has("procedural_pose_sets"):
+		project_data["procedural_pose_sets"] = []
+	project_data["procedural_pose_sets"].append(record)
 	_save_project()
-	var lines := PackedStringArray(["POSES RECIBIDAS: %d · CLIPS CREADOS: %d" % [ai_generated_poses.size(), added_clips]])
-	for pose in ai_generated_poses:
-		if pose is Dictionary:
-			lines.append("• %s" % str(pose.get("name", "Pose")))
-	for clip in clips:
-		if clip is Dictionary:
-			var clip_name := "ai_" + str(clip.get("name", "generated")).validate_filename().to_lower()
-			_add_button(animation_controls, str(clip.get("name", "Animación")), _play_rig_animation.bind(clip_name))
-	lines.append("Articulaciones aplicadas en la vista actual: %d" % applied)
-	lines.append("Los ángulos IA se interpretan en grados. Los clips usan keyframes de articulaciones.")
-	image_result_output.text = "\n".join(lines)
-	_set_status("Poses y animaciones IA guardadas en el proyecto.")
-
-func _on_ai_segmentation_failed(message: String) -> void:
-	_set_status("IA: " + message)
+	var lines := PackedStringArray()
+	lines.append("GENERACIÓN PROCEDURAL COMPLETADA")
+	lines.append("Poses listas: %d" % ai_generated_poses.size())
+	lines.append("Ciclos de animación creados: %d" % clips.size())
+	lines.append("Clips añadidos al rig actual: %d" % added)
+	lines.append("Primera pose aplicada: %d articulaciones" % applied)
+	lines.append("")
+	lines.append("Poses: reposo, atención, feliz, triste, enojado, sorprendido, saludo, brazos arriba, brazos cruzados, señalar, agachado y preparado para correr.")
+	lines.append("Animaciones: respirar, caminar, correr, saltar, saludar, hablar, celebrar, bailar, caminar lento, cojear, rebotar y mirar alrededor.")
+	lines.append("Cálculo local determinista: curvas matemáticas y keyframes; sin conexión, modelos ni procesos externos.")
 	if is_instance_valid(image_result_output):
-		image_result_output.text = "Error del proveedor de IA: " + message
+		image_result_output.text = "\n".join(lines)
+	_set_status("Generador procedural: %d poses y %d animaciones guardadas." % [ai_generated_poses.size(), clips.size()])
 
 func _generate_character() -> void:
 	var label := character_name.text.strip_edges()
@@ -628,7 +507,7 @@ func _generate_character() -> void:
 	character_preview.character_label = label
 	character_preview.rig_data = generated_character.rig
 	character_preview.queue_redraw()
-	character_output.text = "Ficha creada: %s\nEstilo: %s\nVistas de referencia: frente, perfil, espalda y tres cuartos. El dibujo visible es una guía esquemática, no cuatro ilustraciones finales." % [label,character_style.get_item_text(character_style.selected)]
+	character_output.text = "Ficha creada: %s\nEstilo: %s\nVistas de referencia: frente, perfil, espalda y tres cuartos. El dibujo visible es una guía esquemática; las poses se generan con el sistema procedural integrado." % [label,character_style.get_item_text(character_style.selected)]
 	skeleton_output.text = ai.format_rig_summary(generated_character.rig)
 	_build_runtime_character()
 	if not project_data.has("characters"):
@@ -697,7 +576,7 @@ func _build_imported_segment_rig() -> void:
 	if imported_character_data.has("ai_segments"):
 		character_output.text = "Rig construido con recortes y puntos articulares devueltos por el proveedor IA. Revisa las máscaras, pivotes y solapamientos; las piezas aún pueden requerir corrección."
 	else:
-		character_output.text = "Rig de prueba construido con regiones proporcionales. Son recortes aproximados, no segmentación semántica; utiliza un proveedor IA para mejorar brazos, piernas y articulaciones."
+		character_output.text = "Rig de prueba construido con regiones proporcionales. Son recortes aproximados, no segmentación semántica; ajusta los pivotes y las piezas manualmente si es necesario."
 	_set_status("Rig de imagen creado. Prueba las animaciones y corrige los pivotes.")
 
 func _add_joint_control(parent: Node, label_text: String, joint_path: String, minimum: float, maximum: float) -> void:
@@ -766,15 +645,6 @@ func _on_joint_slider_changed(value: float, joint_path: String) -> void:
 func _play_rig_animation(animation_name: String) -> void:
 	if is_instance_valid(runtime_rig):
 		rig_builder.play_animation(runtime_rig, animation_name)
-
-func _request_ai_character() -> void:
-	if character_description.text.strip_edges() == "":
-		_set_status("Escribe una descripción antes de preparar el prompt.")
-		return
-	var prompt := ai.build_character_prompt(character_name.text, character_description.text, character_style.get_item_text(character_style.selected), character_mode.get_item_text(character_mode.selected))
-	DisplayServer.clipboard_set(prompt)
-	character_output.text = "Prompt de producción copiado. Para generar imágenes reales, configura el endpoint IA y utiliza los controles de generación de vistas."
-	_set_status("Prompt copiado. El adaptador IA está disponible al configurar un proveedor compatible.")
 
 func _save_project() -> void:
 	var file := FileAccess.open("user://animation_studio_manager_project.json", FileAccess.WRITE)
