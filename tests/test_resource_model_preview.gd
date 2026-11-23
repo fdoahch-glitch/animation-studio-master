@@ -3,7 +3,7 @@ extends SceneTree
 const PREVIEW = preload("res://scripts/resource_model_preview.gd")
 
 func _initialize() -> void:
-	call_deferred("_run_test")
+	_run_test()
 
 func _run_test() -> void:
 	var preview = PREVIEW.new()
