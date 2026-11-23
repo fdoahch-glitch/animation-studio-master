@@ -52,6 +52,11 @@ func import_file(source_path: String, category: String, display_name := "", tags
 	var copy_error := DirAccess.copy_absolute(ProjectSettings.globalize_path(source_path), ProjectSettings.globalize_path(relative_path))
 	if copy_error != OK:
 		return {"ok": false, "error": "No se pudo copiar el recurso al almacenamiento del proyecto."}
+	var thumbnail_path := ""
+	if IMAGE_EXTENSIONS.has(extension):
+		thumbnail_path = folder + "/" + id + ".thumb.png"
+		if not _create_thumbnail(relative_path, thumbnail_path):
+			thumbnail_path = ""
 	var resource := {
 		"id": id,
 		"name": safe_name,
@@ -65,7 +70,7 @@ func import_file(source_path: String, category: String, display_name := "", tags
 		"visual_mode": visual_mode,
 		"compatible_modes": _compatible_modes(extension),
 		"created_unix": Time.get_unix_time_from_system(),
-		"thumbnail_path": relative_path if IMAGE_EXTENSIONS.has(extension) else ""
+		"thumbnail_path": thumbnail_path
 	}
 	return {"ok": true, "resource": resource}
 
@@ -82,6 +87,12 @@ func remove_resource(resource: Dictionary) -> Dictionary:
 		var error := DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 		if error != OK:
 			return {"ok": false, "error": "No se pudo eliminar el archivo administrado."}
+	var thumbnail_path := str(resource.get("thumbnail_path", ""))
+	var thumbnail_prefix := "user://animation_studio_assets/" + path_parts[0] + "/"
+	if thumbnail_path.begins_with(thumbnail_prefix) and not thumbnail_path.contains("\\") and not thumbnail_path.trim_prefix(thumbnail_prefix).contains("/") and thumbnail_path.get_extension().to_lower() == "png" and FileAccess.file_exists(thumbnail_path):
+		var thumbnail_error := DirAccess.remove_absolute(ProjectSettings.globalize_path(thumbnail_path))
+		if thumbnail_error != OK:
+			return {"ok": false, "error": "Se eliminó el recurso, pero no se pudo limpiar su miniatura."}
 	return {"ok": true}
 
 func search(resources: Array, query: String, category := "") -> Array:
@@ -136,6 +147,23 @@ func is_compatible(resource: Dictionary, visual_mode: String) -> bool:
 	if not modes_value is Array:
 		return visual_mode == "Híbrido"
 	return modes_value.has(visual_mode) or visual_mode == "Híbrido"
+
+func _create_thumbnail(source_path: String, thumbnail_path: String) -> bool:
+	var source := Image.new()
+	if source.load(source_path) != OK or source.is_empty():
+		return false
+	var source_size := source.get_size()
+	if source_size.x <= 0.0 or source_size.y <= 0.0:
+		return false
+	var scale := minf(1.0, minf(160.0 / source_size.x, 120.0 / source_size.y))
+	var target_size := Vector2i(maxi(1, int(round(source_size.x * scale))), maxi(1, int(round(source_size.y * scale))))
+	if source_size.x != float(target_size.x) or source_size.y != float(target_size.y):
+		source.resize(target_size.x, target_size.y, Image.INTERPOLATE_LANCZOS)
+	var thumbnail := Image.create(160, 120, false, Image.FORMAT_RGBA8)
+	thumbnail.fill(Color("#17283a"))
+	var offset := Vector2i((160 - target_size.x) / 2, (120 - target_size.y) / 2)
+	thumbnail.blit_rect(source, Rect2i(Vector2i.ZERO, target_size), offset)
+	return thumbnail.save_png(thumbnail_path) == OK
 
 func _clean_tags(tags: Array) -> Array:
 	var result: Array = []

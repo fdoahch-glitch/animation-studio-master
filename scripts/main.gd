@@ -613,6 +613,8 @@ func _show_resource_library(category: String) -> void:
 	resource_list = ItemList.new()
 	resource_list.custom_minimum_size.x = 280
 	resource_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	resource_list.icon_mode = ItemList.ICON_MODE_LEFT
+	resource_list.fixed_icon_size = Vector2i(48, 48)
 	resource_list.item_selected.connect(_on_resource_selected)
 	body.add_child(resource_list)
 	var details := VBoxContainer.new()
@@ -690,7 +692,13 @@ func _refresh_resource_list(_query := "") -> void:
 	var items: Array = resource_library.search(project_data.get("resources", []), query, resource_category)
 	for item in items:
 		var icon := "🖼" if str(item.get("mime_group","")) == "image" else "🧊"
-		resource_list.add_item("%s  %s  ·  %s" % [icon, str(item.get("name","Recurso")), str(item.get("extension","")).to_upper()])
+		var thumbnail: Texture2D
+		var thumbnail_path := str(item.get("thumbnail_path", ""))
+		if not thumbnail_path.is_empty() and FileAccess.file_exists(thumbnail_path):
+			var thumbnail_image := Image.new()
+			if thumbnail_image.load(thumbnail_path) == OK and not thumbnail_image.is_empty():
+				thumbnail = ImageTexture.create_from_image(thumbnail_image)
+		resource_list.add_item("%s  %s  ·  %s" % [icon, str(item.get("name","Recurso")), str(item.get("extension","")).to_upper()], thumbnail)
 		resource_list.set_item_metadata(resource_list.item_count-1, str(item.get("id","")))
 	if items.is_empty():
 		_set_status("No hay recursos en esta categoría. Importa PNG, JPG, WebP o GLB/glTF según corresponda.")

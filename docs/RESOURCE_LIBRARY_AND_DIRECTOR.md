@@ -28,3 +28,8 @@ La importación de glTF con dependencias externas no las empaqueta automáticame
 ## Límites actuales
 
 La biblioteca muestra imágenes importadas en una vista previa 2D y carga modelos GLB/glTF mediante GLTFDocument en una vista 3D con iluminación, encuadre automático, giro horizontal, zoom y reproducción de clips AnimationPlayer importados. La extracción y persistencia de miniaturas 3D aún requiere implementación y validación visual. El timeline nuevo anima propiedades numéricas de instancias; rutas de movimiento, cámara multicapa y mezcla de pistas quedan para ampliación posterior.
+
+
+## Miniaturas de biblioteca
+
+Al importar imágenes, la biblioteca genera una miniatura PNG de 160×120 con letterboxing y sin deformar la relación de aspecto. La lista muestra la miniatura junto al nombre y la extensión. La miniatura se almacena en la carpeta administrada y se elimina junto con el recurso. Prueba: `tests/test_resource_library.gd`.
