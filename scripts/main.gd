@@ -526,6 +526,8 @@ func _on_resource_selected(index: int) -> void:
 			return
 
 func _add_selected_resource_to_scene() -> void:
+	if scene_model == null:
+		scene_model = SCENE_COMPOSITION_MODEL.new()
 	var resource: Dictionary = _find_project_resource(selected_resource_id)
 	if resource.is_empty():
 		_set_status("Selecciona primero un recurso de la biblioteca.")
