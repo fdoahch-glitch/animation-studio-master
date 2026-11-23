@@ -73,7 +73,11 @@ func save_project(path: String, source: Dictionary) -> Dictionary:
 	if file == null:
 		return {"ok": false, "error": "No se pudo escribir el archivo: %s." % path}
 	file.store_string(JSON.stringify(normalized, "\t"))
+	var write_error := file.get_error()
 	file.close()
+	if write_error != OK:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+		return {"ok": false, "error": "No se pudo completar la escritura del proyecto: %s." % path}
 	return {"ok": true, "project": normalized, "path": path}
 
 func load_project(path: String) -> Dictionary:
