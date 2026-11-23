@@ -3,6 +3,7 @@ extends SceneTree
 const RETARGET = preload("res://scripts/animation_retargeter.gd")
 const BUILDER = preload("res://scripts/character_spatial_rig_builder.gd")
 const ANIMATOR = preload("res://scripts/character_spatial_animator.gd")
+const PROJECT_IO = preload("res://scripts/project_document_io.gd")
 
 func _initialize() -> void:
  var retargeter = RETARGET.new()
@@ -53,6 +54,61 @@ func _initialize() -> void:
  assert(is_equal_approx(float(converted_clip_result.clip.keyframes[0].bone_rotations_degrees.Pelvis[1]), 15.0), "Debe conservar la escala y aplicar el offset de rotación")
  assert(converted_clip_result.unmapped_bones.has("Head"), "Debe informar huesos sin equivalencia")
  assert(clip.keyframes[0].bone_rotations_degrees.has("Pelvis"), "El retargeting no debe modificar el clip original")
+ var calibrated_profile := {
+  "name": "Calibrated humanoid",
+  "mapping": {"Pelvis": "Pelvis", "Spine": "Spine"},
+  "bind_pose_offsets": {"Pelvis": [5.0, 0.0, 0.0]},
+  "root_motion_scale": [2.0, 1.0, 1.0],
+  "root_motion_offset": [0.0, 0.5, 0.0]
+ }
+ assert(retargeter.validate_profile(calibrated_profile).ok, "El perfil calibrado debe validar")
+ var calibrated_clip := {
+  "name": "walk_root",
+  "duration": 1.0,
+  "loop": false,
+  "keyframes": [
+   {"time": 0.0, "bone_rotations_degrees": {"Pelvis": [0.0, 10.0, 0.0], "Spine": [0.0, 0.0, 0.0]}, "root_motion": [0.25, 0.0, 0.0], "ik_targets": {"leg_left": {"position": [0.5, 0.0, 0.0], "pole": [0.0, 0.0, 1.0]}}},
+   {"time": 1.0, "bone_rotations_degrees": {"Pelvis": [0.0, 20.0, 0.0], "Spine": [0.0, 0.0, 0.0]}, "root_motion": [1.25, 0.0, 0.0], "ik_targets": {"leg_left": {"position": [1.0, 0.0, 0.0], "pole": [0.0, 0.0, 1.0]}}}
+  ]
+ }
+ var calibrated_result: Dictionary = retargeter.retarget_animation_clip(calibrated_clip, calibrated_profile)
+ assert(calibrated_result.ok, "Debe retargetear root motion, bind pose e IK")
+ var calibrated_frame: Dictionary = calibrated_result.clip.keyframes[0]
+ assert(is_equal_approx(float(calibrated_frame.bone_rotations_degrees.Pelvis[0]), 5.0), "Debe aplicar offset de bind pose por hueso")
+ assert(is_equal_approx(float(calibrated_frame.root_motion[0]), 0.5) and is_equal_approx(float(calibrated_frame.root_motion[1]), 0.5), "Debe escalar y desplazar root motion")
+ assert(is_equal_approx(float(calibrated_frame.ik_targets.leg_left.position[0]), 1.0) and is_equal_approx(float(calibrated_frame.ik_targets.leg_left.position[1]), 0.5), "Debe transformar el objetivo de contacto IK")
+ assert(not retargeter.validate_profile({"mapping":{"Pelvis":"Pelvis"},"bind_pose_offsets":{"Pelvis":[NAN,0.0,0.0]}}).ok, "Debe rechazar offsets no finitos")
+
+ var project_io = PROJECT_IO.new()
+ var profile_path := "user://retarget_profile_roundtrip.amsproj"
+ var profile_project := {"name":"Retarget profile roundtrip","width":1920,"height":1080,"fps":60,"retarget_profiles":[calibrated_profile]}
+ assert(project_io.save_project(profile_path, profile_project).ok, "Debe guardar perfiles de retargeting en el proyecto")
+ var profile_loaded: Dictionary = project_io.load_project(profile_path)
+ assert(profile_loaded.ok and profile_loaded.project.retarget_profiles.size() == 1, "Debe recuperar el perfil del proyecto")
+ assert(is_equal_approx(float(profile_loaded.project.retarget_profiles[0].root_motion_scale[0]), 2.0), "Debe conservar la escala root motion del perfil")
+ DirAccess.remove_absolute(ProjectSettings.globalize_path(profile_path))
+
+ var root_motion_animator = ANIMATOR.new()
+ root_motion_animator.configure(source, null, source_root)
+ var root_motion_clip := {"name":"Root motion runtime","duration":1.0,"loop":false,"keyframes":[
+  {"time":0.0,"bone_rotations_degrees":{},"root_motion":[0.0,0.0,0.0]},
+  {"time":1.0,"bone_rotations_degrees":{},"root_motion":[1.0,0.0,0.0]}
+ ]}
+ assert(root_motion_animator.play_clip(root_motion_clip), "Debe reproducir un clip con root motion")
+ root_motion_animator._process(0.5)
+ assert(is_equal_approx(source_root.position.x, 0.5), "Debe aplicar el desplazamiento de root motion al nodo del modelo")
+ var ankle_index := source.find_bone("Ankle_L")
+ var ankle_position: Vector3 = root_motion_animator._get_bone_global_transform(ankle_index).origin
+ var contact_array := [ankle_position.x, ankle_position.y, ankle_position.z]
+ var contact_clip := {"name":"Foot contact","duration":1.0,"loop":true,"keyframes":[
+  {"time":0.0,"bone_rotations_degrees":{},"ik_targets":{"leg_left":{"position":contact_array,"pole":[0.0,0.0,1.0]}}},
+  {"time":1.0,"bone_rotations_degrees":{},"ik_targets":{"leg_left":{"position":contact_array,"pole":[0.0,0.0,1.0]}}}
+ ]}
+ assert(root_motion_animator.play_clip(contact_clip), "Debe aceptar un clip con objetivos de contacto")
+ root_motion_animator._process(0.2)
+ assert(root_motion_animator.is_playing(), "El IK de contacto no debe interrumpir el clip activo")
+ root_motion_animator.stop_animation()
+
  var retargeted_animator = ANIMATOR.new()
  var blend_sample: Dictionary = retargeted_animator.blend_pose({"Pelvis": [0.0, 0.0, 0.0]}, {"Pelvis": [0.0, 90.0, 0.0]}, 0.5)
  assert(is_equal_approx(float(blend_sample.Pelvis[1]), 45.0), "Las poses deben interpolarse suavemente")
