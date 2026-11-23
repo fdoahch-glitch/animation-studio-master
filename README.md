@@ -76,3 +76,8 @@ El workflow **Roadmap supervisor** comprueba que existan las diez etapas, que la
 - La persistencia tiene pruebas headless en `tests/test_project_document.gd`.
 
 El editor de escenas todavía no equivale a un compositor visual completo: arrastrar/soltar recursos sobre el lienzo, inspector de objetos, cámara y transiciones siguen pendientes de implementación y validación.
+
+
+## Descargas para Windows
+
+Cada compilación correcta del workflow **Windows desktop build** publica automáticamente una versión preliminar en la sección **Releases** con el ejecutable `AnimationStudioMaster.exe` y el paquete `AnimationStudioMaster-Windows-x64.zip`. También conserva el artefacto en Actions durante 30 días.
