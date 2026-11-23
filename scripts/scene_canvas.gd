@@ -65,7 +65,14 @@ func _draw() -> void:
 		while y < frame.end.y:
 			draw_line(Vector2(frame.position.x, y), Vector2(frame.end.x, y), Color(0.35,0.43,0.52,0.13), 1.0)
 			y += step
-	var objects: Array = scene_data.get("objects", [])
+	var objects: Array = scene_data.get("objects", []).duplicate(true)
+	objects.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var a_depth := float(a.get("transform", {}).get("depth", 0.0))
+		var b_depth := float(b.get("transform", {}).get("depth", 0.0))
+		if str(a.get("type", "")) == "background": a_depth -= 100000.0
+		if str(b.get("type", "")) == "background": b_depth -= 100000.0
+		return a_depth < b_depth
+	)
 	for item in objects:
 		if not bool(item.get("transform", {}).get("visible", true)):
 			continue
