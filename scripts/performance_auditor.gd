@@ -26,7 +26,10 @@ func audit_project(project: Dictionary, budgets: Dictionary = {}) -> Dictionary:
   var path=str(resource.get("path",""))
   var size=int(resource.get("bytes",0))
   if path!="" and FileAccess.file_exists(path):
-   size=FileAccess.get_file_as_bytes(path).size()
+   var resource_file=FileAccess.open(path,FileAccess.READ)
+   if resource_file!=null:
+    size=resource_file.get_length()
+    resource_file.close()
   elif path!="":
    missing.append(path)
   resource_bytes+=size
