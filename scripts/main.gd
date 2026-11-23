@@ -988,6 +988,8 @@ func _play_timeline_clip() -> void:
 func _stop_timeline_clip() -> void:
 	if is_instance_valid(runtime_rig):
 		rig_builder.stop_animation(runtime_rig)
+	if is_instance_valid(runtime_spatial_animator):
+		runtime_spatial_animator.stop_animation()
 	_set_status("Reproducción detenida.")
 
 func _save_timeline_clips() -> void:
