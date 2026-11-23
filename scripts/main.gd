@@ -3429,7 +3429,9 @@ func _video_on_timeline_clip_moved(track_index: int, clip_id: String, new_start:
 	var tracks: Array = _video_timeline().get("tracks", [])
 	if track_index < 0 or track_index >= tracks.size():
 		return
-	var result: Dictionary = video_timeline_model.move_clip(tracks[track_index], clip_id, new_start)
+	var fps := maxi(1, int(_video_timeline().get("fps", 30)))
+	var snapped_start: float = video_timeline_model.snap_time(new_start, fps)
+	var result: Dictionary = video_timeline_model.move_clip(tracks[track_index], clip_id, snapped_start)
 	if not bool(result.get("ok", false)):
 		_set_status(str(result.get("error", "No se pudo mover el clip.")))
 		return
@@ -3441,12 +3443,13 @@ func _video_on_timeline_clip_moved(track_index: int, clip_id: String, new_start:
 			break
 	_video_refresh_tracks()
 	_save_project()
-	_set_status("Clip movido a %.2f s." % new_start)
+	_set_status("Clip movido a %.2f s · ajuste a %d FPS." % [snapped_start, fps])
 
 func _video_select_track(index: int) -> void:
 	video_selected_track = index
 	video_selected_clip = -1
 	_video_refresh_clips()
+	_video_refresh_timeline_view()
 
 func _video_refresh_clips() -> void:
 	if not is_instance_valid(video_clip_list):
@@ -3468,6 +3471,7 @@ func _video_select_clip(index: int) -> void:
 	video_clip_start.value = float(clip.get("start", 0.0))
 	video_clip_end.value = float(clip.get("start", 0.0)) + float(clip.get("duration", 0.0))
 	video_playhead.value = float(clip.get("start", 0.0))
+	_video_refresh_timeline_view()
 
 func _video_selected_track_data() -> Dictionary:
 	var tracks: Array = _video_timeline().get("tracks", [])
