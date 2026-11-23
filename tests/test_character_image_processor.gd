@@ -24,7 +24,11 @@ func _run() -> void:
 		return
 	print("IMAGE_TEST_ADJUSTMENT_OK")
 
-	var result: Dictionary = processor.process_character_image(source_path, 0.16)
+	var adjusted_image := Image.new()
+	if not _check(adjusted_image.load(adjusted_path) == OK, "No se pudo releer la textura ajustada"):
+		return
+	print("IMAGE_TEST_COLORS corner=", adjusted_image.get_pixel(0, 0), " subject=", adjusted_image.get_pixel(30, 30))
+	var result: Dictionary = processor.process_character_image(adjusted_path, 0.03)
 	if not _check(result.get("ok", false), "Falló el procesamiento: " + str(result.get("error", ""))):
 		return
 	print("IMAGE_TEST_PROCESS_OK")
