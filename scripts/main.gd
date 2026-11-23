@@ -1060,6 +1060,7 @@ func _build_runtime_character() -> void:
 		runtime_spatial_animator.name = "Procedural3DAnimator"
 		runtime_spatial_rig.add_child(runtime_spatial_animator)
 		runtime_spatial_animator.configure(spatial_skeleton)
+		runtime_spatial_animator.play_animation("idle")
 		character_output.text = "Rig espacial 3D creado con Skeleton3D, articulaciones independientes y animación procedural local. Genera poses y ciclos desde el botón de animación."
 	elif selected_mode == "2.5D por planos":
 		rig_2d_container.visible = false
@@ -1087,7 +1088,7 @@ func _build_runtime_character() -> void:
 		rig_subviewport.add_child(runtime_rig)
 		_attach_ik_overlay()
 		rig_builder.play_animation(runtime_rig, "idle")
-
+	_refresh_timeline_ui()
 
 func _attach_ik_overlay() -> void:
 	if is_instance_valid(ik_drag_overlay):
