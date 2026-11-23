@@ -241,8 +241,8 @@ func _run_tests() -> void:
 		push_error("No se generó la animación 3D nativa para exportación.")
 		quit(1)
 		return
-	var spatial_builder = SPATIAL_BUILDER.new()
-	var quadruped_rig: Node3D = spatial_builder.build_quadruped_3d("Dinosaurio_CI")
+	var quadruped_builder = SPATIAL_BUILDER.new()
+	var quadruped_rig: Node3D = quadruped_builder.build_quadruped_3d("Dinosaurio_CI")
 	root.add_child(quadruped_rig)
 	var quadruped_skeleton := quadruped_rig.get_node_or_null("Skeleton3D") as Skeleton3D
 	if quadruped_skeleton == null or quadruped_skeleton.find_bone("Tail_04") < 0:
