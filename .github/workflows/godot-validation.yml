@@ -28,5 +28,9 @@ jobs:
         run: godot --headless --path . --quit-after 3
       - name: Test character rig pipeline
         run: godot --headless --path . --script res://tests/test_character_rig.gd
+      - name: Test scene composition model
+        run: godot --headless --path . --script res://tests/test_scene_composition.gd
+      - name: Test project document persistence
+        run: godot --headless --path . --script res://tests/test_project_document.gd
       - name: Test project document persistence
         run: godot --headless --path . --script res://tests/test_project_document.gd
