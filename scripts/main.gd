@@ -1,10 +1,14 @@
 extends Control
 
 const CHARACTER_AI = preload("res://scripts/character_ai.gd")
+const CHARACTER_RIG_BUILDER = preload("res://scripts/character_rig_builder.gd")
 const DEFAULT_PROJECT := {"name":"Mi primera animación","width":1920,"height":1080,"fps":60,"orientation":"Horizontal","visual_mode":"2D","background_mode":"Vacío"}
 
 var project_data: Dictionary = DEFAULT_PROJECT.duplicate(true)
 var ai
+var rig_builder
+var runtime_rig: Node2D
+var rig_subviewport: SubViewport
 var root_ui: VBoxContainer
 var content: Control
 var status_label: Label
@@ -69,6 +73,7 @@ class CharacterPreview:
 
 func _ready() -> void:
 	ai = CHARACTER_AI.new()
+	rig_builder = CHARACTER_RIG_BUILDER.new()
 	ai.name = "CharacterAI"
 	add_child(ai)
 	_build_shell()
@@ -294,9 +299,28 @@ func _show_character_lab() -> void:
 	right.custom_minimum_size.x = 420
 	columns.add_child(right)
 	character_preview = CharacterPreview.new()
-	character_preview.custom_minimum_size = Vector2(420,430)
+	character_preview.custom_minimum_size = Vector2(420,300)
 	character_preview.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right.add_child(character_preview)
+	var rig_title := Label.new()
+	rig_title.text = "RIG 2D EDITABLE · VISTA EN TIEMPO REAL"
+	right.add_child(rig_title)
+	var rig_container := SubViewportContainer.new()
+	rig_container.custom_minimum_size = Vector2(420,280)
+	rig_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rig_container.stretch = true
+	right.add_child(rig_container)
+	rig_subviewport = SubViewport.new()
+	rig_subviewport.size = Vector2i(420,280)
+	rig_subviewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	rig_subviewport.transparent_bg = false
+	rig_subviewport.add_theme_color_override("background_color", Color("#f4f7fb"))
+	rig_container.add_child(rig_subviewport)
+	var animation_controls := GridContainer.new()
+	animation_controls.columns = 3
+	right.add_child(animation_controls)
+	for animation_name in ["idle","walk","run","jump","talk","wave"]:
+		_add_button(animation_controls, animation_name.capitalize(), _play_rig_animation.bind(animation_name))
 	character_output = RichTextLabel.new()
 	character_output.fit_content = true
 	character_output.custom_minimum_size.y = 75
@@ -329,11 +353,27 @@ func _generate_character() -> void:
 	character_preview.queue_redraw()
 	character_output.text = "Ficha creada: %s\nEstilo: %s\nVistas de referencia: frente, perfil, espalda y tres cuartos. El dibujo visible es una guía esquemática, no cuatro ilustraciones finales." % [label,character_style.get_item_text(character_style.selected)]
 	skeleton_output.text = ai.format_rig_summary(generated_character.rig)
+	_build_runtime_character()
 	if not project_data.has("characters"):
 		project_data["characters"] = []
 	project_data["characters"].append(generated_character)
 	_save_project()
 	_set_status("Ficha y esqueleto procedural creados y guardados. Revisa articulaciones antes de animar.")
+
+func _build_runtime_character() -> void:
+	if rig_subviewport == null:
+		return
+	if is_instance_valid(runtime_rig):
+		runtime_rig.queue_free()
+	var label := str(generated_character.get("name", character_name.text if character_name != null else "Personaje"))
+	runtime_rig = rig_builder.build_runtime_rig(label, 1.0)
+	runtime_rig.position = Vector2(210, 145)
+	rig_subviewport.add_child(runtime_rig)
+	rig_builder.play_animation(runtime_rig, "idle")
+
+func _play_rig_animation(animation_name: String) -> void:
+	if is_instance_valid(runtime_rig):
+		rig_builder.play_animation(runtime_rig, animation_name)
 
 func _request_ai_character() -> void:
 	if character_description.text.strip_edges() == "":
