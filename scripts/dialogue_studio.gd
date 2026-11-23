@@ -9,7 +9,8 @@ func add_line(script: Dictionary, speaker: String, text: String, start: float, e
  if clean.is_empty() or speaker.strip_edges().is_empty(): return {"ok":false,"error":"Cada diálogo necesita personaje/locutor y texto."}
  if start<0.0 or end<=start: return {"ok":false,"error":"El intervalo del subtítulo no es válido."}
  var line={"id":"line_%d" % Time.get_ticks_msec(),"speaker":speaker.strip_edges(),"character_id":character_id,"text":clean,"start":start,"end":end}
- script.setdefault("lines",[]).append(line)
+ if not script.has("lines"): script["lines"]=[]
+ script["lines"].append(line)
  script.lines.sort_custom(func(a,b): return float(a.start)<float(b.start))
  script.duration=maxf(float(script.get("duration",0.0)),end)
  return {"ok":true,"line":line}
@@ -30,7 +31,8 @@ func validate_script(script: Dictionary) -> Dictionary:
 func add_take(script: Dictionary, line_id: String, audio_path: String, duration: float, take_number := 1, note := "") -> Dictionary:
  if line_id.is_empty() or audio_path.is_empty() or duration<=0.0: return {"ok":false,"error":"Toma incompleta."}
  var track={"id":"take_%d_%d" % [Time.get_ticks_msec(),take_number],"line_id":line_id,"audio_path":audio_path,"duration":duration,"take_number":take_number,"note":note,"muted":false,"gain_db":0.0,"offset":0.0}
- script.setdefault("audio_tracks",[]).append(track)
+ if not script.has("audio_tracks"): script["audio_tracks"]=[]
+ script["audio_tracks"].append(track)
  return {"ok":true,"track":track}
 
 func select_take(script: Dictionary, line_id: String, take_id: String) -> Dictionary:
