@@ -1464,7 +1464,7 @@ func _apply_3d_ik_target() -> void:
 	if not is_instance_valid(runtime_spatial_animator):
 		_set_status("Construye o importa un rig 3D con Skeleton3D para usar IK.")
 		return
-	var before := runtime_spatial_animator.capture_pose()
+	var before: Dictionary = runtime_spatial_animator.capture_pose()
 	if not before.is_empty():
 		joint_undo_stack.append(before.duplicate(true))
 		if joint_undo_stack.size() > 50:
