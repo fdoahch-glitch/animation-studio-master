@@ -122,7 +122,7 @@ jobs:
 
       - name: Test dialogue and dubbing model
         id: dialogue_studio
-        timeout-minutes: 3
+        timeout-minutes: 1
         continue-on-error: true
         run: godot --headless --path . --script res://tests/test_dialogue_studio.gd
 
