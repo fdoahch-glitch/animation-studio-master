@@ -38,15 +38,20 @@ jobs:
 
       - name: Import project resources
         shell: pwsh
-        run: godot --headless --editor --path . --quit
+        run: |
+          $godotExe = Join-Path $env:USERPROFILE "godot/Godot_v4.3-stable_win64.exe"
+          if (-not (Test-Path $godotExe)) { throw "Godot executable not found: $godotExe" }
+          & $godotExe --headless --editor --path . --quit
+          if ($LASTEXITCODE -ne 0) { throw "Godot import failed with exit code $LASTEXITCODE" }
 
       - name: Export Windows x64 executable
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path build | Out-Null
-          $exportOutput = & godot --headless --verbose --path . --export-release "Windows Desktop" "build/AnimationStudioMaster.exe" 2>&1
+          $godotExe = Join-Path $env:USERPROFILE "godot/Godot_v4.3-stable_win64.exe"
+          if (-not (Test-Path $godotExe)) { throw "Godot executable not found: $godotExe" }
+          & $godotExe --headless --verbose --path . --export-release "Windows Desktop" "build/AnimationStudioMaster.exe"
           $exportExit = $LASTEXITCODE
-          $exportOutput | ForEach-Object { Write-Host $_ }
           if ($exportExit -ne 0) {
             throw "Godot export command failed with exit code $exportExit"
           }
