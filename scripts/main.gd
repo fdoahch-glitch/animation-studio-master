@@ -15,6 +15,8 @@ const SCENE_CANVAS = preload("res://scripts/scene_canvas.gd")
 const SCENE_ASSET_BUTTON = preload("res://scripts/scene_asset_button.gd")
 const RESOURCE_LIBRARY = preload("res://scripts/resource_library.gd")
 const ANIMATION_RETARGETER = preload("res://scripts/animation_retargeter.gd")
+const ENVIRONMENT_DIRECTOR = preload("res://scripts/environment_director.gd")
+const DIALOGUE_STUDIO = preload("res://scripts/dialogue_studio.gd")
 const DEFAULT_PROJECT := {"name":"Mi primera animación","width":1920,"height":1080,"fps":60,"orientation":"Horizontal","visual_mode":"2D","background_mode":"Vacío"}
 
 var project_data: Dictionary = DEFAULT_PROJECT.duplicate(true)
@@ -131,6 +133,11 @@ var character_preview
 var character_output: RichTextLabel
 var skeleton_output: RichTextLabel
 var generated_character: Dictionary = {}
+var environment_director
+var dialogue_studio
+var active_environment: Dictionary = {}
+var active_script: Dictionary = {}
+var dialogue_line_list: ItemList
 
 class CharacterPreview:
 	extends Control
@@ -178,6 +185,8 @@ func _ready() -> void:
 	blueprint_builder = CHARACTER_BLUEPRINT_BUILDER.new()
 	rig_builder = CHARACTER_RIG_BUILDER.new()
 	spatial_builder = CHARACTER_SPATIAL_RIG_BUILDER.new()
+	environment_director = ENVIRONMENT_DIRECTOR.new()
+	dialogue_studio = DIALOGUE_STUDIO.new()
 	image_processor = CHARACTER_IMAGE_PROCESSOR.new()
 	procedural_animator = CHARACTER_PROCEDURAL_ANIMATOR.new()
 	package_io = CHARACTER_PACKAGE_IO.new()
@@ -409,6 +418,12 @@ func _open_section(section: String) -> void:
 		return
 	if section == "Animación":
 		_show_director_timeline()
+		return
+	if section == "Tiempo y clima":
+		_show_environment_studio()
+		return
+	if section == "Audio y doblaje":
+		_show_dialogue_studio()
 		return
 	_clear_content()
 	var page := VBoxContainer.new()
@@ -2777,6 +2792,157 @@ func _load_project_from_path(path: String) -> void:
 	current_project_path = path
 	_show_workspace()
 	_set_status("Proyecto abierto: %s · %d escenas." % [str(project_data.get("name", "Proyecto")), project_data.get("scenes", []).size()])
+
+
+func _ensure_environment() -> void:
+ if active_environment.is_empty():
+  var environments: Array=project_data.get("environments",[])
+  active_environment=environments[0].duplicate(true) if not environments.is_empty() else environment_director.create_environment()
+  if environments.is_empty(): project_data["environments"]=[active_environment.duplicate(true)]
+
+func _show_environment_studio() -> void:
+ _ensure_environment()
+ _clear_content()
+ var page=VBoxContainer.new()
+ page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ page.add_theme_constant_override("separation",8)
+ content.add_child(page)
+ _add_heading(page,"Escenarios · iluminación, tiempo y clima","Configura la atmósfera y capas de fondo del proyecto.")
+ var presets=HBoxContainer.new()
+ page.add_child(presets)
+ for preset in ["dawn","morning","noon","afternoon","sunset","night"]:
+  _add_button(presets,{"dawn":"Amanecer","morning":"Mañana","noon":"Mediodía","afternoon":"Tarde","sunset":"Atardecer","night":"Noche"}[preset],_apply_environment_preset.bind(preset))
+ var hour=HSlider.new()
+ hour.min_value=0
+ hour.max_value=23.99
+ hour.step=0.25
+ hour.value=float(active_environment.get("hour",12.0))
+ page.add_child(_labeled_control(page,"Hora del día",hour))
+ hour.value_changed.connect(func(v): active_environment["hour"]=v; active_environment["sun_energy"]=clampf(1.0-absf(v-12.0)/15.0,0.12,1.15); _save_environment())
+ var weather=OptionButton.new()
+ var weather_names=["clear","rain","snow","wind","fog","dust"]
+ for w in weather_names: weather.add_item({"clear":"Despejado","rain":"Lluvia","snow":"Nieve","wind":"Viento","fog":"Niebla","dust":"Polvo"}[w])
+ weather.select(maxi(0,weather_names.find(str(active_environment.get("weather","clear")))))
+ page.add_child(_labeled_control(page,"Clima",weather))
+ var intensity=HSlider.new()
+ intensity.min_value=0
+ intensity.max_value=1
+ intensity.step=0.01
+ intensity.value=float(active_environment.get("weather_intensity",0.0))
+ page.add_child(_labeled_control(page,"Intensidad",intensity))
+ _add_button(page,"Aplicar clima",func(): environment_director.set_weather(active_environment,weather_names[weather.selected],intensity.value); _save_environment(); _set_status("Perfil de clima aplicado: "+weather_names[weather.selected]))
+ _add_button(page,"Añadir keyframe ambiental",func(): var result=environment_director.add_keyframe(active_environment,float(active_environment.hour)*60.0,{"sun_energy":float(active_environment.get("sun_energy",1.0)),"weather_intensity":float(active_environment.get("weather_intensity",0.0))}); _save_environment(); _set_status("Keyframe guardado." if result.ok else str(result.error)))
+ _add_button(page,"Añadir capa parallax del fondo seleccionado",func(): var result=environment_director.add_background_layer(active_environment,selected_resource_id,float(active_environment.background_layers.size()),0.35); _save_environment(); _set_status("Capa añadida." if result.ok else str(result.error)))
+ _add_button(page,"Guardar ambiente",_save_environment)
+ var summary=Label.new()
+ summary.text="Capas: %d · Luz solar: %.2f · Ambiente: %.2f" % [active_environment.background_layers.size(),float(active_environment.get("sun_energy",1.0)),float(active_environment.get("ambient_energy",1.0))]
+ page.add_child(summary)
+ _add_button(page,"Volver",_show_workspace)
+
+func _labeled_control(parent: Node, label_text: String, control: Control) -> HBoxContainer:
+ var row=HBoxContainer.new()
+ var label=Label.new()
+ label.text=label_text
+ label.custom_minimum_size.x=150
+ row.add_child(label)
+ control.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ row.add_child(control)
+ parent.add_child(row)
+ return row
+
+func _apply_environment_preset(preset: String) -> void:
+ var result=environment_director.set_time_preset(active_environment,preset)
+ if result.ok: _save_environment(); _set_status("Preset horario aplicado: "+preset)
+
+func _save_environment() -> void:
+ var result=environment_director.validate_environment(active_environment)
+ if not result.ok: _set_status(str(result.error)); return
+ project_data["environments"]=[active_environment.duplicate(true)]
+ _save_project()
+
+func _ensure_dialogue_script() -> void:
+ if active_script.is_empty():
+  var scripts: Array=project_data.get("dialogue_scripts",[])
+  active_script=scripts[0].duplicate(true) if not scripts.is_empty() else dialogue_studio.create_script()
+  if scripts.is_empty(): project_data["dialogue_scripts"]=[active_script.duplicate(true)]
+
+func _show_dialogue_studio() -> void:
+ _ensure_dialogue_script()
+ _clear_content()
+ var scroll=ScrollContainer.new()
+ scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ content.add_child(scroll)
+ var page=VBoxContainer.new()
+ page.custom_minimum_size.x=620
+ page.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ page.add_theme_constant_override("separation",8)
+ scroll.add_child(page)
+ _add_heading(page,"Guion, diálogos y doblaje","Crea líneas de diálogo y subtítulos sincronizados; registra tomas de voz importadas.")
+ var speaker=LineEdit.new()
+ speaker.placeholder_text="Personaje / locutor"
+ page.add_child(speaker)
+ var line_text=TextEdit.new()
+ line_text.placeholder_text="Texto del diálogo"
+ line_text.custom_minimum_size.y=90
+ page.add_child(line_text)
+ var times=HBoxContainer.new()
+ page.add_child(times)
+ var start=SpinBox.new()
+ start.min_value=0
+ start.max_value=36000
+ start.step=0.1
+ start.prefix="Inicio "
+ times.add_child(start)
+ var finish=SpinBox.new()
+ finish.min_value=0.1
+ finish.max_value=36000
+ finish.step=0.1
+ finish.value=2.5
+ finish.prefix="Fin "
+ times.add_child(finish)
+ _add_button(page,"Añadir diálogo / subtítulo",func(): var result=dialogue_studio.add_line(active_script,speaker.text,line_text.text,start.value,finish.value); if result.ok: line_text.clear(); _refresh_dialogue_lines(); _save_dialogue_script(); else: _set_status(str(result.error)))
+ dialogue_line_list=ItemList.new()
+ dialogue_line_list.custom_minimum_size.y=180
+ page.add_child(dialogue_line_list)
+ _refresh_dialogue_lines()
+ _add_button(page,"Registrar toma de audio importada",_register_dialogue_take)
+ _add_button(page,"Validar y guardar guion",_save_dialogue_script)
+ var note=Label.new()
+ note.text="La captura directa del micrófono, cuenta regresiva y monitorización aún requieren integración y pruebas específicas en Android y Windows."
+ note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+ page.add_child(note)
+ _add_button(page,"Volver",_show_workspace)
+
+func _refresh_dialogue_lines() -> void:
+ if not is_instance_valid(dialogue_line_list): return
+ dialogue_line_list.clear()
+ for line in active_script.get("lines",[]): dialogue_line_list.add_item("[%0.2f–%0.2f] %s: %s" % [float(line.start),float(line.end),str(line.speaker),str(line.text)])
+
+func _register_dialogue_take() -> void:
+ if active_script.get("lines",[]).is_empty(): _set_status("Añade primero un diálogo."); return
+ var dialog=FileDialog.new()
+ dialog.file_mode=FileDialog.FILE_MODE_OPEN_FILE
+ dialog.access=FileDialog.ACCESS_FILESYSTEM
+ dialog.filters=PackedStringArray(["*.wav, *.ogg, *.mp3 ; Audio"])
+ dialog.file_selected.connect(func(path: String):
+  var duration=1.0
+  if path.get_extension().to_lower()=="wav":
+   var audio=AudioStreamWAV.load_from_file(path)
+   if audio!=null: duration=audio.get_length()
+  var line_id=str(active_script.lines[-1].id)
+  var result=dialogue_studio.add_take(active_script,line_id,path,duration,active_script.audio_tracks.size()+1,"Toma importada")
+  _save_dialogue_script()
+  _set_status("Toma registrada." if result.ok else str(result.error))
+ )
+ add_child(dialog)
+ dialog.popup_centered_ratio(0.8)
+
+func _save_dialogue_script() -> void:
+ var result=dialogue_studio.validate_script(active_script)
+ if not result.ok: _set_status(str(result.error)); return
+ project_data["dialogue_scripts"]=[active_script.duplicate(true)]
+ _save_project()
+ _set_status("Guion guardado · %d líneas · %.2f s." % [result.line_count,result.duration])
 
 func _set_status(message: String) -> void:
 	if is_instance_valid(status_label):
