@@ -815,6 +815,7 @@ func _generate_spatial_pose_set() -> void:
 		for clip in clips:
 			_add_button(animation_controls, str(clip.get("name", "Animación")).capitalize(), _play_rig_animation.bind(str(clip.get("name", ""))))
 	project_data["spatial_animation_clips"] = clips
+	_refresh_timeline_ui()
 	project_data["spatial_procedural_poses"] = procedural_poses.duplicate(true)
 	project_data["spatial_pose_sets"] = project_data.get("spatial_pose_sets", [])
 	project_data["spatial_pose_sets"].append({
@@ -842,6 +843,10 @@ func _apply_generated_pose(pose: Dictionary) -> void:
 
 
 func _timeline_clips() -> Array:
+	if is_instance_valid(runtime_spatial_animator) or (is_instance_valid(character_mode) and character_mode.selected == 2):
+		if not project_data.has("spatial_animation_clips"):
+			project_data["spatial_animation_clips"] = []
+		return project_data["spatial_animation_clips"]
 	if not project_data.has("animation_clips"):
 		project_data["animation_clips"] = []
 	return project_data["animation_clips"]
@@ -907,7 +912,8 @@ func _refresh_timeline_keys() -> void:
 	timeline_key_list.clear()
 	var clip := _active_timeline_clip()
 	for frame in clip.get("keyframes", []):
-		timeline_key_list.add_item("%.2f s · %d articulaciones" % [float(frame.get("time", 0.0)), frame.get("joint_angles", {}).size()])
+		var count := frame.get("bone_rotations_degrees", frame.get("joint_angles", {})).size()
+		timeline_key_list.add_item("%.2f s · %d articulaciones" % [float(frame.get("time", 0.0)), count])
 
 func _on_timeline_playhead_changed(value: float) -> void:
 	if is_instance_valid(timeline_time_input):
@@ -915,10 +921,15 @@ func _on_timeline_playhead_changed(value: float) -> void:
 	var clip := _active_timeline_clip()
 	if clip.is_empty() or not is_instance_valid(runtime_rig):
 		return
-	var pose: Dictionary = timeline_model.sample_pose(clip, value)
-	if not pose.is_empty():
-		rig_builder.stop_animation(runtime_rig)
-		rig_builder.apply_procedural_pose(runtime_rig, pose)
+	if is_instance_valid(runtime_spatial_animator):
+		var spatial_pose: Dictionary = timeline_model.sample_pose(clip, value, "bone_rotations_degrees")
+		if not spatial_pose.is_empty():
+			runtime_spatial_animator.apply_pose({"bone_rotations_degrees": spatial_pose})
+	elif is_instance_valid(runtime_rig):
+		var pose: Dictionary = timeline_model.sample_pose(clip, value)
+		if not pose.is_empty():
+			rig_builder.stop_animation(runtime_rig)
+			rig_builder.apply_procedural_pose(runtime_rig, pose)
 
 func _on_timeline_key_selected(index: int) -> void:
 	var clip := _active_timeline_clip()
@@ -932,10 +943,17 @@ func _capture_timeline_keyframe() -> void:
 		_set_status("Crea un clip y un rig antes de capturar fotogramas.")
 		return
 	var at := clampf(timeline_time_input.value, 0.0, float(clip.get("duration", 2.0)))
-	var pose: Dictionary = rig_builder.capture_procedural_pose(runtime_rig)
-	if pose.is_empty():
-		return
-	clip["keyframes"] = timeline_model.insert_keyframe(clip.get("keyframes", []), at, pose)
+	var pose: Dictionary
+	if is_instance_valid(runtime_spatial_animator):
+		pose = runtime_spatial_animator.capture_pose()
+		if pose.is_empty():
+			return
+		clip["keyframes"] = timeline_model.insert_keyframe(clip.get("keyframes", []), at, pose, "bone_rotations_degrees")
+	else:
+		pose = rig_builder.capture_procedural_pose(runtime_rig)
+		if pose.is_empty():
+			return
+		clip["keyframes"] = timeline_model.insert_keyframe(clip.get("keyframes", []), at, pose)
 	timeline_playhead.value = at
 	_refresh_timeline_keys()
 	_set_status("Fotograma clave guardado en %.2f segundos." % at)
@@ -953,9 +971,16 @@ func _play_timeline_clip() -> void:
 	if clip.is_empty() or clip.get("keyframes", []).is_empty() or not is_instance_valid(runtime_rig):
 		_set_status("El clip necesita al menos un fotograma clave y un rig.")
 		return
+	var speed := animation_speed_slider.value if is_instance_valid(animation_speed_slider) else 1.0
+	if is_instance_valid(runtime_spatial_animator):
+		if runtime_spatial_animator.play_clip(clip, speed):
+			_set_status("Reproduciendo clip 3D «%s»." % clip.get("name", "Clip"))
+		else:
+			_set_status("El clip 3D no contiene fotogramas de huesos válidos.")
+		return
 	var installed: int = rig_builder.add_procedural_animation_set(runtime_rig, [clip])
 	var key := "proc_" + str(clip.get("name", "clip")).validate_filename().to_lower()
-	if installed > 0 and rig_builder.play_animation(runtime_rig, key, animation_speed_slider.value if is_instance_valid(animation_speed_slider) else 1.0):
+	if installed > 0 and rig_builder.play_animation(runtime_rig, key, speed):
 		_set_status("Reproduciendo «%s»." % clip.get("name", "Clip"))
 	else:
 		_set_status("No se pudo reproducir el clip. Comprueba que las claves tengan articulaciones compatibles.")
