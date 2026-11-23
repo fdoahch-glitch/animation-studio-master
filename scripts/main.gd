@@ -765,9 +765,7 @@ func _load_3d_model_from_path(path: String, update_status: bool = true) -> bool:
 			for child in animation_controls.get_children():
 				child.queue_free()
 			_add_button(animation_controls, "Idle procedural", _play_rig_animation.bind("idle"))
-			var imported_animation_names: PackedStringArray = runtime_imported_3d_animation_player.get_animation_list() if is_instance_valid(runtime_imported_3d_animation_player) else PackedStringArray()
-			for animation_name in imported_animation_names:
-				_add_button(animation_controls, str(animation_name), _play_rig_animation.bind(str(animation_name)))
+			_append_imported_3d_animation_buttons()
 		character_output.text = "Modelo 3D importado con Skeleton3D. Se conservan sus mallas, materiales y texturas; puedes reproducir sus animaciones originales y generar poses procedurales usando equivalencias de huesos humanoides."
 		if update_status:
 			_set_status("Modelo 3D con esqueleto importado. Animaciones originales disponibles y rig procedural conectado.")
@@ -777,6 +775,15 @@ func _load_3d_model_from_path(path: String, update_status: bool = true) -> bool:
 			_set_status("Modelo 3D importado, pero no contiene un Skeleton3D reconocible.")
 	_refresh_timeline_ui()
 	return true
+
+func _append_imported_3d_animation_buttons() -> void:
+	if not is_instance_valid(animation_controls) or not is_instance_valid(runtime_imported_3d_animation_player):
+		return
+	for animation_name in runtime_imported_3d_animation_player.get_animation_list():
+		var key := str(animation_name)
+		if key.to_upper() == "RESET":
+			continue
+		_add_button(animation_controls, key, _play_rig_animation.bind(key))
 
 func _find_skeleton_in_node(node: Node) -> Skeleton3D:
 	if node is Skeleton3D:
@@ -915,6 +922,7 @@ func _generate_spatial_pose_set() -> void:
 			child.queue_free()
 		for clip in clips:
 			_add_button(animation_controls, str(clip.get("name", "Animación")).capitalize(), _play_rig_animation.bind(str(clip.get("name", ""))))
+		_append_imported_3d_animation_buttons()
 	project_data["spatial_animation_clips"] = clips
 	_refresh_timeline_ui()
 	project_data["spatial_procedural_poses"] = procedural_poses.duplicate(true)
@@ -1091,6 +1099,8 @@ func _stop_timeline_clip() -> void:
 		rig_builder.stop_animation(runtime_rig)
 	if is_instance_valid(runtime_spatial_animator):
 		runtime_spatial_animator.stop_animation()
+	if is_instance_valid(runtime_imported_3d_animation_player):
+		runtime_imported_3d_animation_player.stop()
 	_set_status("Reproducción detenida.")
 
 func _save_timeline_clips() -> void:
