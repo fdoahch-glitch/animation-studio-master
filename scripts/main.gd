@@ -742,6 +742,7 @@ func _load_3d_model_from_path(path: String, update_status: bool = true) -> bool:
 	model_root.name = "Imported3D_" + path.get_file().get_basename().validate_filename()
 	model_root.set_meta("rig_type", "3D_imported_skeleton")
 	spatial_subviewport.add_child(model_root)
+	_fit_imported_3d_model(model_root)
 	runtime_spatial_rig = model_root
 	rig_2d_container.visible = false
 	spatial_container.visible = true
@@ -779,6 +780,29 @@ func _load_3d_model_from_path(path: String, update_status: bool = true) -> bool:
 			_set_status("Modelo 3D importado. No contiene Skeleton3D; se revisaron las animaciones originales disponibles.")
 	_refresh_timeline_ui()
 	return true
+
+func _fit_imported_3d_model(model_root: Node3D) -> void:
+	var found_mesh := false
+	var bounds := AABB()
+	for node in model_root.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance == null or mesh_instance.mesh == null:
+			continue
+		var relative_transform := model_root.global_transform.affine_inverse() * mesh_instance.global_transform
+		var transformed_bounds: AABB = relative_transform * mesh_instance.get_aabb()
+		if not found_mesh:
+			bounds = transformed_bounds
+			found_mesh = true
+		else:
+			bounds = bounds.merge(transformed_bounds)
+	if not found_mesh:
+		return
+	var maximum_extent := maxf(bounds.size.x, maxf(bounds.size.y, bounds.size.z))
+	if maximum_extent <= 0.0001:
+		return
+	var fit_scale := 2.0 / maximum_extent
+	model_root.scale *= fit_scale
+	model_root.position = Vector3(0.0, 1.0, 0.0) - bounds.get_center() * fit_scale
 
 func _append_imported_3d_animation_buttons() -> void:
 	if not is_instance_valid(animation_controls) or not is_instance_valid(runtime_imported_3d_animation_player):
