@@ -7,11 +7,14 @@ class_name SceneCompositionModel
 const OBJECT_TYPES := ["character", "background", "element", "decoration"]
 const DEFAULT_TRANSFORM := {"x": 0.0, "y": 0.0, "scale_x": 1.0, "scale_y": 1.0, "rotation": 0.0, "depth": 0.0, "visible": true}
 
+var _instance_sequence: int = 0
+
 func create_instance(resource_id: String, resource_type: String, display_name: String, position := Vector2.ZERO) -> Dictionary:
 	if resource_id.strip_edges().is_empty() or not OBJECT_TYPES.has(resource_type):
 		return {}
+	_instance_sequence += 1
 	var item := {
-		"id": "instance_%d_%d" % [Time.get_unix_time_from_system(), Time.get_ticks_msec() % 100000],
+		"id": "instance_%d_%d" % [Time.get_ticks_usec(), _instance_sequence],
 		"resource_id": resource_id,
 		"type": resource_type,
 		"name": display_name.strip_edges() if not display_name.strip_edges().is_empty() else resource_id,

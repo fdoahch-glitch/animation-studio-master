@@ -265,7 +265,7 @@ func _rebuild_blend_shape_targets() -> int:
 		if mesh_instance == null or mesh_instance.mesh == null:
 			continue
 		for index in range(mesh_instance.get_blend_shape_count()):
-			var shape_name := mesh_instance.mesh.get_blend_shape_name(index) if mesh_instance.mesh is ArrayMesh else ""
+			var shape_name: String = str(mesh_instance.mesh.get_blend_shape_name(index)) if mesh_instance.mesh is ArrayMesh else ""
 			if shape_name.is_empty():
 				continue
 			blend_shape_targets.append({"node":mesh_instance,"index":index,"name":shape_name,"normalized":_normalize_expression_name(shape_name)})

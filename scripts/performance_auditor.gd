@@ -27,7 +27,7 @@ func audit_project(project: Dictionary, budgets: Dictionary = {}) -> Dictionary:
 		if not objects is Array:
 			warnings.append("Una escena contiene una lista de objetos inválida: %s." % str(scene.get("name", "Escena")))
 			continue
-		var count := objects.size()
+		var count: int = objects.size()
 		object_total += count
 		max_scene_objects = maxi(max_scene_objects, count)
 		scene_report.append({"id": str(scene.get("id", "")), "name": str(scene.get("name", "Escena")), "objects": count, "duration_seconds": maxf(0.0, float(scene.get("duration_seconds", 0.0)))})

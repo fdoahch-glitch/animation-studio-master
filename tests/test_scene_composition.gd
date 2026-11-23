@@ -18,6 +18,7 @@ func _initialize() -> void:
 	assert(transform.scale_x == 100.0, "Debe limitar escalas inseguras")
 	assert(transform.rotation == 330.0, "Debe normalizar rotación")
 	var prop: Dictionary = model.create_instance("prop_01", "element", "Mesa")
+	assert(actor.id != prop.id, "Cada instancia debe recibir un ID único")
 	assert(model.add_instance(scene, prop).ok)
 	assert(model.reorder_instance(scene, prop.id, 0).ok)
 	assert(scene.objects[0].id == prop.id, "Debe reordenar capas")

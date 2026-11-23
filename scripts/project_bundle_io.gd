@@ -7,8 +7,8 @@ const MAX_ARCHIVE_FILES := 10000
 const MAX_TOTAL_BYTES := 1024 * 1024 * 1024
 
 func export_bundle(path: String, project: Dictionary) -> Dictionary:
-	var writer := ZIPWriter.new()
-	var error := writer.open(path)
+	var writer: ZIPPacker = ZIPPacker.new()
+	var error: int = writer.open(path)
 	if error != OK:
 		return {"ok": false, "error": "No se pudo crear el archivo ZIP: %s" % error}
 	var manifest := {"format": FORMAT, "version": VERSION, "created_at": Time.get_datetime_string_from_system(true), "project": project.duplicate(true), "assets": []}
