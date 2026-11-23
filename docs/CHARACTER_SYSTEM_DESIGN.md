@@ -14,6 +14,7 @@ Crear fichas de personaje, esqueletos 2D editables y animaciones reutilizables s
 - Biblioteca de 20 ciclos de animación con keyframes interpolados.
 - Controles de intensidad de movimiento y velocidad de reproducción.
 - Ajuste manual de articulaciones y pivotes.
+- Captura, guardado y reutilización de poses manuales personalizadas.
 
 ## Cómo funciona la generación
 El módulo `scripts/character_procedural_animator.gd` construye las poses y ciclos mediante funciones trigonométricas, fases, amplitudes y curvas interpoladas. Los ángulos se convierten en pistas de rotación del `AnimationPlayer`. Los rigs 2D estándar y segmentados pueden reproducir los ciclos y recibir poses.
