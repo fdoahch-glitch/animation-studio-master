@@ -94,6 +94,77 @@ func attach_viseme_track(script: Dictionary, line_id: String, visemes: Array) ->
   return {"ok": true, "viseme_count": visemes.size()}
  return {"ok": false, "error": "No se encontró la línea de diálogo."}
 
+func load_pcm_wav(path: String) -> AudioStreamWAV:
+ var file := FileAccess.open(path, FileAccess.READ)
+ if file == null or file.get_length() < 44:
+  if file != null:
+   file.close()
+  return null
+ if file.get_buffer(4).get_string_from_ascii() != "RIFF":
+  file.close()
+  return null
+ file.get_32()
+ if file.get_buffer(4).get_string_from_ascii() != "WAVE":
+  file.close()
+  return null
+ var audio_format := 0
+ var channels := 0
+ var sample_rate := 0
+ var bits_per_sample := 0
+ var pcm_data := PackedByteArray()
+ while file.get_position() + 8 <= file.get_length():
+  var chunk_id := file.get_buffer(4).get_string_from_ascii()
+  var chunk_size := int(file.get_32())
+  var remaining := file.get_length() - file.get_position()
+  if chunk_size < 0 or chunk_size > remaining:
+   file.close()
+   return null
+  if chunk_id == "fmt ":
+   if chunk_size < 16:
+    file.close()
+    return null
+   audio_format = int(file.get_16())
+   channels = int(file.get_16())
+   sample_rate = int(file.get_32())
+   file.get_32()
+   file.get_16()
+   bits_per_sample = int(file.get_16())
+   var extra := chunk_size - 16
+   if extra > 0:
+    file.seek(file.get_position() + extra)
+  elif chunk_id == "data" and pcm_data.is_empty():
+   pcm_data = file.get_buffer(chunk_size)
+  else:
+   file.seek(file.get_position() + chunk_size)
+  if chunk_size % 2 == 1 and file.get_position() < file.get_length():
+   file.seek(file.get_position() + 1)
+ file.close()
+ if audio_format != 1 or channels < 1 or channels > 2 or sample_rate <= 0 or pcm_data.is_empty():
+  return null
+ var stream := AudioStreamWAV.new()
+ stream.mix_rate = sample_rate
+ stream.stereo = channels == 2
+ if bits_per_sample == 16:
+  if pcm_data.size() % (channels * 2) != 0:
+   return null
+  stream.format = AudioStreamWAV.FORMAT_16_BITS
+  stream.data = pcm_data
+ elif bits_per_sample == 8:
+  if pcm_data.size() % channels != 0:
+   return null
+  var signed_pcm := PackedByteArray()
+  signed_pcm.resize(pcm_data.size())
+  for index in range(pcm_data.size()):
+   var signed_value := int(pcm_data[index]) - 128
+   if signed_value < 0:
+    signed_value += 256
+   signed_pcm[index] = signed_value
+  stream.format = AudioStreamWAV.FORMAT_8_BITS
+  stream.data = signed_pcm
+ else:
+  return null
+ return stream
+
 func build_viseme_track_from_wav(audio: AudioStreamWAV, start_time: float = 0.0, frame_rate: float = 30.0) -> Array:
  var result: Array = []
  if not is_instance_valid(audio) or audio.mix_rate <= 0 or frame_rate <= 0.0:
