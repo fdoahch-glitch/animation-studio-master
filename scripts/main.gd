@@ -1231,6 +1231,8 @@ func _import_character_package_from_path(path: String) -> void:
 		"rig_type": str(package.get("rig", {}).get("type", "")),
 		"joint_angles_degrees": package.get("rig", {}).get("joint_angles_degrees", {}).duplicate(true)
 	}
+	var asset_dir := "user://imported_character_packages/" + str(Time.get_unix_time_from_system()) + "_" + str(Time.get_ticks_msec())
+	imported_character_data = package_io.restore_image_assets(package, asset_dir)
 	if not generated_character.is_empty():
 		if not project_data.has("characters"):
 			project_data["characters"] = []
@@ -1240,11 +1242,18 @@ func _import_character_package_from_path(path: String) -> void:
 			character_preview.rig_data = generated_character.get("rig", {})
 			character_preview.queue_redraw()
 		if is_instance_valid(rig_subviewport):
-			_build_runtime_character()
-			if is_instance_valid(runtime_rig):
-				rig_builder.apply_procedural_pose(runtime_rig, project_data["imported_character_package"]["joint_angles_degrees"])
+			if not imported_character_data.get("parts", []).is_empty():
+				_build_imported_segment_rig()
+				if is_instance_valid(runtime_rig):
+					rig_builder.apply_procedural_pose(runtime_rig, project_data["imported_character_package"]["joint_angles_degrees"])
+			else:
+				_build_runtime_character()
+				if is_instance_valid(runtime_rig):
+					rig_builder.apply_procedural_pose(runtime_rig, project_data["imported_character_package"]["joint_angles_degrees"])
+	_refresh_timeline_ui()
 	_save_project()
-	_set_status("Paquete importado: se recuperaron ficha, poses y clips. Las texturas externas deben copiarse aparte.")
+	var texture_message := " Las imágenes y recortes se restauraron." if not imported_character_data.is_empty() else " Este paquete no contiene imágenes incrustadas."
+	_set_status("Paquete importado: ficha, poses y clips recuperados." + texture_message)
 
 func _save_project() -> void:
 	var file := FileAccess.open("user://animation_studio_manager_project.json", FileAccess.WRITE)
