@@ -37,9 +37,6 @@ func _initialize() -> void:
  assert(humanoid_animator.generate_animation_library().size() == 8)
  assert(humanoid_animator.play_animation("run"))
  humanoid_animator.stop_animation()
- source_root.free()
- target_root.free()
- quadruped_root.free()
  var clip := {
   "name": "walk",
   "duration": 1.0,
@@ -50,16 +47,19 @@ func _initialize() -> void:
   ]
  }
  var clip_profile := {"name": "Humanoid target", "mapping": {"mixamorig:Hips": "Pelvis", "mixamorig:Spine": "Spine"}}
- var converted := retargeter.retarget_animation_clip(clip, clip_profile, Vector3.ONE, Vector3(0.0, 5.0, 0.0))
- assert(converted.ok and converted.mapped_bone_count == 2, "Debe convertir clips completos usando equivalencias canónicas")
- assert(converted.clip.keyframes[0].bone_rotations_degrees.has("Pelvis"), "Debe renombrar el hueso de origen al hueso destino")
+ var converted_clip_result: Dictionary = retargeter.retarget_animation_clip(clip, clip_profile, Vector3.ONE, Vector3(0.0, 5.0, 0.0))
+ assert(converted_clip_result.ok and converted_clip_result.mapped_bone_count == 2, "Debe convertir clips completos usando equivalencias canónicas")
+ assert(converted_clip_result.clip.keyframes[0].bone_rotations_degrees.has("Pelvis"), "Debe renombrar el hueso de origen al hueso destino")
  assert(is_equal_approx(float(converted.clip.keyframes[0].bone_rotations_degrees.Pelvis[1]), 15.0), "Debe conservar la escala y aplicar el offset de rotación")
- assert(converted.unmapped_bones.has("Head"), "Debe informar huesos sin equivalencia")
+ assert(converted_clip_result.unmapped_bones.has("Head"), "Debe informar huesos sin equivalencia")
  assert(clip.keyframes[0].bone_rotations_degrees.has("Pelvis"), "El retargeting no debe modificar el clip original")
  var retargeted_animator = ANIMATOR.new()
  retargeted_animator.configure(source)
- assert(retargeted_animator.play_clip(converted.clip), "El clip retargeteado debe poder reproducirse en un esqueleto compatible")
+ assert(retargeted_animator.play_clip(converted_clip_result.clip), "El clip retargeteado debe poder reproducirse en un esqueleto compatible")
  retargeted_animator.stop_animation()
  assert(not retargeter.retarget_animation_clip({"keyframes": []}, clip_profile).ok, "Debe rechazar clips vacíos")
+ source_root.free()
+ target_root.free()
+ quadruped_root.free()
  print("SPATIAL_RIG_AND_RETARGET_TESTS_OK")
  quit(0)

@@ -164,7 +164,7 @@ func _gui_input(event: InputEvent) -> void:
 			_zoom_camera(1.14)
 			accept_event()
 	elif event is InputEventMouseMotion and is_dragging and is_instance_valid(model_pivot):
-		var delta := event.position - last_pointer
+		var delta: Vector2 = event.position - last_pointer
 		model_pivot.rotate_y(-delta.x * 0.012)
 		last_pointer = event.position
 		accept_event()
