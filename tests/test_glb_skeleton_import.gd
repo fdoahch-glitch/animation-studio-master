@@ -14,14 +14,14 @@ func _run() -> void:
 	var humanoid_skeleton: Skeleton3D = humanoid_root.get_node("Skeleton3D")
 	_remove_segment_attachments(humanoid_skeleton)
 	source_root.add_child(humanoid_root)
-	_add_skinned_triangle(source_root, humanoid_skeleton, "../" + humanoid_root.name + "/Skeleton3D", "HumanoidSkin")
+	_add_skinned_triangle(source_root, humanoid_skeleton, NodePath("../" + humanoid_root.name + "/Skeleton3D"), "HumanoidSkin")
 
 	var quadruped_root: Node3D = builder.build_quadruped_3d("ImportedQuadruped")
 	quadruped_root.position = Vector3(2.0, 0.0, 0.0)
 	var quadruped_skeleton: Skeleton3D = quadruped_root.get_node("Skeleton3D")
 	_remove_segment_attachments(quadruped_skeleton)
 	source_root.add_child(quadruped_root)
-	_add_skinned_triangle(source_root, quadruped_skeleton, "../" + quadruped_root.name + "/Skeleton3D", "QuadrupedSkin")
+	_add_skinned_triangle(source_root, quadruped_skeleton, NodePath("../" + quadruped_root.name + "/Skeleton3D"), "QuadrupedSkin")
 
 	root.add_child(source_root)
 	await process_frame
