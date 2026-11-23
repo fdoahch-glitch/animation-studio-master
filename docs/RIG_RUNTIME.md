@@ -40,15 +40,15 @@ La siguiente etapa debe incorporar:
 
 ## Flujo de imagen y rig por sprites
 
-El Estudio de personajes permite importar PNG, JPG o WebP. El procesador local:
-- Elimina el color de fondo aproximado cuando está conectado al borde de la imagen.
-- Calcula los límites de la silueta.
-- Exporta regiones proporcionales iniciales de cabeza, torso, brazos y piernas.
-- Guarda la imagen procesada y los recortes en `user://character_parts/`.
+El Estudio de personajes permite importar PNG, JPG o WebP. El procesador local elimina aproximadamente el color de fondo conectado a los bordes, calcula la silueta y exporta regiones proporcionales iniciales de cabeza, torso, pelvis, brazos y piernas. Guarda la imagen original y los recortes para que el usuario pueda revisarlos. No realiza segmentación semántica automática.
 
-Con un proveedor IA configurado, se pueden recibir máscaras PNG y puntos articulares absolutos. Las máscaras se aplican a cada recorte y las coordenadas se convierten en pivotes. El botón «Construir rig con las piezas recortadas» monta las piezas como Sprite2D independientes, centradas alrededor de sus pivotes y con ciclos de animación base. Las barras de articulación también modifican los pivotes de este rig.
+El botón «Construir rig con las piezas recortadas» monta las regiones como Sprite2D independientes, centradas alrededor de pivotes aproximados. La biblioteca procedural puede aplicar poses y ciclos a los pivotes que existan en el rig. Los recortes pueden solaparse o no coincidir con la anatomía; es necesario corregirlos manualmente para obtener resultados limpios.
 
-Los recortes proporcionales locales son solo una aproximación: se superponen y no reconocen por sí solos anatomía. La calidad del rig de imagen depende de la segmentación, las máscaras y las articulaciones devueltas por el servicio IA.
+## Generador procedural integrado
+
+El módulo `scripts/character_procedural_animator.gd` crea 20 poses y 20 ciclos de movimiento mediante funciones matemáticas y keyframes interpolados. Incluye respiración, caminar, correr, saltar, saludo, conversación, celebración, baile, sigilo, estiramiento, sueño, tropiezo, caminar hacia atrás, miedo, pensamiento y deslizamiento, entre otros.
+
+Las poses se aplican directamente al rig 2D y los ciclos se instalan en su `AnimationPlayer`. La velocidad de reproducción se ajusta desde el control del estudio. Todo se calcula dentro del programa, sin llamadas de red, claves API, modelos, servidores o procesos residentes. El generador anima articulaciones existentes; no crea píxeles nuevos ni reconstruye partes ocultas de una ilustración.
 
 ## Rig espacial
 
