@@ -11,6 +11,10 @@ func _initialize() -> void:
 	var valid := {"id":"a1","name":"Bosque","category":"background","path":"user://animation_studio_assets/background/a1.webp","extension":"webp"}
 	assert(library.validate_resource(valid).ok)
 	assert(not library.validate_resource({"id":"bad","category":"unknown"}).ok)
+	var traversal := library.remove_resource({"path":"user://animation_studio_assets/../../important.cfg"})
+	assert(not traversal.ok)
+	var wrong_category_path := library.remove_resource({"path":"user://animation_studio_assets/unknown/file.webp"})
+	assert(not wrong_category_path.ok)
 	var records := [
 		valid,
 		{"id":"a2","name":"Árbol","category":"decoration","tags":["jungle","tree"]}
