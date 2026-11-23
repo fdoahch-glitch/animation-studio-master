@@ -1,0 +1,17 @@
+extends SceneTree
+const DIRECTOR=preload("res://scripts/environment_director.gd")
+func _initialize():
+ var director=DIRECTOR.new()
+ var env=director.create_environment()
+ assert(director.validate_environment(env).ok)
+ assert(director.set_time_preset(env,"sunset").ok)
+ assert(is_equal_approx(float(env.hour),19.0))
+ assert(director.set_weather(env,"rain",0.7).ok)
+ assert(director.get_particle_profile("rain",0.7).enabled)
+ assert(director.add_background_layer(env,"bg_1",2.0,0.35).ok)
+ director.add_keyframe(env,0.0,{"sun_energy":0.2})
+ director.add_keyframe(env,10.0,{"sun_energy":1.0})
+ assert(is_equal_approx(float(director.sample_environment(env,5.0).sun_energy),0.6))
+ assert(director.validate_environment(env).ok)
+ print("ENVIRONMENT_DIRECTOR_TESTS_OK")
+ quit(0)
