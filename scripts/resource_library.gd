@@ -71,8 +71,13 @@ func import_file(source_path: String, category: String, display_name := "", tags
 
 func remove_resource(resource: Dictionary) -> Dictionary:
 	var path := str(resource.get("path", ""))
-	if path.is_empty() or not path.begins_with("user://animation_studio_assets/"):
+	const managed_prefix := "user://animation_studio_assets/"
+	if path.is_empty() or not path.begins_with(managed_prefix) or path.contains("\\"):
 		return {"ok": false, "error": "La ruta del recurso no pertenece a la biblioteca gestionada."}
+	var relative_path := path.trim_prefix(managed_prefix)
+	var path_parts := relative_path.split("/", false)
+	if path_parts.size() != 2 or not CATEGORIES.has(path_parts[0]) or path_parts[1].is_empty() or path_parts[1] == "." or path_parts[1] == "..":
+		return {"ok": false, "error": "La ruta del recurso no es una ubicación válida de la biblioteca."}
 	if FileAccess.file_exists(path):
 		var error := DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 		if error != OK:
