@@ -17,12 +17,31 @@ func _initialize() -> void:
 	var center := canvas._scene_to_screen(Vector2(960.0,540.0))
 	var restored := canvas._screen_to_scene(center)
 	assert(restored.distance_to(Vector2(960.0,540.0)) < 0.01, "Debe convertir coordenadas sin pérdida")
-	canvas.zoom = 1.5
+	canvas._zoom_at(Vector2(400, 300), 1.5)
 	assert(is_equal_approx(canvas._canvas_scale(), 1.5 * 800.0 / 1920.0), "Debe aplicar zoom")
+	assert(canvas._screen_to_scene(Vector2(400, 300)).distance_to(Vector2(960, 540)) < 0.01, "El zoom debe conservar el punto bajo el cursor")
+	var cursor_scene_before := canvas._screen_to_scene(Vector2(520, 360))
+	canvas._zoom_at(Vector2(520, 360), 1.12)
+	assert(canvas._screen_to_scene(Vector2(520, 360)).distance_to(cursor_scene_before) < 0.01, "El zoom debe anclarse a la posición del cursor")
 	canvas.set_selected("actor")
 	assert(canvas.selected_id == "actor", "Debe conservar selección")
+	canvas.pan = Vector2(35, -20)
 	canvas.reset_view()
 	assert(canvas.zoom == 1.0 and canvas.pan == Vector2.ZERO, "Debe reiniciar cámara")
+	var pan_event := InputEventMouseButton.new()
+	pan_event.button_index = MOUSE_BUTTON_RIGHT
+	pan_event.pressed = true
+	pan_event.position = Vector2(400, 300)
+	canvas._gui_input(pan_event)
+	var pan_motion := InputEventMouseMotion.new()
+	pan_motion.position = Vector2(435, 325)
+	canvas._gui_input(pan_motion)
+	var pan_release := InputEventMouseButton.new()
+	pan_release.button_index = MOUSE_BUTTON_RIGHT
+	pan_release.pressed = false
+	pan_release.position = Vector2(435, 325)
+	canvas._gui_input(pan_release)
+	assert(canvas.pan == Vector2(35, 25), "El botón derecho debe desplazar la cámara")
 	var dropped: Array = []
 	canvas.asset_dropped.connect(func(kind: String, position: Vector2): dropped.append({"kind":kind,"position":position}))
 	assert(canvas._can_drop_data(Vector2.ZERO, {"scene_asset_type":"character"}), "Debe aceptar tipos de recurso admitidos")

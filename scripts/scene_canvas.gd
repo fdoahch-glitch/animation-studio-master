@@ -176,12 +176,10 @@ func _hit_test(screen_point: Vector2) -> String:
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
-			zoom = clampf(zoom * 1.12, 0.2, 4.0)
-			queue_redraw()
+			_zoom_at(event.position, 1.12)
 			accept_event()
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
-			zoom = clampf(zoom / 1.12, 0.2, 4.0)
-			queue_redraw()
+			_zoom_at(event.position, 1.0 / 1.12)
 			accept_event()
 		elif event.button_index == MOUSE_BUTTON_MIDDLE or event.button_index == MOUSE_BUTTON_RIGHT:
 			panning = event.pressed

@@ -22,3 +22,13 @@ Las instancias y transformaciones se guardan dentro de `scenes[].objects` en el 
 ## Alcance de esta etapa
 
 Los botones de la paleta generan marcadores vectoriales de previsualización con identidad de tipo y referencia interna `builtin:`. La conexión con archivos reales, miniaturas importadas y biblioteca de recursos corresponde a la etapa 3. No se presenta un marcador como si fuera un modelo o imagen importados.
+
+
+## Edición de propiedades y navegación del lienzo
+
+- El inspector permite renombrar la instancia seleccionada desde el campo **Nombre**; el cambio se refleja en la lista de capas y se guarda en el proyecto al confirmar con Enter.
+- El zoom con rueda queda anclado al punto situado bajo el cursor, evitando que el contenido salte hacia el centro del lienzo.
+- El desplazamiento de cámara se realiza con el botón derecho o central; **Ajustar vista** restablece zoom y desplazamiento.
+- La prueba headless del lienzo verifica el zoom anclado y el desplazamiento de cámara además de selección, coordenadas, movimiento y colocación por arrastrar/soltar.
+
+La biblioteca real de recursos y la previsualización GLB pertenecen a la etapa 3; los botones de composición de esta etapa permiten crear marcadores de escena que después se pueden vincular a recursos importados.

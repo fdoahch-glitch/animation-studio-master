@@ -77,6 +77,7 @@ var selected_scene_index := -1
 var scene_model
 var scene_canvas
 var selected_instance_id := ""
+var object_name_input: LineEdit
 var object_x: SpinBox
 var object_y: SpinBox
 var object_scale_x: SpinBox
@@ -1006,6 +1007,17 @@ func _show_scene_manager() -> void:
 	_add_button(right, "Subir capa", _raise_selected_layer)
 	_add_button(right, "Bajar capa", _lower_selected_layer)
 	_add_button(right, "Eliminar objeto", _delete_selected_object)
+	var object_name_row := HBoxContainer.new()
+	right.add_child(object_name_row)
+	var object_name_label := Label.new()
+	object_name_label.text = "Nombre"
+	object_name_label.custom_minimum_size.x = 92
+	object_name_row.add_child(object_name_label)
+	object_name_input = LineEdit.new()
+	object_name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	object_name_input.placeholder_text = "Nombre del objeto"
+	object_name_input.text_submitted.connect(_on_scene_object_name_submitted)
+	object_name_row.add_child(object_name_input)
 	_add_scene_numeric_field(right, "Posición X", "x")
 	_add_scene_numeric_field(right, "Posición Y", "y")
 	_add_scene_numeric_field(right, "Escala X", "sx")
@@ -1111,11 +1123,14 @@ func _update_scene_inspector() -> void:
 	var enabled := not item.is_empty()
 	for field in [object_x, object_y, object_scale_x, object_scale_y, object_rotation, object_depth]: field.editable = enabled
 	object_visible.disabled = not enabled
+	object_name_input.editable = enabled
 	if not enabled:
+		object_name_input.text = ""
 		selected_instance_id = ""
 		return
 	var t: Dictionary = item.get("transform", {})
 	scene_canvas_guard = true
+	object_name_input.text = str(item.get("name", "Objeto"))
 	object_x.value = float(t.get("x", 0.0))
 	object_y.value = float(t.get("y", 0.0))
 	object_scale_x.value = float(t.get("scale_x", 1.0))
@@ -1169,6 +1184,25 @@ func _on_canvas_composition_changed() -> void:
 	project_data["scenes"][selected_scene_index] = _active_scene()
 	_update_scene_inspector()
 	_save_project()
+
+func _on_scene_object_name_submitted(value: String) -> void:
+	if selected_instance_id == "":
+		return
+	var cleaned_name := value.strip_edges()
+	if cleaned_name.is_empty():
+		_set_status("El nombre del objeto no puede quedar vacío.")
+		_update_scene_inspector()
+		return
+	var scene := _active_scene()
+	for item in scene.get("objects", []):
+		if str(item.get("id", "")) == selected_instance_id:
+			item["name"] = cleaned_name
+			break
+	project_data["scenes"][selected_scene_index] = scene
+	_refresh_layer_list()
+	scene_canvas.queue_redraw()
+	_save_project()
+	_set_status("Nombre del objeto actualizado.")
 
 func _on_scene_transform_changed(value: float, key: String) -> void:
 	if scene_canvas_guard or selected_instance_id == "": return
