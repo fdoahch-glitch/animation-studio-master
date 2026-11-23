@@ -21,6 +21,10 @@ func _initialize():
  var take=studio.add_take(script,line.line.id,"user://voice/take_01.wav",2.4,1,"Toma inicial")
  assert(take.ok)
  assert(studio.validate_audio_track(take.track).ok)
+ assert(studio.update_take_mix(script,take.track.id,3.0,0.25,false).ok)
+ assert(is_equal_approx(float(take.track.gain_db),0.0), "La actualización de mezcla debe modificar el registro del guion, no la copia de retorno")
+ var takes=studio.get_takes_for_line(script,line.line.id)
+ assert(takes.size()==1 and is_equal_approx(float(takes[0].gain_db),3.0))
  assert(studio.select_take(script,line.line.id,take.track.id).ok)
  var wav := AudioStreamWAV.new()
  wav.mix_rate = 44100
@@ -34,6 +38,19 @@ func _initialize():
  DirAccess.remove_absolute(ProjectSettings.globalize_path(wav_path))
  var visemes=studio.build_viseme_track(PackedVector2Array([Vector2(0.0,0),Vector2(0.4,0),Vector2(0.8,0)]),30)
  assert(visemes.size()==3)
+ var pcm := PackedByteArray()
+ for sample in [0,0,0,8000,8000,8000,24000,24000,24000]:
+  pcm.append(int(sample) & 255)
+  pcm.append((int(sample) >> 8) & 255)
+ var viseme_wav := AudioStreamWAV.new()
+ viseme_wav.mix_rate = 90
+ viseme_wav.stereo = false
+ viseme_wav.format = AudioStreamWAV.FORMAT_16_BITS
+ viseme_wav.data = pcm
+ var pcm_visemes: Array = studio.build_viseme_track_from_wav(viseme_wav, 1.0, 30.0)
+ assert(pcm_visemes.size()==3 and pcm_visemes[0].viseme=="sil" and pcm_visemes[2].viseme=="A", "Debe generar visemas temporizados desde PCM WAV")
+ assert(studio.attach_viseme_track(script,line.line.id,pcm_visemes).ok, "Debe asociar visemas a la línea")
+ assert(script.lines[0].has("visemes") or script.lines[1].has("visemes"), "La línea debe conservar su pista de visemas")
  assert(not studio.add_line(script,"","",0,1).ok)
  print("DIALOGUE_STUDIO_TESTS_OK")
  quit(0)
