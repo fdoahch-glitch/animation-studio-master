@@ -37,3 +37,21 @@ La siguiente etapa debe incorporar:
 - Los segmentos visibles son geometría de referencia, no arte final.
 - Los ciclos son animaciones base de rotación; todavía no incluyen IK, física, captura de movimiento, lipsync fonético ni deformación de una ilustración importada.
 - La reconstrucción 2.5D/3D requiere otro pipeline, geometría y rig específicos.
+
+## Flujo de imagen y rig por sprites
+
+El Estudio de personajes permite importar PNG, JPG o WebP. El procesador local:
+- Elimina el color de fondo aproximado cuando está conectado al borde de la imagen.
+- Calcula los límites de la silueta.
+- Exporta regiones proporcionales iniciales de cabeza, torso, brazos y piernas.
+- Guarda la imagen procesada y los recortes en `user://character_parts/`.
+
+Con un proveedor IA configurado, se pueden recibir máscaras PNG y puntos articulares absolutos. Las máscaras se aplican a cada recorte y las coordenadas se convierten en pivotes. El botón «Construir rig con las piezas recortadas» monta las piezas como Sprite2D independientes, centradas alrededor de sus pivotes y con ciclos de animación base. Las barras de articulación también modifican los pivotes de este rig.
+
+Los recortes proporcionales locales son solo una aproximación: se superponen y no reconocen por sí solos anatomía. La calidad del rig de imagen depende de la segmentación, las máscaras y las articulaciones devueltas por el servicio IA.
+
+## Rig espacial
+
+`scripts/character_spatial_rig_builder.gd` crea un `Skeleton3D` humanoide con huesos para torso, cabeza, brazos, caderas, rodillas y tobillos. Cada segmento visible se adjunta a un hueso mediante `BoneAttachment3D`. También incluye una utilidad para colocar una imagen en un plano 2.5D.
+
+Este módulo es un esqueleto espacial de referencia. No equivale a un modelo 3D de alta calidad, no calcula pesos de skinning y no incluye aún un sistema de animación 3D. El giro 360° de un personaje 2D sigue requiriendo vistas multivista o reconstrucción 3D.
