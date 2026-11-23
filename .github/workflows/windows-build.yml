@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: windows-build-${{ github.ref }}
@@ -66,11 +66,35 @@ jobs:
           }
           Write-Host "Executable created: $size bytes"
 
+      - name: Package Windows download
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "build/AnimationStudioMaster.exe" -DestinationPath "build/AnimationStudioMaster-Windows-x64.zip" -Force
+          if (-not (Test-Path "build/AnimationStudioMaster-Windows-x64.zip")) {
+            throw "Windows ZIP package was not created."
+          }
+
       - name: Upload Windows executable
         uses: actions/upload-artifact@v4
         with:
           name: AnimationStudioMaster-Windows-x64
-          path: build/AnimationStudioMaster.exe
+          path: |
+            build/AnimationStudioMaster.exe
+            build/AnimationStudioMaster-Windows-x64.zip
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
+
+      - name: Publish downloadable Windows release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: windows-build-${{ github.run_number }}
+          name: Animation Studio Master — Windows build ${{ github.run_number }}
+          body: |
+            Compilación automática de Windows x64 generada desde la rama main.
+
+            Descarga AnimationStudioMaster-Windows-x64.zip y extrae su contenido para ejecutar AnimationStudioMaster.exe.
+          prerelease: true
+          files: |
+            build/AnimationStudioMaster.exe
+            build/AnimationStudioMaster-Windows-x64.zip
