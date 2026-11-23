@@ -33,6 +33,11 @@ var runtime_spatial_rig: Node3D
 var runtime_spatial_animator
 var runtime_imported_3d_animation_player: AnimationPlayer
 var imported_3d_model_path := ""
+var retarget_bone_picker: OptionButton
+var retarget_bone_offset_inputs: Array[SpinBox] = []
+var retarget_root_motion_scale_inputs: Array[SpinBox] = []
+var retarget_root_motion_offset_inputs: Array[SpinBox] = []
+var retarget_contact_ik_toggle: CheckBox
 var spatial_subviewport: SubViewport
 var spatial_container: SubViewportContainer
 var rig_2d_container: SubViewportContainer
@@ -1746,6 +1751,23 @@ func _show_character_lab() -> void:
 	_add_button(form, "Auditar esqueleto 3D actual", _audit_current_spatial_rig)
 	_add_button(form, "Crear perfil de retargeting", _create_retarget_profile)
 	_add_button(form, "Retargetar ciclos procedurales al perfil", _retarget_generated_animation_clips)
+	var retarget_options_title := Label.new()
+	retarget_options_title.text = "CALIBRACIÓN DEL RETARGETING"
+	form.add_child(retarget_options_title)
+	retarget_bone_picker = OptionButton.new()
+	retarget_bone_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	retarget_bone_picker.item_selected.connect(_on_retarget_bone_selected)
+	form.add_child(retarget_bone_picker)
+	_add_button(form, "Cargar huesos del modelo importado", _refresh_retarget_bone_picker)
+	retarget_bone_offset_inputs = _add_retarget_vector_control(form, "Offset bind pose · grados", Vector3.ZERO, -180.0, 180.0)
+	_add_button(form, "Guardar offset del hueso seleccionado", _save_retarget_bone_offset)
+	retarget_root_motion_scale_inputs = _add_retarget_vector_control(form, "Escala root motion", Vector3.ONE, 0.0, 10.0)
+	retarget_root_motion_offset_inputs = _add_retarget_vector_control(form, "Offset root motion", Vector3.ZERO, -100.0, 100.0)
+	retarget_contact_ik_toggle = CheckBox.new()
+	retarget_contact_ik_toggle.text = "Resolver contactos con IK durante clips"
+	retarget_contact_ik_toggle.button_pressed = bool(project_data.get("retarget_settings", {}).get("contact_ik_enabled", true))
+	form.add_child(retarget_contact_ik_toggle)
+	_add_button(form, "Guardar calibración de retargeting", _save_retarget_settings)
 	build_segmented_button = _add_button(form, "Construir rig con las piezas recortadas", _build_imported_segment_rig)
 	build_segmented_button.disabled = true
 	_add_button(form, "Generar poses y animaciones procedurales", _generate_procedural_pose_set)
@@ -2197,10 +2219,16 @@ func _retarget_generated_animation_clips() -> void:
 		return
 	var retargeter = ANIMATION_RETARGETER.new()
 	var profile: Dictionary = profiles[-1]
+	var settings: Dictionary = project_data.get("retarget_settings", {})
+	var retarget_options := {
+		"bind_pose_offsets": settings.get("bind_pose_offsets", profile.get("bind_pose_offsets", {})),
+		"root_motion_scale": settings.get("root_motion_scale", profile.get("root_motion_scale", [1.0,1.0,1.0])),
+		"root_motion_offset": settings.get("root_motion_offset", profile.get("root_motion_offset", [0.0,0.0,0.0]))
+	}
 	var converted: Array = []
 	var skipped := 0
 	for clip in clips:
-		var result: Dictionary = retargeter.retarget_animation_clip(clip, profile)
+		var result: Dictionary = retargeter.retarget_animation_clip(clip, profile, Vector3.ONE, Vector3.ZERO, retarget_options)
 		if bool(result.get("ok", false)):
 			converted.append(result.clip)
 		else:
@@ -2226,6 +2254,8 @@ func _play_retargeted_spatial_clip(clip: Dictionary) -> void:
 	if not is_instance_valid(runtime_spatial_animator):
 		_set_status("Importa un personaje 3D con Skeleton3D para reproducir el clip retargeteado.")
 		return
+	var settings: Dictionary = project_data.get("retarget_settings", {})
+	runtime_spatial_animator.set_contact_ik_enabled(bool(settings.get("contact_ik_enabled", true)))
 	if runtime_spatial_animator.play_clip(clip):
 		_set_status("Reproduciendo clip retargeteado: " + str(clip.get("name", "Animación")))
 	else:
@@ -2243,7 +2273,15 @@ func _create_retarget_profile() -> void:
 	var target_root: Node3D = spatial_builder.build_quadruped_3d("RetargetTarget") if archetype == "quadruped" else spatial_builder.build_humanoid_3d("RetargetTarget")
 	var target := target_root.get_node_or_null("Skeleton3D") as Skeleton3D
 	var retargeter = ANIMATION_RETARGETER.new()
-	var profile: Dictionary = retargeter.create_profile(source, target, str(runtime_spatial_rig.name) + " → " + archetype)
+	var settings: Dictionary = project_data.get("retarget_settings", {})
+	var profile: Dictionary = retargeter.create_profile(
+		source,
+		target,
+		str(runtime_spatial_rig.name) + " → " + archetype,
+		settings.get("bind_pose_offsets", {}),
+		_retarget_vector_from_inputs(retarget_root_motion_scale_inputs, Vector3(settings.get("root_motion_scale", [1.0,1.0,1.0])[0], settings.get("root_motion_scale", [1.0,1.0,1.0])[1], settings.get("root_motion_scale", [1.0,1.0,1.0])[2])) if not retarget_root_motion_scale_inputs.is_empty() else Vector3.ONE,
+		_retarget_vector_from_inputs(retarget_root_motion_offset_inputs, Vector3.ZERO)
+	)
 	target_root.free()
 	if not bool(profile.get("ok",false)):
 		_set_status(str(profile.get("error","No se pudo crear el perfil de retargeting.")))
@@ -2256,6 +2294,90 @@ func _create_retarget_profile() -> void:
 	if is_instance_valid(skeleton_output):
 		skeleton_output.text = summary
 	_set_status(summary)
+
+func _add_retarget_vector_control(parent: Node, label_text: String, initial: Vector3, minimum: float, maximum: float) -> Array[SpinBox]:
+	var row := HBoxContainer.new()
+	parent.add_child(row)
+	var label := Label.new()
+	label.text = label_text
+	label.custom_minimum_size.x = 190
+	row.add_child(label)
+	var controls: Array[SpinBox] = []
+	for value in [initial.x, initial.y, initial.z]:
+		var spin := SpinBox.new()
+		spin.min_value = minimum
+		spin.max_value = maximum
+		spin.step = 0.1
+		spin.value = value
+		spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(spin)
+		controls.append(spin)
+	return controls
+
+func _retarget_vector_from_inputs(inputs: Array[SpinBox], fallback: Vector3) -> Vector3:
+	if inputs.size() < 3:
+		return fallback
+	return Vector3(inputs[0].value, inputs[1].value, inputs[2].value)
+
+func _retarget_vector_to_array(value: Vector3) -> Array:
+	return [value.x, value.y, value.z]
+
+func _refresh_retarget_bone_picker() -> void:
+	if not is_instance_valid(retarget_bone_picker):
+		return
+	retarget_bone_picker.clear()
+	if not is_instance_valid(runtime_spatial_rig):
+		_set_status("Importa primero un modelo 3D con Skeleton3D.")
+		return
+	var source := _find_skeleton_in_node(runtime_spatial_rig)
+	if source == null:
+		_set_status("El modelo importado no contiene un esqueleto.")
+		return
+	for index in range(source.get_bone_count()):
+		retarget_bone_picker.add_item(source.get_bone_name(index))
+	if retarget_bone_picker.item_count > 0:
+		retarget_bone_picker.select(0)
+		_on_retarget_bone_selected(0)
+	_set_status("Huesos disponibles para calibrar: %d" % source.get_bone_count())
+
+func _on_retarget_bone_selected(index: int) -> void:
+	if not is_instance_valid(retarget_bone_picker) or index < 0 or index >= retarget_bone_picker.item_count:
+		return
+	var settings: Dictionary = project_data.get("retarget_settings", {})
+	var offsets: Dictionary = settings.get("bind_pose_offsets", {})
+	var offset := _as_retarget_vector3(offsets.get(retarget_bone_picker.get_item_text(index), [0.0,0.0,0.0]))
+	for axis in range(mini(3, retarget_bone_offset_inputs.size())):
+		retarget_bone_offset_inputs[axis].value = [offset.x, offset.y, offset.z][axis]
+
+func _as_retarget_vector3(value: Variant) -> Vector3:
+	if value is Vector3:
+		return value
+	if value is Array and value.size() >= 3:
+		return Vector3(float(value[0]), float(value[1]), float(value[2]))
+	return Vector3.ZERO
+
+func _save_retarget_bone_offset() -> void:
+	if not is_instance_valid(retarget_bone_picker) or retarget_bone_picker.selected < 0:
+		_set_status("Selecciona un hueso para guardar su offset.")
+		return
+	var settings: Dictionary = project_data.get("retarget_settings", {})
+	var offsets: Dictionary = settings.get("bind_pose_offsets", {})
+	offsets[retarget_bone_picker.get_item_text(retarget_bone_picker.selected)] = _retarget_vector_to_array(_retarget_vector_from_inputs(retarget_bone_offset_inputs, Vector3.ZERO))
+	settings["bind_pose_offsets"] = offsets
+	project_data["retarget_settings"] = settings
+	_save_project()
+	_set_status("Offset bind pose guardado para " + retarget_bone_picker.get_item_text(retarget_bone_picker.selected))
+
+func _save_retarget_settings() -> void:
+	var settings: Dictionary = project_data.get("retarget_settings", {})
+	settings["root_motion_scale"] = _retarget_vector_to_array(_retarget_vector_from_inputs(retarget_root_motion_scale_inputs, Vector3.ONE))
+	settings["root_motion_offset"] = _retarget_vector_to_array(_retarget_vector_from_inputs(retarget_root_motion_offset_inputs, Vector3.ZERO))
+	settings["contact_ik_enabled"] = is_instance_valid(retarget_contact_ik_toggle) and retarget_contact_ik_toggle.button_pressed
+	project_data["retarget_settings"] = settings
+	_save_project()
+	if is_instance_valid(runtime_spatial_animator):
+		runtime_spatial_animator.set_contact_ik_enabled(bool(settings["contact_ik_enabled"]))
+	_set_status("Calibración de retargeting guardada en el proyecto.")
 
 func _on_3d_model_selected(path: String) -> void:
 	_load_3d_model_from_path(path, true)
