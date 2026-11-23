@@ -12,13 +12,13 @@ El editor exporta archivos con:
 - `animation_clips`: clips 2D con duración, repetición y fotogramas clave.
 - `spatial_poses` y `spatial_animation_clips`: poses y ciclos para Skeleton3D, con rotaciones X/Y/Z por hueso.
 - `image_import`: tamaño de la imagen y rectángulos de recortes.
-- `assets`: imágenes fuente, imagen procesada y recortes codificados en Base64.
+- `assets`: imágenes fuente, imagen procesada, recortes y, si se importó, el modelo GLB/glTF codificado en Base64.
 
-Los recursos se incluyen cuando están disponibles y el conjunto no supera 20 MB sin codificar. El paquete completo admite hasta 32 MB. Los paquetes de versiones desconocidas, estructura inválida o recursos que exceden el límite se rechazan.
+Los recursos se incluyen cuando están disponibles y el conjunto no supera 20 MB sin codificar. Los modelos GLB/glTF se pueden importar con sus mallas, materiales, texturas, esqueleto y animaciones originales; al exportar un paquete se incrusta el archivo 3D si cabe en ese límite. El paquete completo admite hasta 32 MB. Los paquetes de versiones desconocidas, estructura inválida o recursos que exceden el límite se rechazan.
 
 Cada fotograma 2D contiene `time` (segundos) y `joint_angles` (grados). Los fotogramas 3D usan `bone_rotations_degrees`, con vectores `[X, Y, Z]` por hueso. Los nombres de articulaciones y huesos se conservan como claves de texto, por ejemplo `head`, `torso`, `elbow_left`, `knee_right` o `Shoulder_L`.
 
-El editor 3D genera 19 poses base y ocho ciclos procedurales (idle, walk, run, jump, wave, talk, dance y sneak). Los clips se pueden reproducir desde sus fotogramas exportados y volver a importar en el editor. El rig actual usa piezas geométricas ancladas a huesos; todavía no aplica skinning automático a mallas artísticas externas.
+El editor permite importar modelos GLB/glTF con esqueleto, reconocer nombres humanoides habituales (incluidos nombres de huesos tipo Mixamo), conservar las animaciones originales y añadir movimiento procedural. El editor 3D genera 19 poses base y ocho ciclos procedurales (idle, walk, run, jump, wave, talk, dance y sneak). Los clips se pueden reproducir desde sus fotogramas exportados y volver a importar en el editor. El rig actual usa piezas geométricas ancladas a huesos; todavía no aplica skinning automático a mallas artísticas externas.
 
 ## Hoja de sprites PNG
 
