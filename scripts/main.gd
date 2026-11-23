@@ -1548,7 +1548,8 @@ func _export_character_package_to_path(path: String) -> void:
 		imported_character_data,
 		project_data.get("spatial_procedural_poses", []),
 		project_data.get("spatial_animation_clips", []),
-		runtime_spatial_animator.capture_pose() if is_instance_valid(runtime_spatial_animator) else {}
+		runtime_spatial_animator.capture_pose() if is_instance_valid(runtime_spatial_animator) else {},
+		imported_3d_model_path
 	)
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
@@ -1584,6 +1585,7 @@ func _import_character_package_from_path(path: String) -> void:
 	}
 	var asset_dir := "user://imported_character_packages/" + str(Time.get_unix_time_from_system()) + "_" + str(Time.get_ticks_msec())
 	imported_character_data = package_io.restore_image_assets(package, asset_dir)
+	imported_3d_model_path = str(imported_character_data.get("model_path", ""))
 	if not generated_character.is_empty():
 		if not project_data.has("characters"):
 			project_data["characters"] = []
@@ -1596,7 +1598,11 @@ func _import_character_package_from_path(path: String) -> void:
 		if imported_rig_type.begins_with("3D"):
 			character_mode.select(2)
 			procedural_poses = project_data["spatial_procedural_poses"].duplicate(true)
-			_build_runtime_character()
+			var restored_model_loaded := false
+			if imported_3d_model_path != "":
+				restored_model_loaded = _load_3d_model_from_path(imported_3d_model_path, false)
+			if not restored_model_loaded:
+				_build_runtime_character()
 			if is_instance_valid(runtime_spatial_animator):
 				runtime_spatial_animator.apply_pose({"bone_rotations_degrees": package.get("rig", {}).get("bone_rotations_degrees", {})})
 			if is_instance_valid(pose_controls):
@@ -1609,6 +1615,7 @@ func _import_character_package_from_path(path: String) -> void:
 					child.queue_free()
 				for clip in project_data["spatial_animation_clips"]:
 					_add_button(animation_controls, str(clip.get("name", "Animación")).capitalize(), _play_rig_animation.bind(str(clip.get("name", ""))))
+				_append_imported_3d_animation_buttons()
 		elif is_instance_valid(rig_subviewport):
 			character_mode.select(0)
 			if not imported_character_data.get("parts", []).is_empty():
