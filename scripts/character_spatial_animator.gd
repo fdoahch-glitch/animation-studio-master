@@ -11,6 +11,10 @@ var playback_speed := 1.0
 var motion_intensity := 1.0
 var playing := false
 var active_clip: Dictionary = {}
+var active_viseme_track: Array = []
+var viseme_elapsed := 0.0
+var viseme_duration := 0.0
+var viseme_loop := false
 var model_root: Node3D
 var blend_shape_targets: Array[Dictionary] = []
 var facial_expression_values: Dictionary = {}
@@ -198,7 +202,11 @@ func is_playing() -> bool:
 	return playing
 
 func _process(delta: float) -> void:
-	if not playing or not is_instance_valid(skeleton):
+	if not is_instance_valid(skeleton):
+		return
+	if not active_viseme_track.is_empty():
+		_process_viseme_track(delta)
+	if not playing:
 		return
 	elapsed += delta * playback_speed
 	if not active_clip.is_empty():
@@ -423,6 +431,88 @@ func get_blend_shape_names() -> Array:
 
 func has_facial_expressions() -> bool:
 	return not blend_shape_targets.is_empty()
+
+func play_viseme_track(track: Array, duration: float = 0.0, looping: bool = false) -> bool:
+	if not is_instance_valid(skeleton) or track.is_empty():
+		return false
+	active_viseme_track = track.duplicate(true)
+	active_viseme_track.sort_custom(func(a, b): return float(a.get("time", 0.0)) < float(b.get("time", 0.0)))
+	viseme_elapsed = 0.0
+	viseme_duration = maxf(duration, float(active_viseme_track[-1].get("time", 0.0)) + 1.0 / 30.0)
+	viseme_loop = looping
+	set_process(true)
+	return true
+
+func stop_viseme_track() -> void:
+	active_viseme_track.clear()
+	viseme_elapsed = 0.0
+	viseme_duration = 0.0
+	apply_facial_expression("Neutral")
+
+func _process_viseme_track(delta: float) -> void:
+	viseme_elapsed += delta
+	if viseme_elapsed >= viseme_duration:
+		if viseme_loop:
+			viseme_elapsed = fposmod(viseme_elapsed, viseme_duration)
+		else:
+			var final_frame: Dictionary = active_viseme_track[-1]
+			apply_viseme(str(final_frame.get("viseme", "sil")), float(final_frame.get("weight", 0.0)))
+			active_viseme_track.clear()
+			return
+	var left: Dictionary = active_viseme_track[0]
+	var right: Dictionary = active_viseme_track[-1]
+	if viseme_elapsed <= float(active_viseme_track[0].get("time", 0.0)):
+		right = active_viseme_track[0]
+	elif viseme_elapsed >= float(active_viseme_track[-1].get("time", 0.0)):
+		left = right
+	else:
+		for index in range(active_viseme_track.size() - 1):
+			var first: Dictionary = active_viseme_track[index]
+			var second: Dictionary = active_viseme_track[index + 1]
+			if viseme_elapsed >= float(first.get("time", 0.0)) and viseme_elapsed <= float(second.get("time", 0.0)):
+				left = first
+				right = second
+				break
+	var span := float(right.get("time", 0.0)) - float(left.get("time", 0.0))
+	var amount := clampf((viseme_elapsed - float(left.get("time", 0.0))) / span, 0.0, 1.0) if span > 0.0001 else 0.0
+	var weight := lerpf(float(left.get("weight", 0.0)), float(right.get("weight", 0.0)), amount)
+	var viseme := str(left.get("viseme", "sil")) if amount < 0.5 else str(right.get("viseme", "sil"))
+	apply_viseme(viseme, weight)
+
+func apply_viseme(viseme: String, intensity: float = 1.0) -> int:
+	if blend_shape_targets.is_empty():
+		return 0
+	var key := viseme.to_lower().strip_edges()
+	if key == "sil" or key == "silence":
+		return apply_facial_expression("Neutral", 1.0)
+	var aliases := {
+		"a": ["visemeaa", "aa", "jawopen", "mouthopen"],
+		"o": ["visemeoh", "oh", "moutho", "mouthopen"],
+		"e": ["visimeeh", "visimee", "ee", "mouthsmile"],
+		"i": ["visimee", "visimee", "ee", "mouthsmile"],
+		"u": ["visimeu", "visimeu", "mouthu", "mouthopen"]
+	}
+	var targets: Array = aliases.get(key, aliases.get("a", []))
+	var amount_scale := clampf(intensity, 0.0, 1.0)
+	var applied := 0
+	for target in blend_shape_targets:
+		var mesh_instance := target.get("node") as MeshInstance3D
+		if not is_instance_valid(mesh_instance):
+			continue
+		var normalized := str(target.get("normalized", ""))
+		var value := 0.0
+		var matched := false
+		for alias in targets:
+			if normalized.contains(str(alias)):
+				value = amount_scale
+				matched = true
+		mesh_instance.set_blend_shape_value(int(target.get("index", -1)), value)
+		if matched:
+			applied += 1
+	if applied == 0:
+		return apply_facial_expression("Hablar", amount_scale)
+	facial_expression_values = capture_facial_expression()
+	return applied
 
 func apply_facial_expression(expression_name: String, intensity: float = 1.0) -> int:
 	if blend_shape_targets.is_empty():
