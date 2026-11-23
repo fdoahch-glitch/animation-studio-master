@@ -19,7 +19,7 @@ function mimeFromName(name) {
   return "image/png";
 }
 
-export function sampleAnimationClip(clip, timeSeconds) {
+export function sampleAnimationClip(clip, timeSeconds, poseKey = "joint_angles") {
   if (!clip || !Array.isArray(clip.keyframes) || clip.keyframes.length === 0) return {};
   const frames = [...clip.keyframes].sort((a, b) => Number(a.time) - Number(b.time));
   const duration = Math.max(0, Number(clip.duration) || 0);
@@ -41,16 +41,22 @@ export function sampleAnimationClip(clip, timeSeconds) {
     }
   }
 
-  const a = left.joint_angles || {};
-  const b = right.joint_angles || {};
+  const a = left[poseKey] || {};
+  const b = right[poseKey] || {};
   const span = Number(right.time) - Number(left.time);
   const amount = span > 0 ? Math.min(1, Math.max(0, (time - Number(left.time)) / span)) : 0;
   const names = new Set([...Object.keys(a), ...Object.keys(b)]);
   const pose = {};
   for (const name of names) {
-    const start = Number(a[name] ?? b[name] ?? 0);
-    const end = Number(b[name] ?? a[name] ?? 0);
-    pose[name] = start + (end - start) * amount;
+    const startValue = a[name] ?? b[name] ?? 0;
+    const endValue = b[name] ?? a[name] ?? 0;
+    if (Array.isArray(startValue) && Array.isArray(endValue) && startValue.length >= 3 && endValue.length >= 3) {
+      pose[name] = [0, 1, 2].map((axis) => Number(startValue[axis]) + (Number(endValue[axis]) - Number(startValue[axis])) * amount);
+    } else {
+      const start = Number(startValue);
+      const end = Number(endValue);
+      pose[name] = start + (end - start) * amount;
+    }
   }
   return pose;
 }
@@ -74,6 +80,7 @@ export async function loadCharacterPackage(input) {
   }
 
   const clips = Array.isArray(data.animation_clips) ? data.animation_clips : [];
+  const spatialClips = Array.isArray(data.spatial_animation_clips) ? data.spatial_animation_clips : [];
   return {
     data,
     assetUrls,
@@ -82,7 +89,14 @@ export async function loadCharacterPackage(input) {
     },
     sampleClip(name, timeSeconds) {
       const clip = clips.find((item) => item.name === name);
-      return clip ? sampleAnimationClip(clip, timeSeconds) : null;
+      return clip ? sampleAnimationClip(clip, timeSeconds, "joint_angles") : null;
+    },
+    getSpatialClip(name) {
+      return spatialClips.find((clip) => clip.name === name) || null;
+    },
+    sampleSpatialClip(name, timeSeconds) {
+      const clip = spatialClips.find((item) => item.name === name);
+      return clip ? sampleAnimationClip(clip, timeSeconds, "bone_rotations_degrees") : null;
     },
     getImageImport() {
       const metadata = data.image_import || {};
