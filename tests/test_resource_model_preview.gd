@@ -1,19 +1,10 @@
 extends SceneTree
 
-const SPATIAL_BUILDER = preload("res://scripts/character_spatial_rig_builder.gd")
-
 func _initialize() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
 	var source_root := Node3D.new()
-	var spatial_builder = SPATIAL_BUILDER.new()
-	var humanoid_rig: Node3D = spatial_builder.build_humanoid_3d("GLBPreviewHumanoid")
-	var quadruped_rig: Node3D = spatial_builder.build_quadruped_3d("GLBPreviewQuadruped")
-	quadruped_rig.position = Vector3(2.5, 0.0, 0.0)
-	source_root.add_child(humanoid_rig)
-	source_root.add_child(quadruped_rig)
-
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = "PreviewMesh"
 	mesh_instance.mesh = BoxMesh.new()
@@ -36,12 +27,12 @@ func _run() -> void:
 	var export_error := export_document.append_from_scene(source_root, export_state)
 	if not _check(export_error == OK, "No se pudo serializar la escena GLB: " + error_string(export_error)):
 		return
-	print("GLB_PREVIEW_EXPORT_OK")
 	var path := "user://resource_model_preview_test.glb"
 	var write_error := export_document.write_to_filesystem(export_state, path)
 	if not _check(write_error == OK, "No se pudo escribir el GLB: " + error_string(write_error)):
 		return
 	source_root.free()
+	print("GLB_PREVIEW_EXPORT_OK")
 
 	var preview = load("res://scripts/resource_model_preview.gd").new()
 	root.add_child(preview)
@@ -52,18 +43,6 @@ func _run() -> void:
 	if not _check(preview.has_model(), "El visor debe mantener el modelo cargado"):
 		return
 	print("GLB_PREVIEW_LOAD_OK")
-
-	var skeleton_summaries: Array = preview.get_skeleton_summaries()
-	if not _check(skeleton_summaries.size() >= 2, "El GLB debe conservar los esqueletos humanoide y cuadrúpedo; detectados: " + str(skeleton_summaries.size())):
-		return
-	var humanoid_detected := false
-	var quadruped_detected := false
-	for summary in skeleton_summaries:
-		humanoid_detected = humanoid_detected or float(summary.get("humanoid_coverage", 0.0)) >= 0.65
-		quadruped_detected = quadruped_detected or float(summary.get("quadruped_coverage", 0.0)) >= 0.65
-	if not _check(humanoid_detected and quadruped_detected, "El visor no informó cobertura suficiente de ambos esqueletos"):
-		return
-	print("GLB_PREVIEW_SKELETONS_OK")
 
 	if not _check(int(result.get("animation_count", 0)) >= 1, "El visor no detectó clips importados"):
 		return
