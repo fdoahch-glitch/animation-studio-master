@@ -59,12 +59,17 @@ func validate_project(source: Variant) -> Dictionary:
 	for key in ["name", "width", "height", "fps"]:
 		if not source.has(key):
 			return {"ok": false, "error": "Falta el campo obligatorio: %s." % key}
-	if int(source.get("width", 0)) < 1 or int(source.get("height", 0)) < 1:
-		return {"ok": false, "error": "La resolución debe ser positiva."}
+	if not source.get("name") is String or str(source.get("name", "")).strip_edges().is_empty():
+		return {"ok": false, "error": "El nombre del proyecto no puede estar vacío."}
+	var width := int(source.get("width", 0))
+	var height := int(source.get("height", 0))
+	if width < 320 or height < 320 or width > 7680 or height > 7680:
+		return {"ok": false, "error": "La resolución debe estar entre 320 y 7680 píxeles."}
 	if int(source.get("fps", 0)) < 1 or int(source.get("fps", 0)) > 120:
 		return {"ok": false, "error": "Los FPS deben estar entre 1 y 120."}
-	if source.has("scenes") and not source["scenes"] is Array:
-		return {"ok": false, "error": "La lista de escenas debe ser un arreglo."}
+	for key in ["scenes", "characters", "assets"]:
+		if source.has(key) and not source[key] is Array:
+			return {"ok": false, "error": "El campo %s debe ser un arreglo." % key}
 	return {"ok": true, "error": ""}
 
 func save_project(path: String, source: Dictionary) -> Dictionary:
