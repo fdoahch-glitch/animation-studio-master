@@ -4,7 +4,7 @@ const CHARACTER_AI = preload("res://scripts/character_ai.gd")
 const DEFAULT_PROJECT := {"name":"Mi primera animación","width":1920,"height":1080,"fps":60,"orientation":"Horizontal","visual_mode":"2D","background_mode":"Vacío"}
 
 var project_data: Dictionary = DEFAULT_PROJECT.duplicate(true)
-var ai: Node
+var ai
 var root_ui: VBoxContainer
 var content: Control
 var status_label: Label
@@ -20,7 +20,7 @@ var character_description: TextEdit
 var character_style: OptionButton
 var character_mode: OptionButton
 var character_view: OptionButton
-var character_preview: Control
+var character_preview
 var character_output: RichTextLabel
 var skeleton_output: RichTextLabel
 var generated_character: Dictionary = {}
