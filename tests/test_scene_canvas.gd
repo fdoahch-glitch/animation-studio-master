@@ -30,5 +30,33 @@ func _initialize() -> void:
 	canvas._drop_data(Vector2(400,300), {"scene_asset_type":"decoration"})
 	assert(dropped.size() == 1 and dropped[0].kind == "decoration", "Debe emitir la colocación por arrastre")
 	assert(dropped[0].position.distance_to(Vector2(960,540)) < 0.01, "Debe convertir la posición soltada al espacio de escena")
+	var interactive = CANVAS.new()
+	interactive.size = Vector2(800, 600)
+	var interactive_scene := {
+		"id": "drag_test",
+		"objects": [
+			{"id":"back","type":"background","name":"Fondo","transform":{"x":960.0,"y":540.0,"scale_x":1.0,"scale_y":1.0,"rotation":0.0,"depth":0.0,"visible":true}},
+			{"id":"move_me","type":"character","name":"Mover","transform":{"x":960.0,"y":540.0,"scale_x":1.0,"scale_y":1.0,"rotation":0.0,"depth":1.0,"visible":true}}
+		]
+	}
+	root.add_child(interactive)
+	interactive.set_scene_data(interactive_scene, 1920.0, 1080.0)
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	press.position = Vector2(400, 300)
+	interactive._gui_input(press)
+	assert(interactive.selected_id == "move_me", "Debe seleccionar el objeto superior")
+	var motion := InputEventMouseMotion.new()
+	motion.position = Vector2(450, 320)
+	interactive._gui_input(motion)
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	release.pressed = false
+	release.position = Vector2(450, 320)
+	interactive._gui_input(release)
+	assert(float(interactive_scene.objects[1].transform.x) > 960.0, "Debe mover el objeto al arrastrar")
+	assert(float(interactive_scene.objects[1].transform.y) > 540.0, "Debe mover el objeto verticalmente")
+	interactive.queue_free()
 	print("SCENE_CANVAS_TESTS_OK")
 	quit(0)
