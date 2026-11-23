@@ -2,11 +2,17 @@ extends Control
 
 const CHARACTER_AI = preload("res://scripts/character_ai.gd")
 const CHARACTER_RIG_BUILDER = preload("res://scripts/character_rig_builder.gd")
+const CHARACTER_IMAGE_PROCESSOR = preload("res://scripts/character_image_processor.gd")
 const DEFAULT_PROJECT := {"name":"Mi primera animación","width":1920,"height":1080,"fps":60,"orientation":"Horizontal","visual_mode":"2D","background_mode":"Vacío"}
 
 var project_data: Dictionary = DEFAULT_PROJECT.duplicate(true)
 var ai
 var rig_builder
+var image_processor
+var image_dialog: FileDialog
+var imported_preview: TextureRect
+var image_result_output: RichTextLabel
+var imported_character_data: Dictionary = {}
 var runtime_rig: Node2D
 var rig_subviewport: SubViewport
 var root_ui: VBoxContainer
@@ -74,9 +80,16 @@ class CharacterPreview:
 func _ready() -> void:
 	ai = CHARACTER_AI.new()
 	rig_builder = CHARACTER_RIG_BUILDER.new()
+	image_processor = CHARACTER_IMAGE_PROCESSOR.new()
 	ai.name = "CharacterAI"
 	add_child(ai)
 	_build_shell()
+	image_dialog = FileDialog.new()
+	image_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	image_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	image_dialog.filters = PackedStringArray(["*.png, *.jpg, *.jpeg, *.webp ; Imágenes de personaje"])
+	image_dialog.file_selected.connect(_on_character_image_selected)
+	add_child(image_dialog)
 	_show_wizard()
 
 func _build_shell() -> void:
@@ -292,6 +305,7 @@ func _show_character_lab() -> void:
 	character_mode = _add_option(form, "Tipo de rig", ["2D esquelético","2.5D por planos","3D esqueleto","Híbrido"], 0)
 	character_view = _add_option(form, "Vista previa", ["Frente","Perfil","Espalda","Tres cuartos"], 0)
 	character_view.item_selected.connect(_on_character_view_changed)
+	_add_button(form, "Importar imagen y preparar piezas", _open_character_image_dialog)
 	_add_button(form, "Crear diseño base + esqueleto", _generate_character)
 	_add_button(form, "Preparar prompt para IA", _request_ai_character)
 	var right := VBoxContainer.new()
@@ -324,6 +338,16 @@ func _show_character_lab() -> void:
 	right.add_child(animation_controls)
 	for animation_name in ["idle","walk","run","jump","talk","wave"]:
 		_add_button(animation_controls, animation_name.capitalize(), _play_rig_animation.bind(animation_name))
+	imported_preview = TextureRect.new()
+	imported_preview.custom_minimum_size = Vector2(420, 220)
+	imported_preview.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	imported_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	right.add_child(imported_preview)
+	image_result_output = RichTextLabel.new()
+	image_result_output.fit_content = true
+	image_result_output.custom_minimum_size.y = 100
+	image_result_output.text = "Importa una ilustración PNG/JPG/WebP para eliminar un fondo plano y preparar recortes anatómicos aproximados."
+	right.add_child(image_result_output)
 	character_output = RichTextLabel.new()
 	character_output.fit_content = true
 	character_output.custom_minimum_size.y = 75
@@ -345,6 +369,38 @@ func _on_character_view_changed(index: int) -> void:
 	if is_instance_valid(character_preview):
 		character_preview.view_name = character_view.get_item_text(index)
 		character_preview.queue_redraw()
+
+func _open_character_image_dialog() -> void:
+	if image_dialog != null:
+		image_dialog.popup_centered_ratio(0.82)
+
+func _on_character_image_selected(path: String) -> void:
+	_set_status("Analizando imagen y preparando recortes...")
+	var result: Dictionary = image_processor.process_character_image(path, 0.16)
+	if not bool(result.get("ok", false)):
+		image_result_output.text = "No se pudo preparar la imagen: " + str(result.get("error", "Error desconocido"))
+		_set_status("La preparación de imagen no se completó.")
+		return
+	imported_character_data = result
+	var preview_image := Image.new()
+	var load_error := preview_image.load(str(result.get("processed_image", "")))
+	if load_error == OK:
+		imported_preview.texture = ImageTexture.create_from_image(preview_image)
+	var parts: Array = result.get("parts", [])
+	var lines := PackedStringArray()
+	lines.append("Imagen: %s × %s" % [result.width, result.height])
+	lines.append("Píxeles de fondo retirados: %s" % result.background_removed_pixels)
+	lines.append("Recortes preparados: %d" % parts.size())
+	for part in parts:
+		lines.append("• %s — %s" % [part.label, part.path])
+	lines.append("Método: eliminación de fondo conectado + regiones proporcionales.")
+	lines.append("IMPORTANTE: los recortes son aproximados; revisa y corrige las máscaras antes de riggear.")
+	image_result_output.text = "\n".join(lines)
+	if not project_data.has("image_imports"):
+		project_data["image_imports"] = []
+	project_data["image_imports"].append(result)
+	_save_project()
+	_set_status("Imagen preparada. Revisa los recortes y corrige las zonas antes de animar.")
 
 func _generate_character() -> void:
 	var label := character_name.text.strip_edges()
