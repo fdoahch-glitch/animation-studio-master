@@ -6,7 +6,6 @@ const SPATIAL_BUILDER = preload("res://scripts/character_spatial_rig_builder.gd"
 const PROCEDURAL_ANIMATOR = preload("res://scripts/character_procedural_animator.gd")
 const IK_DRAG_OVERLAY = preload("res://scripts/ik_drag_overlay.gd")
 const ANIMATION_TIMELINE = preload("res://scripts/animation_timeline.gd")
-const PACKAGE_IO = preload("res://scripts/character_package_io.gd")
 
 func _initialize() -> void:
 	call_deferred("_run_tests")
