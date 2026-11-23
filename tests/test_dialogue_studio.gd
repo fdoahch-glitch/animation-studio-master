@@ -50,7 +50,7 @@ func _initialize():
  viseme_wav.data = pcm
  var viseme_wav_path := "user://dialogue_viseme_test.wav"
  assert(viseme_wav.save_to_wav(viseme_wav_path) == OK, "Debe escribir el WAV PCM de prueba")
- var loaded_wav: AudioStreamWAV = AudioStreamWAV.load_from_file(viseme_wav_path)
+ var loaded_wav: AudioStreamWAV = studio.load_pcm_wav(viseme_wav_path)
  assert(loaded_wav != null and not loaded_wav.data.is_empty(), "Debe poder volver a abrir el WAV PCM")
  var pcm_visemes: Array = studio.build_viseme_track_from_wav(loaded_wav, 0.0, 30.0)
  assert(pcm_visemes.size()==3 and pcm_visemes[0].viseme=="sil" and pcm_visemes[2].viseme=="A", "Debe generar visemas temporizados desde PCM WAV")
