@@ -110,7 +110,7 @@ func validate_resource(resource: Dictionary) -> Dictionary:
 		return {"ok": false, "error": "La extensión no corresponde a la categoría."}
 	var path := str(resource.get("path", ""))
 	var managed_prefix := "user://animation_studio_assets/" + category + "/"
-	if not path.begins_with(managed_prefix) or path.contains("\\\\"):
+	if not path.begins_with(managed_prefix) or path.contains("\\"):
 		return {"ok": false, "error": "La ruta no pertenece a la carpeta de su categoría."}
 	var filename := path.get_file()
 	if filename.is_empty() or filename == "." or filename == ".." or path.trim_prefix(managed_prefix).contains("/"):
