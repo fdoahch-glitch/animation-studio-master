@@ -116,9 +116,24 @@ func retarget_animation_clip(clip: Dictionary, profile: Dictionary, rotation_sca
     unmapped_bones[str(source_bone)] = true
     continue
    var rotation := _as_vector3(source_pose[source_bone]) * rotation_scale + rotation_offset
+   rotation += _as_vector3(bind_pose_offsets.get(str(source_bone), bind_pose_offsets.get(target_bone, Vector3.ZERO)))
    target_pose[target_bone] = [snappedf(rotation.x, 0.001), snappedf(rotation.y, 0.001), snappedf(rotation.z, 0.001)]
    mapped_bones[target_bone] = true
   var target_frame := {"time": maxf(0.0, float(source_frame.get("time", 0.0))), "bone_rotations_degrees": target_pose}
+  var source_root_motion: Variant = source_frame.get("root_motion", source_frame.get("root_translation", null))
+  if source_root_motion != null:
+   var root_motion := _as_vector3(source_root_motion) * root_motion_scale + root_motion_offset
+   target_frame["root_motion"] = [root_motion.x, root_motion.y, root_motion.z]
+  var source_ik_targets: Variant = source_frame.get("ik_targets", {})
+  if source_ik_targets is Dictionary and not source_ik_targets.is_empty():
+   var converted_targets: Dictionary = {}
+   for chain_name in source_ik_targets:
+    var target_data: Variant = source_ik_targets[chain_name]
+    var position_value: Variant = target_data.get("position", Vector3.ZERO) if target_data is Dictionary else target_data
+    var position := _as_vector3(position_value) * root_motion_scale + root_motion_offset
+    var pole := _as_vector3(target_data.get("pole", Vector3(0.0, 0.0, 1.0))) if target_data is Dictionary else Vector3(0.0, 0.0, 1.0)
+    converted_targets[str(chain_name)] = {"position": [position.x, position.y, position.z], "pole": [pole.x, pole.y, pole.z]}
+   target_frame["ik_targets"] = converted_targets
   if source_frame.has("easing"):
    target_frame["easing"] = source_frame["easing"]
   retargeted_frames.append(target_frame)
